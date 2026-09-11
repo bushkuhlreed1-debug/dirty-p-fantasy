@@ -49,7 +49,7 @@ export default async function Home() {
         <a href="/owners">Owners</a>
         <a href="/champions">Champions</a>
         <a href="/records">Records</a>
-        <a href="/rivalries">Rivalries</a>
+<a href="/head-to-head">Head-to-Head</a>
         <a href="/goat">GOAT Rankings</a>
       </section>
 
