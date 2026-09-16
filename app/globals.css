@@ -1,74 +1,75 @@
 /* =========================
-   CURRENT SEASON PANELS
+   2026 STANDINGS ROWS
 ========================= */
 
-.current-panel {
-  background: #12161b;
-  border: 1px solid #222830;
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-.standings-header {
+.standings-row {
   display: grid;
   grid-template-columns: 60px 1fr 100px 110px;
   align-items: center;
-  padding: 13px 20px;
-  background: #181d23;
-  border-bottom: 1px solid #2a3038;
-  color: #7f8995;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  min-height: 68px;
+  padding: 10px 20px;
+  border-bottom: 1px solid #222830;
 }
 
-.matchups-header {
-  display: grid;
-  grid-template-columns: 1fr 120px;
-  align-items: center;
-  padding: 13px 20px;
-  background: #181d23;
-  border-bottom: 1px solid #2a3038;
-  color: #7f8995;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+.standings-row:last-child {
+  border-bottom: none;
 }
 
-.empty-current-state {
-  padding: 34px 20px;
-  text-align: center;
+.standings-row:hover {
+  background: #161b21;
 }
 
-.empty-current-state strong {
-  display: block;
-  margin-bottom: 8px;
-  color: #ffffff;
+.standings-rank {
+  color: #d6a84b;
   font-size: 1rem;
+  font-weight: 900;
 }
 
-.empty-current-state p {
-  max-width: 560px;
-  margin: 0 auto;
-  color: #8f98a3;
+.standings-team {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.standings-team strong {
+  color: #ffffff;
+  font-size: 0.95rem;
+}
+
+.standings-team span {
+  color: #7f8995;
+  font-size: 0.78rem;
+}
+
+.standings-record {
+  color: #ffffff;
+  font-size: 0.95rem;
+}
+
+.standings-pf {
+  color: #aeb6c1;
   font-size: 0.9rem;
-  line-height: 1.6;
 }
 
-/* MOBILE CURRENT SEASON */
+/* MOBILE STANDINGS */
 
 @media (max-width: 600px) {
-  .standings-header {
+  .standings-row {
     grid-template-columns: 40px 1fr 60px 70px;
-    padding: 12px 14px;
+    min-height: 64px;
+    padding: 10px 14px;
   }
 
-  .matchups-header {
-    grid-template-columns: 1fr 80px;
-    padding: 12px 14px;
+  .standings-team strong {
+    font-size: 0.85rem;
   }
 
-  .empty-current-state {
-    padding: 28px 16px;
+  .standings-team span {
+    font-size: 0.7rem;
+  }
+
+  .standings-record,
+  .standings-pf {
+    font-size: 0.82rem;
   }
 }
