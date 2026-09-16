@@ -83,6 +83,25 @@ export default async function OwnerProfile({ params }) {
       });
 
   // =========================
+  // ALL-FRANCHISE TEAM
+  // =========================
+
+  const { data: allFranchiseTeam } =
+    await supabase
+      .from("all_franchise_teams")
+      .select(`
+        owner_id,
+        franchise_slot,
+        espn_player_id,
+        player_name,
+        position,
+        season_year,
+        dirty_p_team_name,
+        fantasy_points
+      `)
+      .eq("owner_id", ownerId);
+
+  // =========================
   // ALL MATCHUPS
   // =========================
 
@@ -122,6 +141,34 @@ export default async function OwnerProfile({ params }) {
   const owners = allOwners || [];
 
   // =========================
+  // ALL-FRANCHISE TEAM ORDER
+  // =========================
+
+  const franchiseSlotOrder = {
+    QB: 1,
+    RB1: 2,
+    RB2: 3,
+    WR1: 4,
+    WR2: 5,
+    TE: 6,
+    FLEX: 7,
+    K: 8,
+    "D/ST": 9,
+  };
+
+  const franchiseTeam = [
+    ...(allFranchiseTeam || []),
+  ].sort(
+    (a, b) =>
+      (franchiseSlotOrder[
+        a.franchise_slot
+      ] || 99) -
+      (franchiseSlotOrder[
+        b.franchise_slot
+      ] || 99)
+  );
+
+  // =========================
   // HELPERS
   // =========================
 
@@ -144,6 +191,14 @@ export default async function OwnerProfile({ params }) {
     }
 
     return `${wins}-${losses}`;
+  }
+
+  function normalizeTeamName(name) {
+    return String(name || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(/[’‘]/g, "'")
+      .toLowerCase();
   }
 
   function getGameType(matchup) {
@@ -192,6 +247,9 @@ export default async function OwnerProfile({ params }) {
       playoffTier.includes(
         "winner"
       ) ||
+      playoffTier.includes(
+        "championship"
+      ) ||
       matchup.is_championship ===
         true ||
       matchup.is_third_place ===
@@ -207,6 +265,13 @@ export default async function OwnerProfile({ params }) {
   function getGameDetails(matchup) {
     const ownerIsHome =
       matchup.home_owner_id === ownerId;
+
+    const ownerIsAway =
+      matchup.away_owner_id === ownerId;
+
+    if (!ownerIsHome && !ownerIsAway) {
+      return null;
+    }
 
     const opponentId = ownerIsHome
       ? matchup.away_owner_id
@@ -224,13 +289,33 @@ export default async function OwnerProfile({ params }) {
         : matchup.home_score
     );
 
+    const officialWinner = String(
+      matchup.winner || ""
+    ).toUpperCase();
+
     let result = "T";
 
-    if (ownerScore > opponentScore) {
+    if (officialWinner === "HOME") {
+      result = ownerIsHome
+        ? "W"
+        : "L";
+    } else if (
+      officialWinner === "AWAY"
+    ) {
+      result = ownerIsAway
+        ? "W"
+        : "L";
+    } else if (
+      officialWinner === "TIE"
+    ) {
+      result = "T";
+    } else if (
+      ownerScore > opponentScore
+    ) {
       result = "W";
-    }
-
-    if (ownerScore < opponentScore) {
+    } else if (
+      ownerScore < opponentScore
+    ) {
       result = "L";
     }
 
@@ -257,36 +342,67 @@ export default async function OwnerProfile({ params }) {
       (matchup) =>
         matchup.season_year < 2026
     )
-    .map((matchup) => ({
-      ...matchup,
-      ...getGameDetails(matchup),
-    }));
+    .map((matchup) => {
+      const details =
+        getGameDetails(matchup);
+
+      if (!details) {
+        return null;
+      }
+
+      return {
+        ...matchup,
+        ...details,
+      };
+    })
+    .filter(Boolean);
 
   // =========================
   // TEAM NAME HISTORY
   // =========================
 
-  const teamNameGroups = [];
+  const teamNameMap = new Map();
 
   teams.forEach((team) => {
-    const existing =
-      teamNameGroups.find(
-        (group) =>
-          group.team_name ===
-          team.team_name
+    const normalizedName =
+      normalizeTeamName(
+        team.team_name
       );
 
-    if (existing) {
-      existing.seasons.push(
+    if (!normalizedName) {
+      return;
+    }
+
+    if (
+      !teamNameMap.has(
+        normalizedName
+      )
+    ) {
+      teamNameMap.set(
+        normalizedName,
+        {
+          team_name:
+            team.team_name,
+          seasons: new Set(),
+        }
+      );
+    }
+
+    teamNameMap
+      .get(normalizedName)
+      .seasons.add(
         team.season_year
       );
-    } else {
-      teamNameGroups.push({
-        team_name: team.team_name,
-        seasons: [team.season_year],
-      });
-    }
   });
+
+  const teamNameGroups = Array.from(
+    teamNameMap.values()
+  ).map((team) => ({
+    team_name: team.team_name,
+    seasons: Array.from(
+      team.seasons
+    ),
+  }));
 
   // =========================
   // SEASON HISTORY
@@ -300,7 +416,8 @@ export default async function OwnerProfile({ params }) {
           season.season_year
       );
 
-      let postseason = "Missed Playoffs";
+      let postseason =
+        "Missed Playoffs";
 
       if (season.champion) {
         postseason = "Champion";
@@ -396,13 +513,16 @@ export default async function OwnerProfile({ params }) {
         )
     );
 
-  const wins = gamesWithScores.filter(
-    (game) => game.result === "W"
-  );
+  const wins =
+    gamesWithScores.filter(
+      (game) =>
+        game.result === "W"
+    );
 
   const losses =
     gamesWithScores.filter(
-      (game) => game.result === "L"
+      (game) =>
+        game.result === "L"
     );
 
   const highestScore =
@@ -427,7 +547,8 @@ export default async function OwnerProfile({ params }) {
     wins.length > 0
       ? [...wins].sort(
           (a, b) =>
-            b.margin - a.margin
+            b.margin -
+            a.margin
         )[0]
       : null;
 
@@ -435,7 +556,8 @@ export default async function OwnerProfile({ params }) {
     losses.length > 0
       ? [...losses].sort(
           (a, b) =>
-            a.margin - b.margin
+            a.margin -
+            b.margin
         )[0]
       : null;
 
@@ -443,7 +565,8 @@ export default async function OwnerProfile({ params }) {
     wins.length > 0
       ? [...wins].sort(
           (a, b) =>
-            a.margin - b.margin
+            a.margin -
+            b.margin
         )[0]
       : null;
 
@@ -451,7 +574,8 @@ export default async function OwnerProfile({ params }) {
     losses.length > 0
       ? [...losses].sort(
           (a, b) =>
-            b.margin - a.margin
+            b.margin -
+            a.margin
         )[0]
       : null;
 
@@ -464,37 +588,49 @@ export default async function OwnerProfile({ params }) {
       ? [...results].sort(
           (a, b) => {
             const aGames =
-              Number(a.wins || 0) +
-              Number(a.losses || 0) +
-              Number(a.ties || 0);
+              Number(
+                a.wins || 0
+              ) +
+              Number(
+                a.losses || 0
+              ) +
+              Number(
+                a.ties || 0
+              );
 
             const bGames =
-              Number(b.wins || 0) +
-              Number(b.losses || 0) +
-              Number(b.ties || 0);
+              Number(
+                b.wins || 0
+              ) +
+              Number(
+                b.losses || 0
+              ) +
+              Number(
+                b.ties || 0
+              );
 
             const aPct =
               aGames > 0
-                ? (Number(
-                    a.wins || 0
-                  ) +
+                ? (
+                    Number(
+                      a.wins || 0
+                    ) +
                     Number(
                       a.ties || 0
-                    ) *
-                      0.5) /
-                  aGames
+                    ) * 0.5
+                  ) / aGames
                 : 0;
 
             const bPct =
               bGames > 0
-                ? (Number(
-                    b.wins || 0
-                  ) +
+                ? (
+                    Number(
+                      b.wins || 0
+                    ) +
                     Number(
                       b.ties || 0
-                    ) *
-                      0.5) /
-                  bGames
+                    ) * 0.5
+                  ) / bGames
                 : 0;
 
             if (bPct !== aPct) {
@@ -569,7 +705,9 @@ export default async function OwnerProfile({ params }) {
     return (
       <>
         <strong>
-          {game.ownerScore.toFixed(2)}
+          {game.ownerScore.toFixed(
+            2
+          )}
         </strong>
 
         <span>
@@ -615,7 +753,9 @@ export default async function OwnerProfile({ params }) {
             OWNER PROFILE
           </p>
 
-          <h1>{owner.name}</h1>
+          <h1>
+            {owner.name}
+          </h1>
 
           <p>
             {owner.active
@@ -666,9 +806,15 @@ export default async function OwnerProfile({ params }) {
                 <th>Record</th>
                 <th>PF</th>
                 <th>PA</th>
-                <th>Reg. Finish</th>
-                <th>Final Finish</th>
-                <th>Postseason</th>
+                <th>
+                  Reg. Finish
+                </th>
+                <th>
+                  Final Finish
+                </th>
+                <th>
+                  Postseason
+                </th>
               </tr>
             </thead>
 
@@ -715,13 +861,17 @@ export default async function OwnerProfile({ params }) {
                     </td>
 
                     <td>
-                      {season.regular_season_finish ||
-                        "—"}
+                      {
+                        season.regular_season_finish ||
+                        "—"
+                      }
                     </td>
 
                     <td>
-                      {season.final_finish ||
-                        "—"}
+                      {
+                        season.final_finish ||
+                        "—"
+                      }
                     </td>
 
                     <td>
@@ -743,6 +893,93 @@ export default async function OwnerProfile({ params }) {
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/* ALL-FRANCHISE TEAM */}
+
+      <section className="owner-profile-section">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">
+              FRANCHISE GREATS
+            </p>
+
+            <h2>
+              All-Franchise Team
+            </h2>
+          </div>
+
+          <span>
+            Best Single-Season Players
+          </span>
+        </div>
+
+        {franchiseTeam.length > 0 ? (
+          <div className="all-franchise-grid">
+            {franchiseTeam.map(
+              (player) => (
+                <div
+                  className="all-franchise-card"
+                  key={`${player.franchise_slot}-${player.espn_player_id}-${player.season_year}`}
+                >
+                  <div className="all-franchise-slot">
+                    {
+                      player.franchise_slot
+                    }
+                  </div>
+
+                  <div className="all-franchise-player">
+                    {
+                      player.player_name
+                    }
+                  </div>
+
+                  <div className="all-franchise-meta">
+                    <span>
+                      {player.position}
+                    </span>
+
+                    <span>
+                      {
+                        player.season_year
+                      }
+                    </span>
+                  </div>
+
+                  <div className="all-franchise-team-name">
+                    {
+                      player.dirty_p_team_name ||
+                      "—"
+                    }
+                  </div>
+
+                  <div className="all-franchise-points">
+                    {Number(
+                      player.fantasy_points ||
+                        0
+                    ).toFixed(2)}{" "}
+                    <small>
+                      PTS
+                    </small>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        ) : (
+          <div className="current-panel">
+            <div className="empty-current-state">
+              <strong>
+                No All-Franchise Team data yet.
+              </strong>
+
+              <p>
+                Player history has not been
+                loaded for this owner.
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* HEAD TO HEAD */}
@@ -895,7 +1132,9 @@ export default async function OwnerProfile({ params }) {
                 </span>
               </>
             ) : (
-              <strong>—</strong>
+              <strong>
+                —
+              </strong>
             )}
           </div>
 
@@ -936,7 +1175,11 @@ export default async function OwnerProfile({ params }) {
             (team) => (
               <div
                 className="team-history-row"
-                key={team.team_name}
+                key={
+                  normalizeTeamName(
+                    team.team_name
+                  )
+                }
               >
                 <strong>
                   {team.team_name}
@@ -993,7 +1236,9 @@ export default async function OwnerProfile({ params }) {
                 (game) => (
                   <tr key={game.id}>
                     <td>
-                      {game.season_year}
+                      {
+                        game.season_year
+                      }
                     </td>
 
                     <td>
@@ -1003,7 +1248,9 @@ export default async function OwnerProfile({ params }) {
                     </td>
 
                     <td>
-                      {game.gameType}
+                      {
+                        game.gameType
+                      }
                     </td>
 
                     <td>
