@@ -348,7 +348,119 @@ a {
 }
 
 /* =========================
-   CURRENT PANEL
+   MATCHUPS
+========================= */
+
+.matchup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.matchup-card {
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: 0.2s ease;
+}
+
+.matchup-card:hover {
+  border-color: #3a414b;
+  transform: translateY(-2px);
+}
+
+.matchup-card-top {
+  min-height: 38px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #181d23;
+  border-bottom: 1px solid #2a3038;
+  color: #7f8995;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.matchup-status {
+  color: #d6a84b;
+}
+
+.matchup-team-row {
+  min-height: 70px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.matchup-team-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.matchup-team-info strong {
+  color: #ffffff;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.matchup-team-info span {
+  color: #727b86;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.matchup-score {
+  flex-shrink: 0;
+  color: #aeb6c1;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.matchup-leading {
+  background: rgba(214, 168, 75, 0.06);
+}
+
+.matchup-leading .matchup-score {
+  color: #d6a84b;
+}
+
+.matchup-vs {
+  height: 1px;
+  margin: 0 18px;
+  position: relative;
+  background: #252b33;
+  text-align: center;
+}
+
+.matchup-vs span {
+  position: relative;
+  top: -7px;
+  padding: 0 8px;
+  background: #12161b;
+  color: #5f6873;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+/* Last matchup fills the row cleanly */
+
+.matchup-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+/* =========================
+   EMPTY/CURRENT PANEL
 ========================= */
 
 .current-panel {
@@ -428,8 +540,13 @@ a {
 }
 
 @media (max-width: 800px) {
-  .division-grid {
+  .division-grid,
+  .matchup-grid {
     grid-template-columns: 1fr;
+  }
+
+  .matchup-card:last-child:nth-child(odd) {
+    grid-column: auto;
   }
 }
 
@@ -515,5 +632,26 @@ a {
   .playoff-badge {
     padding: 3px 5px;
     font-size: 0.5rem;
+  }
+
+  .matchup-team-row {
+    min-height: 64px;
+    padding: 12px 14px;
+  }
+
+  .matchup-card-top {
+    padding: 0 14px;
+  }
+
+  .matchup-vs {
+    margin: 0 14px;
+  }
+
+  .matchup-team-info strong {
+    font-size: 0.85rem;
+  }
+
+  .matchup-score {
+    font-size: 1.15rem;
   }
 }
