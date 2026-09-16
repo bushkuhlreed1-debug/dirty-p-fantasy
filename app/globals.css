@@ -1472,3 +1472,139 @@ a {
     font-size: 0.9rem;
   }
 }
+/* =========================================================
+   RECORDS PAGE
+   ========================================================= */
+
+.record-book-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.record-book-card {
+  min-height: 215px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, #12161b, #101419);
+  border: 1px solid #222830;
+  border-radius: 16px;
+  transition: 0.2s ease;
+}
+
+.record-book-card::before {
+  width: 100%;
+  height: 3px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  content: "";
+  background: #d6a84b;
+  opacity: 0.75;
+}
+
+.record-book-card:hover {
+  background: #161b21;
+  border-color: #d6a84b;
+  transform: translateY(-2px);
+}
+
+.record-book-label {
+  min-height: 34px;
+  margin-bottom: 18px;
+  color: #8f98a3;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.record-book-value {
+  margin-bottom: 15px;
+  color: #d6a84b;
+  font-size: clamp(1.8rem, 3vw, 2.45rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.record-book-owner {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.record-book-team {
+  margin-top: 5px;
+  color: #aeb6c1;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.record-book-detail {
+  margin-top: auto;
+  padding-top: 18px;
+  color: #727b86;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.record-book-opponent {
+  margin-top: 6px;
+  color: #8f98a3;
+  font-size: 0.72rem;
+}
+
+/* Make the first record in each section stand out */
+
+.record-book-card:first-child {
+  border-color: rgba(214, 168, 75, 0.45);
+  background:
+    linear-gradient(
+      145deg,
+      rgba(214, 168, 75, 0.07),
+      #12161b 45%,
+      #101419
+    );
+}
+
+/* =========================================================
+   RECORDS RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .record-book-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .record-book-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .record-book-card {
+    min-height: 185px;
+    padding: 18px;
+  }
+
+  .record-book-label {
+    min-height: 0;
+    margin-bottom: 14px;
+  }
+
+  .record-book-value {
+    margin-bottom: 12px;
+    font-size: 2rem;
+  }
+
+  .record-book-detail {
+    padding-top: 15px;
+  }
+}
