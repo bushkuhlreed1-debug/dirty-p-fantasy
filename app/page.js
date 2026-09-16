@@ -23,17 +23,20 @@ export default async function Home() {
   const latestSeason = seasons?.[0];
   const recentChampions = seasons?.slice(0, 4) || [];
 
+  const uniqueChampions = new Set(
+    seasons
+      ?.map((season) => season.champion?.name)
+      .filter(Boolean)
+  ).size;
+
   return (
     <main className="page-shell">
 
-      {/* TOP NAVIGATION */}
+      {/* NAVIGATION */}
       <nav className="site-nav">
         <a href="/" className="site-brand">
-          <span className="brand-mark">DP</span>
-          <span>
-            <strong>DIRTY P</strong>
-            <small>FANTASY FOOTBALL</small>
-          </span>
+          <strong>DIRTY P</strong>
+          <span>FANTASY FOOTBALL</span>
         </a>
 
         <div className="nav-links">
@@ -43,66 +46,27 @@ export default async function Home() {
           <a href="/champions">Champions</a>
           <a href="/records">Records</a>
           <a href="/head-to-head">Head-to-Head</a>
+          <a href="/rivalry-week">Rivalry Week</a>
           <a href="/goat">GOAT</a>
         </div>
       </nav>
 
-      {/* HERO */}
-      <section className="archive-hero">
-        <div className="archive-intro">
-          <p className="eyebrow">THE LEAGUE ARCHIVE · EST. 2014</p>
+      {/* ARCHIVE HEADER */}
+      <header className="archive-header">
+        <p className="eyebrow">EST. 2014</p>
 
-          <h1>
-            Dirty P
-            <span>Fantasy Football</span>
-          </h1>
+        <h1>THE DIRTY P ARCHIVE</h1>
 
-          <p className="hero-copy">
-            The permanent home of Dirty P Fantasy Football history.
-            Seasons, champions, owners, records, rivalries and more
-            from over a decade of competition.
-          </p>
+        <p className="archive-subtitle">
+          The complete history of Dirty P Fantasy Football.
+        </p>
+      </header>
 
-          <div className="archive-actions">
-            <a href="/seasons" className="primary-button">
-              Explore the Archive
-            </a>
-
-            <a href="/records" className="secondary-button">
-              View Records
-            </a>
-          </div>
-        </div>
-
-        {latestSeason && (
-          <div className="champion-card">
-            <span className="card-label">DEFENDING CHAMPION</span>
-
-            <div className="trophy">🏆</div>
-
-            <h2>{latestSeason.champion?.name}</h2>
-
-            <p>{latestSeason.year} Dirty P Champion</p>
-
-            <strong>{latestSeason.championship_score}</strong>
-
-            <span className="championship-opponent">
-              over {latestSeason.runner_up?.name}
-            </span>
-          </div>
-        )}
-      </section>
-
-      {/* LEAGUE SNAPSHOT */}
-      <section className="league-snapshot">
-        <div>
-          <strong>2014</strong>
-          <span>Founded</span>
-        </div>
-
+      {/* LEAGUE STATS */}
+      <section className="league-stats">
         <div>
           <strong>{seasons.length}</strong>
-          <span>Completed Seasons</span>
+          <span>Seasons</span>
         </div>
 
         <div>
@@ -112,126 +76,144 @@ export default async function Home() {
 
         <div>
           <strong>925</strong>
-          <span>Recorded Matchups</span>
+          <span>Matchups</span>
+        </div>
+
+        <div>
+          <strong>{uniqueChampions}</strong>
+          <span>Champions</span>
         </div>
       </section>
 
+      {/* DEFENDING CHAMPION */}
+      {latestSeason && (
+        <section className="champion-strip">
+          <div>
+            <span className="champion-icon">🏆</span>
+
+            <div>
+              <p className="eyebrow">
+                {latestSeason.year} DIRTY P CHAMPION
+              </p>
+
+              <h2>{latestSeason.champion?.name}</h2>
+            </div>
+          </div>
+
+          <p className="champion-result">
+            defeated {latestSeason.runner_up?.name}
+            <strong>{latestSeason.championship_score}</strong>
+          </p>
+        </section>
+      )}
+
       {/* RIVALRY WEEK */}
-      <section className="feature-section rivalry-feature">
-        <div className="feature-copy">
+      <section className="rivalry-strip">
+        <div>
           <p className="eyebrow">NEW TRADITION · EST. 2026</p>
 
           <h2>Rivalry Week</h2>
 
           <p>
-            The grudges are official. Beginning in 2026, Dirty P
-            Fantasy Football features a designated Rivalry Week
-            built around the league's official rivalry matchups.
+            The grudges are official. Rivalry Week begins in 2026
+            with designated matchups between Dirty P rivals.
           </p>
-
-          <span className="coming-soon">
-            2026 Rivalry Week history begins here.
-          </span>
         </div>
 
-        <div className="rivalry-badge">
-          <span>DIRTY P</span>
-          <strong>VS</strong>
-          <span>RIVALRY WEEK</span>
-        </div>
-      </section>
-
-      {/* ARCHIVE DIRECTORY */}
-      <section className="section-block">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">EXPLORE DIRTY P</p>
-            <h2>League Archive</h2>
-          </div>
-        </div>
-
-        <div className="archive-grid">
-          <a href="/seasons" className="archive-card">
-            <span>01</span>
-            <h3>Seasons</h3>
-            <p>Explore every Dirty P season from 2014 forward.</p>
-          </a>
-
-          <a href="/owners" className="archive-card">
-            <span>02</span>
-            <h3>Owners</h3>
-            <p>Career records, championships and owner histories.</p>
-          </a>
-
-          <a href="/champions" className="archive-card">
-            <span>03</span>
-            <h3>Champions</h3>
-            <p>Every champion and championship matchup.</p>
-          </a>
-
-          <a href="/records" className="archive-card">
-            <span>04</span>
-            <h3>Record Book</h3>
-            <p>The greatest performances and league records.</p>
-          </a>
-
-          <a href="/head-to-head" className="archive-card">
-            <span>05</span>
-            <h3>Head-to-Head</h3>
-            <p>See how Dirty P owners have performed against each other.</p>
-          </a>
-
-          <a href="/goat" className="archive-card">
-            <span>06</span>
-            <h3>GOAT</h3>
-            <p>The all-time debate backed by Dirty P history.</p>
-          </a>
-        </div>
+        <a href="/rivalry-week">
+          View Rivalry Week →
+        </a>
       </section>
 
       {/* RECENT CHAMPIONS */}
-      <section className="section-block">
+      <section className="history-section">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">CHAMPIONSHIP HISTORY</p>
+            <p className="eyebrow">LEAGUE HISTORY</p>
             <h2>Recent Champions</h2>
           </div>
 
-          <a href="/champions" className="section-link">
-            View All Champions →
+          <a href="/champions">
+            View Full History →
           </a>
         </div>
 
-        <div className="recent-champions">
+        <div className="championship-table">
+
+          <div className="championship-row championship-header">
+            <span>Season</span>
+            <span>Champion</span>
+            <span>Runner-Up</span>
+            <span>Championship</span>
+          </div>
+
           {recentChampions.map((season) => (
-            <article className="recent-champion-card" key={season.year}>
-              <span className="season-year">{season.year}</span>
+            <div className="championship-row" key={season.year}>
+              <strong>{season.year}</strong>
 
-              <div>
-                <span className="card-label">CHAMPION</span>
-                <h3>{season.champion?.name || "Unknown"}</h3>
+              <span className="champion-name">
+                {season.champion?.name || "Unknown"}
+              </span>
 
-                <p>
-                  defeated {season.runner_up?.name || "Unknown"}
-                </p>
+              <span>
+                {season.runner_up?.name || "Unknown"}
+              </span>
 
-                <strong>{season.championship_score}</strong>
-              </div>
-            </article>
+              <strong>
+                {season.championship_score}
+              </strong>
+            </div>
           ))}
+
+        </div>
+      </section>
+
+      {/* EXPLORE */}
+      <section className="explore-section">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">EXPLORE</p>
+            <h2>Dig Into The Archive</h2>
+          </div>
+        </div>
+
+        <div className="explore-links">
+          <a href="/seasons">
+            <strong>Seasons</strong>
+            <span>Year-by-year history →</span>
+          </a>
+
+          <a href="/owners">
+            <strong>Owners</strong>
+            <span>Career histories →</span>
+          </a>
+
+          <a href="/records">
+            <strong>Record Book</strong>
+            <span>All-time records →</span>
+          </a>
+
+          <a href="/head-to-head">
+            <strong>Head-to-Head</strong>
+            <span>Owner vs. owner →</span>
+          </a>
+
+          <a href="/goat">
+            <strong>GOAT</strong>
+            <span>All-time debate →</span>
+          </a>
         </div>
       </section>
 
       {/* FOOTER */}
       <footer className="site-footer">
-        <div>
-          <strong>Dirty P Fantasy Football</strong>
-          <span>The League Archive · Est. 2014</span>
-        </div>
+        <strong>DIRTY P FANTASY FOOTBALL</strong>
+
+        <span>The League Archive · Est. 2014</span>
 
         <p>
-          Independent fantasy league archive. Not affiliated with or
-          endorsed by ESPN or the NFL.
+          Independent fantasy league archive. Not affiliated with
+          or endorsed by ESPN.
         </p>
       </footer>
 
