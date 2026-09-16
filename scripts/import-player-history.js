@@ -2,32 +2,25 @@ const { createClient } = require("@supabase/supabase-js");
 
 // ============================================================
 // DIRTY P FANTASY FOOTBALL
-// Historical Player Importer
-// Seasons: 2014-2025
+// HISTORICAL PLAYER IMPORTER
+// 2014-2025
 // ============================================================
 
-const SUPABASE_URL =
-  (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
+const SUPABASE_URL = (
+  process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+).trim();
 
-const SUPABASE_SECRET_KEY =
-  (process.env.SUPABASE_SECRET_KEY || "").trim();
+const SUPABASE_SECRET_KEY = (
+  process.env.SUPABASE_SECRET_KEY || ""
+).trim();
 
 if (!SUPABASE_URL) {
-  throw new Error(
-    "Missing NEXT_PUBLIC_SUPABASE_URL"
-  );
+  throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
 }
 
 if (!SUPABASE_SECRET_KEY) {
-  throw new Error(
-    "Missing SUPABASE_SECRET_KEY"
-  );
+  throw new Error("Missing SUPABASE_SECRET_KEY");
 }
-
-console.log("Supabase URL loaded.");
-console.log(
-  `Supabase secret loaded: ${SUPABASE_SECRET_KEY.startsWith("sb_")}`
-);
 
 const supabase = createClient(
   SUPABASE_URL,
@@ -46,6 +39,25 @@ const LEAGUE_ID = 332679;
 const START_YEAR = 2014;
 const END_YEAR = 2025;
 
+const MAX_WEEK = 18;
+
+// ============================================================
+// ESPN POSITION IDS
+// ============================================================
+
+const PLAYER_POSITIONS = {
+  1: "QB",
+  2: "RB",
+  3: "WR",
+  4: "TE",
+  5: "K",
+  16: "D/ST",
+};
+
+// ============================================================
+// ESPN LINEUP SLOT IDS
+// ============================================================
+
 const LINEUP_SLOTS = {
   0: "QB",
   2: "RB",
@@ -58,18 +70,9 @@ const LINEUP_SLOTS = {
   23: "FLEX",
 };
 
-const PLAYER_POSITIONS = {
-  1: "QB",
-  2: "RB",
-  3: "WR",
-  4: "TE",
-  5: "K",
-  16: "D/ST",
-};
-
 const NON_STARTER_SLOTS = new Set([
-  20,
-  21,
+  20, // Bench
+  21, // IR
 ]);
 
 function isStarter(lineupSlotId) {
@@ -78,119 +81,163 @@ function isStarter(lineupSlotId) {
   );
 }
 
+// ============================================================
+// PLAYER POSITION
+// ============================================================
+
 function getPosition(player, lineupSlotId) {
   const defaultPositionId =
-    player?.defaultPositionId;
+    Number(player?.defaultPositionId);
 
-  if (
-    PLAYER_POSITIONS[defaultPositionId]
-  ) {
-    return PLAYER_POSITIONS[
-      defaultPositionId
-    ];
+  if (PLAYER_POSITIONS[defaultPositionId]) {
+    return PLAYER_POSITIONS[defaultPositionId];
   }
 
-  const slotPosition =
-    LINEUP_SLOTS[
-      Number(lineupSlotId)
-    ];
+  const lineupPosition =
+    LINEUP_SLOTS[Number(lineupSlotId)];
 
   if (
-    slotPosition &&
-    slotPosition !== "BENCH" &&
-    slotPosition !== "IR" &&
-    slotPosition !== "FLEX"
+    lineupPosition &&
+    lineupPosition !== "BENCH" &&
+    lineupPosition !== "IR" &&
+    lineupPosition !== "FLEX"
   ) {
-    return slotPosition;
+    return lineupPosition;
   }
 
   return "UNKNOWN";
 }
+
+// ============================================================
+// ACTUAL WEEKLY FANTASY POINTS
+// statSourceId 0 = ACTUAL
+// statSplitTypeId 1 = WEEK
+// ============================================================
 
 function getActualWeeklyPoints(
   player,
   seasonYear,
   scoringPeriod
 ) {
-  const stats = player?.stats || [];
+  const stats = Array.isArray(player?.stats)
+    ? player.stats
+    : [];
 
-  const actualWeek = stats.find(
-    (stat) =>
-      Number(stat.seasonId) ===
-        Number(seasonYear) &&
+  const actualWeek = stats.find((stat) => {
+    return (
+      Number(stat.seasonId) === Number(seasonYear) &&
       Number(stat.scoringPeriodId) ===
         Number(scoringPeriod) &&
       Number(stat.statSourceId) === 0 &&
       Number(stat.statSplitTypeId) === 1
-  );
+    );
+  });
 
   if (!actualWeek) {
     return 0;
   }
 
-  return Number(
-    actualWeek.appliedTotal || 0
-  );
+  return Number(actualWeek.appliedTotal || 0);
 }
 
-function buildEspnUrl(year, week) {
-  if (year <= 2017) {
-    return (
-      `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/leagueHistory/${LEAGUE_ID}` +
-      `?seasonId=${year}` +
-      `&scoringPeriodId=${week}` +
-      `&view=mRoster` +
-      `&view=mTeam`
-    );
-  }
+// ============================================================
+// ESPN URLS
+//
+// ESPN has used more than one host/path for historical
+// league data. Instead of assuming one works for every year,
+// try the available historical formats.
+// ============================================================
 
-  return (
-    `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${year}` +
-    `/segments/0/leagues/${LEAGUE_ID}` +
-    `?scoringPeriodId=${week}` +
+function getEspnUrls(year, week) {
+  const query =
+    `scoringPeriodId=${week}` +
     `&view=mRoster` +
-    `&view=mTeam`
+    `&view=mTeam`;
+
+  if (year <= 2017) {
+    return [
+      // Historical lm-api endpoint
+      `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/leagueHistory/${LEAGUE_ID}?seasonId=${year}&${query}`,
+
+      // Historical fantasy.espn.com endpoint
+      `https://fantasy.espn.com/apis/v3/games/ffl/leagueHistory/${LEAGUE_ID}?seasonId=${year}&${query}`,
+
+      // Modern-format fallback
+      `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${year}/segments/0/leagues/${LEAGUE_ID}?${query}`,
+
+      // Modern-format alternate host
+      `https://fantasy.espn.com/apis/v3/games/ffl/seasons/${year}/segments/0/leagues/${LEAGUE_ID}?${query}`,
+    ];
+  }
+
+  return [
+    // Modern lm-api endpoint
+    `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${year}/segments/0/leagues/${LEAGUE_ID}?${query}`,
+
+    // Alternate ESPN host
+    `https://fantasy.espn.com/apis/v3/games/ffl/seasons/${year}/segments/0/leagues/${LEAGUE_ID}?${query}`,
+
+    // Historical fallback
+    `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/leagueHistory/${LEAGUE_ID}?seasonId=${year}&${query}`,
+  ];
+}
+
+// ============================================================
+// FETCH ESPN WEEK
+// ============================================================
+
+async function fetchEspnWeek(year, week) {
+  const urls = getEspnUrls(year, week);
+
+  const errors = [];
+
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        errors.push(
+          `${response.status} ${response.statusText}`
+        );
+
+        continue;
+      }
+
+      const json = await response.json();
+
+      const league = Array.isArray(json)
+        ? json[0]
+        : json;
+
+      if (
+        league &&
+        Array.isArray(league.teams) &&
+        league.teams.length > 0
+      ) {
+        return league;
+      }
+
+      errors.push("Response contained no teams");
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
+
+  throw new Error(
+    `All ESPN endpoints failed: ${errors.join(" | ")}`
   );
 }
 
-async function fetchEspnWeek(
-  year,
-  week
-) {
-  const url = buildEspnUrl(
-    year,
-    week
-  );
-
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent":
-        "Dirty-P-Fantasy-History/1.0",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `ESPN ${year} Week ${week}: ${response.status} ${response.statusText}`
-    );
-  }
-
-  const data =
-    await response.json();
-
-  if (Array.isArray(data)) {
-    return data[0];
-  }
-
-  return data;
-}
+// ============================================================
+// SUPABASE OWNERS
+// ============================================================
 
 async function getOwners() {
-  const {
-    data,
-    error,
-  } = await supabase
+  const { data, error } = await supabase
     .from("owners")
     .select("id, name");
 
@@ -201,23 +248,18 @@ async function getOwners() {
   return data || [];
 }
 
+// ============================================================
+// SUPABASE TEAMS
+// ============================================================
+
 async function getTeams() {
-  const {
-    data,
-    error,
-  } = await supabase
+  const { data, error } = await supabase
     .from("teams")
     .select(
       "id, season_year, espn_team_id, owner_id, team_name"
     )
-    .gte(
-      "season_year",
-      START_YEAR
-    )
-    .lte(
-      "season_year",
-      END_YEAR
-    );
+    .gte("season_year", START_YEAR)
+    .lte("season_year", END_YEAR);
 
   if (error) {
     throw error;
@@ -226,83 +268,79 @@ async function getTeams() {
   return data || [];
 }
 
+// ============================================================
+// FIND DIRTY P TEAM
+// ============================================================
+
 function findDatabaseTeam(
   databaseTeams,
   seasonYear,
   espnTeamId
 ) {
-  return databaseTeams.find(
-    (team) =>
+  return databaseTeams.find((team) => {
+    return (
       Number(team.season_year) ===
         Number(seasonYear) &&
       Number(team.espn_team_id) ===
         Number(espnTeamId)
-  );
+    );
+  });
 }
+
+// ============================================================
+// CLEAR PREVIOUS IMPORT
+// ============================================================
 
 async function deleteExistingPlayerHistory() {
   console.log(
     "Clearing existing 2014-2025 player history..."
   );
 
-  const {
-    error: weekError,
-  } = await supabase
+  const { error: weekError } = await supabase
     .from("player_weeks")
     .delete()
-    .gte(
-      "season_year",
-      START_YEAR
-    )
-    .lte(
-      "season_year",
-      END_YEAR
-    );
+    .gte("season_year", START_YEAR)
+    .lte("season_year", END_YEAR);
 
   if (weekError) {
     throw weekError;
   }
 
-  const {
-    error: seasonError,
-  } = await supabase
+  const { error: seasonError } = await supabase
     .from("player_seasons")
     .delete()
-    .gte(
-      "season_year",
-      START_YEAR
-    )
-    .lte(
-      "season_year",
-      END_YEAR
-    );
+    .gte("season_year", START_YEAR)
+    .lte("season_year", END_YEAR);
 
   if (seasonError) {
     throw seasonError;
   }
 }
 
+// ============================================================
+// INSERT PLAYER WEEKS
+// ============================================================
+
 async function insertPlayerWeeks(rows) {
   if (!rows.length) {
-    return;
+    return 0;
   }
 
   const CHUNK_SIZE = 500;
+
+  let inserted = 0;
 
   for (
     let i = 0;
     i < rows.length;
     i += CHUNK_SIZE
   ) {
-    const chunk =
-      rows.slice(
-        i,
-        i + CHUNK_SIZE
-      );
+    const chunk = rows.slice(
+      i,
+      i + CHUNK_SIZE
+    );
 
-    const {
-      error,
-    } = await supabase
+    const { error } = await supabase
       .from("player_weeks")
       .upsert(chunk, {
         onConflict:
@@ -312,41 +350,42 @@ async function insertPlayerWeeks(rows) {
     if (error) {
       throw error;
     }
+
+    inserted += chunk.length;
   }
+
+  return inserted;
 }
+
+// ============================================================
+// IMPORT ONE SEASON
+// ============================================================
 
 async function importSeason(
   year,
   databaseTeams
 ) {
   console.log("");
-  console.log(
-    "============================"
-  );
-  console.log(
-    `IMPORTING ${year}`
-  );
-  console.log(
-    "============================"
-  );
+  console.log("============================");
+  console.log(`IMPORTING ${year}`);
+  console.log("============================");
+
+  let seasonRows = 0;
 
   for (
     let week = 1;
-    week <= 18;
+    week <= MAX_WEEK;
     week++
   ) {
-    console.log(
-      `${year} Week ${week}...`
-    );
+    console.log(`${year} Week ${week}...`);
 
     let league;
 
     try {
-      league =
-        await fetchEspnWeek(
-          year,
-          week
-        );
+      league = await fetchEspnWeek(
+        year,
+        week
+      );
     } catch (error) {
       console.log(
         `Skipping ${year} Week ${week}: ${error.message}`
@@ -355,23 +394,15 @@ async function importSeason(
       continue;
     }
 
-    const espnTeams =
-      league?.teams || [];
+    const espnTeams = league?.teams || [];
 
-    if (!espnTeams.length) {
-      console.log(
-        `No teams found for ${year} Week ${week}`
-      );
-
-      continue;
-    }
+    console.log(
+      `ESPN returned ${espnTeams.length} teams`
+    );
 
     const rows = [];
 
-    for (
-      const espnTeam
-      of espnTeams
-    ) {
+    for (const espnTeam of espnTeams) {
       const databaseTeam =
         findDatabaseTeam(
           databaseTeams,
@@ -381,27 +412,24 @@ async function importSeason(
 
       if (!databaseTeam) {
         console.log(
-          `No database team match: ${year}, ESPN team ${espnTeam.id}`
+          `No Dirty P team match: ${year} ESPN team ID ${espnTeam.id}`
         );
 
         continue;
       }
 
-      const ownerId =
-        databaseTeam.owner_id;
+      if (!databaseTeam.owner_id) {
+        console.log(
+          `No owner for ${year} ${databaseTeam.team_name}`
+        );
 
-      if (!ownerId) {
         continue;
       }
 
       const rosterEntries =
-        espnTeam?.roster
-          ?.entries || [];
+        espnTeam?.roster?.entries || [];
 
-      for (
-        const entry
-        of rosterEntries
-      ) {
+      for (const entry of rosterEntries) {
         const poolEntry =
           entry?.playerPoolEntry;
 
@@ -412,26 +440,22 @@ async function importSeason(
           continue;
         }
 
-        const espnPlayerId =
-          Number(
-            player.id ||
-              poolEntry.id ||
-              entry.playerId
-          );
+        const espnPlayerId = Number(
+          player.id ||
+            poolEntry.id ||
+            entry.playerId
+        );
 
         if (!espnPlayerId) {
           continue;
         }
 
-        const lineupSlotId =
-          Number(
-            entry.lineupSlotId
-          );
+        const lineupSlotId = Number(
+          entry.lineupSlotId
+        );
 
         const started =
-          isStarter(
-            lineupSlotId
-          );
+          isStarter(lineupSlotId);
 
         const fantasyPoints =
           getActualWeeklyPoints(
@@ -447,14 +471,11 @@ async function importSeason(
           );
 
         rows.push({
-          season_year:
-            year,
-
-          scoring_period:
-            week,
+          season_year: year,
+          scoring_period: week,
 
           owner_id:
-            ownerId,
+            databaseTeam.owner_id,
 
           team_id:
             databaseTeam.id,
@@ -478,78 +499,123 @@ async function importSeason(
           started,
 
           fantasy_points:
-            fantasyPoints,
+            Number(
+              fantasyPoints.toFixed(2)
+            ),
         });
       }
     }
 
-    await insertPlayerWeeks(
-      rows
-    );
+    const saved =
+      await insertPlayerWeeks(rows);
+
+    seasonRows += saved;
 
     console.log(
-      `Saved ${rows.length} player rows`
+      `Saved ${saved} player rows`
     );
   }
+
+  console.log(
+    `${year} COMPLETE: ${seasonRows} player-week rows`
+  );
+
+  return seasonRows;
 }
+
+// ============================================================
+// READ ALL PLAYER WEEKS
+//
+// Supabase limits large selects, so retrieve them in pages.
+// ============================================================
+
+async function getAllPlayerWeeks() {
+  const PAGE_SIZE = 1000;
+
+  let from = 0;
+
+  const allRows = [];
+
+  while (true) {
+    const to =
+      from + PAGE_SIZE - 1;
+
+    const { data, error } =
+      await supabase
+        .from("player_weeks")
+        .select(
+          `
+          season_year,
+          scoring_period,
+          owner_id,
+          team_id,
+          espn_player_id,
+          player_name,
+          position,
+          dirty_p_team_name,
+          started,
+          fantasy_points
+          `
+        )
+        .gte(
+          "season_year",
+          START_YEAR
+        )
+        .lte(
+          "season_year",
+          END_YEAR
+        )
+        .order(
+          "season_year",
+          { ascending: true }
+        )
+        .order(
+          "scoring_period",
+          { ascending: true }
+        )
+        .range(from, to);
+
+    if (error) {
+      throw error;
+    }
+
+    const rows = data || [];
+
+    allRows.push(...rows);
+
+    if (rows.length < PAGE_SIZE) {
+      break;
+    }
+
+    from += PAGE_SIZE;
+  }
+
+  return allRows;
+}
+
+// ============================================================
+// BUILD PLAYER-SEASON TOTALS
+//
+// ONLY STARTING LINEUP POINTS COUNT.
+// ============================================================
 
 async function buildPlayerSeasons() {
   console.log("");
   console.log(
-    "Building player season totals..."
+    "Building player-season totals..."
   );
 
-  const {
-    data: weeks,
-    error,
-  } = await supabase
-    .from("player_weeks")
-    .select(
-      `
-      season_year,
-      scoring_period,
-      owner_id,
-      team_id,
-      espn_player_id,
-      player_name,
-      position,
-      dirty_p_team_name,
-      started,
-      fantasy_points
-      `
-    )
-    .gte(
-      "season_year",
-      START_YEAR
-    )
-    .lte(
-      "season_year",
-      END_YEAR
-    )
-    .order(
-      "season_year",
-      {
-        ascending: true,
-      }
-    )
-    .order(
-      "scoring_period",
-      {
-        ascending: true,
-      }
-    );
+  const weeks =
+    await getAllPlayerWeeks();
 
-  if (error) {
-    throw error;
-  }
+  console.log(
+    `Loaded ${weeks.length} player-week rows for aggregation`
+  );
 
   const playerMap =
     new Map();
 
-  for (
-    const row
-    of weeks || []
-  ) {
+  for (const row of weeks) {
     if (!row.started) {
       continue;
     }
@@ -560,44 +626,37 @@ async function buildPlayerSeasons() {
       row.espn_player_id,
     ].join("-");
 
-    if (
-      !playerMap.has(key)
-    ) {
-      playerMap.set(
-        key,
-        {
-          season_year:
-            row.season_year,
+    if (!playerMap.has(key)) {
+      playerMap.set(key, {
+        season_year:
+          row.season_year,
 
-          owner_id:
-            row.owner_id,
+        owner_id:
+          row.owner_id,
 
-          team_id:
-            row.team_id,
+        team_id:
+          row.team_id,
 
-          espn_player_id:
-            row.espn_player_id,
+        espn_player_id:
+          row.espn_player_id,
 
-          player_name:
-            row.player_name,
+        player_name:
+          row.player_name,
 
-          position:
-            row.position,
+        position:
+          row.position,
 
-          dirty_p_team_name:
-            row.dirty_p_team_name,
+        dirty_p_team_name:
+          row.dirty_p_team_name,
 
-          started_points: 0,
+        started_points: 0,
 
-          games_started: 0,
+        games_started: 0,
 
-          best_week_points:
-            null,
+        best_week_points: null,
 
-          best_week:
-            null,
-        }
-      );
+        best_week: null,
+      });
     }
 
     const playerSeason =
@@ -605,8 +664,7 @@ async function buildPlayerSeasons() {
 
     const points =
       Number(
-        row.fantasy_points ||
-          0
+        row.fantasy_points || 0
       );
 
     playerSeason.started_points +=
@@ -629,34 +687,29 @@ async function buildPlayerSeasons() {
     }
   }
 
-  const rows =
-    Array.from(
-      playerMap.values()
-    ).map(
-      (row) => ({
-        ...row,
+  const rows = Array.from(
+    playerMap.values()
+  ).map((row) => ({
+    ...row,
 
-        started_points:
-          Number(
-            row.started_points.toFixed(
-              2
-            )
+    started_points:
+      Number(
+        row.started_points.toFixed(2)
+      ),
+
+    best_week_points:
+      row.best_week_points === null
+        ? null
+        : Number(
+            row.best_week_points.toFixed(2)
           ),
+  }));
 
-        best_week_points:
-          row.best_week_points ===
-          null
-            ? null
-            : Number(
-                row.best_week_points.toFixed(
-                  2
-                )
-              ),
-      })
-    );
+  console.log(
+    `Calculated ${rows.length} player-season records`
+  );
 
-  const CHUNK_SIZE =
-    500;
+  const CHUNK_SIZE = 500;
 
   for (
     let i = 0;
@@ -669,9 +722,7 @@ async function buildPlayerSeasons() {
         i + CHUNK_SIZE
       );
 
-    const {
-      error,
-    } = await supabase
+    const { error } = await supabase
       .from("player_seasons")
       .upsert(chunk, {
         onConflict:
@@ -684,48 +735,60 @@ async function buildPlayerSeasons() {
   }
 
   console.log(
-    `Created ${rows.length} player-season records`
+    `Saved ${rows.length} player-season records`
   );
 }
+
+// ============================================================
+// TRUE DATABASE COUNTS
+// ============================================================
 
 async function showSummary() {
   const {
     count: weekCount,
+    error: weekError,
   } = await supabase
     .from("player_weeks")
-    .select("*", {
+    .select("id", {
       count: "exact",
       head: true,
     });
+
+  if (weekError) {
+    throw weekError;
+  }
 
   const {
     count: seasonCount,
+    error: seasonError,
   } = await supabase
     .from("player_seasons")
-    .select("*", {
+    .select("id", {
       count: "exact",
       head: true,
     });
 
+  if (seasonError) {
+    throw seasonError;
+  }
+
   console.log("");
+  console.log("============================");
+  console.log("DIRTY P IMPORT COMPLETE");
+  console.log("============================");
+
   console.log(
-    "============================"
-  );
-  console.log(
-    "DIRTY P IMPORT COMPLETE"
-  );
-  console.log(
-    "============================"
+    `PLAYER_WEEK_COUNT=${weekCount}`
   );
 
   console.log(
-    `Player-week rows: ${weekCount}`
-  );
-
-  console.log(
-    `Player-season rows: ${seasonCount}`
+    `PLAYER_SEASON_COUNT=${seasonCount}`
   );
 }
+
+// ============================================================
+// MAIN
+// ============================================================
 
 async function main() {
   console.log(
@@ -748,14 +811,28 @@ async function main() {
 
   await deleteExistingPlayerHistory();
 
+  let totalImported = 0;
+
   for (
     let year = START_YEAR;
     year <= END_YEAR;
     year++
   ) {
-    await importSeason(
-      year,
-      databaseTeams
+    totalImported +=
+      await importSeason(
+        year,
+        databaseTeams
+      );
+  }
+
+  console.log("");
+  console.log(
+    `Total imported player-week rows: ${totalImported}`
+  );
+
+  if (totalImported === 0) {
+    throw new Error(
+      "ESPN import completed with ZERO player rows. Player-season totals were not built."
     );
   }
 
@@ -766,18 +843,13 @@ async function main() {
 
 main()
   .then(() => {
-    console.log(
-      "Done."
-    );
-
+    console.log("");
+    console.log("DONE.");
     process.exit(0);
   })
   .catch((error) => {
     console.error("");
-    console.error(
-      "IMPORT FAILED"
-    );
+    console.error("IMPORT FAILED");
     console.error(error);
-
     process.exit(1);
   });
