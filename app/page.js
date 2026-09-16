@@ -1,7 +1,13 @@
 import { supabase } from "../lib/supabase";
 
 export default async function Home() {
-  // Get completed championship history for defending champion
+  const currentSeason = 2026;
+  const currentWeek = 2;
+
+  // =========================
+  // DEFENDING CHAMPION
+  // =========================
+
   const { data: seasons, error: seasonsError } = await supabase
     .from("seasons")
     .select(`
@@ -10,10 +16,13 @@ export default async function Home() {
       champion:champion_owner_id(name),
       runner_up:runner_up_owner_id(name)
     `)
-    .lt("year", 2026)
+    .lt("year", currentSeason)
     .order("year", { ascending: false });
 
-  // Get 2026 standings
+  // =========================
+  // CURRENT STANDINGS
+  // =========================
+
   const { data: standings, error: standingsError } = await supabase
     .from("season_results")
     .select(`
@@ -25,9 +34,12 @@ export default async function Home() {
       points_against,
       owner:owner_id(name)
     `)
-    .eq("season_year", 2026);
+    .eq("season_year", currentSeason);
 
-  // Get 2026 teams and divisions
+  // =========================
+  // CURRENT TEAMS + DIVISIONS
+  // =========================
+
   const { data: teams, error: teamsError } = await supabase
     .from("teams")
     .select(`
@@ -35,17 +47,50 @@ export default async function Home() {
       team_name,
       division
     `)
-    .eq("season_year", 2026);
+    .eq("season_year", currentSeason);
 
-  if (seasonsError || standingsError || teamsError) {
+  // =========================
+  // CURRENT WEEK MATCHUPS
+  // =========================
+
+  const { data: matchups, error: matchupsError } = await supabase
+    .from("matchups")
+    .select(`
+      id,
+      matchup_period,
+      away_owner_id,
+      home_owner_id,
+      away_team_name,
+      home_team_name,
+      away_score,
+      home_score,
+      winner
+    `)
+    .eq("season_year", currentSeason)
+    .eq("matchup_period", currentWeek)
+    .eq("is_playoff", false)
+    .order("id", { ascending: true });
+
+  // =========================
+  // DATABASE ERROR
+  // =========================
+
+  if (
+    seasonsError ||
+    standingsError ||
+    teamsError ||
+    matchupsError
+  ) {
     return (
       <main className="page-shell">
         <h1>Dirty P Fantasy Football</h1>
+
         <p>
           Database error:{" "}
           {seasonsError?.message ||
             standingsError?.message ||
-            teamsError?.message}
+            teamsError?.message ||
+            matchupsError?.message}
         </p>
       </main>
     );
@@ -53,78 +98,95 @@ export default async function Home() {
 
   const latestSeason = seasons?.[0];
 
-  // Combine standings with team names and divisions
-  const standingsWithTeams = (standings || []).map((standing) => {
-    const team = teams?.find(
-      (team) => team.owner_id === standing.owner_id
-    );
+  // =========================
+  // COMBINE STANDINGS + TEAMS
+  // =========================
 
-    return {
-      ...standing,
-      team_name:
-        team?.team_name ||
-        standing.owner?.name ||
-        "Unknown",
-      division: team?.division || "No Division",
-    };
-  });
+  const standingsWithTeams = (standings || []).map(
+    (standing) => {
+      const team = teams?.find(
+        (team) => team.owner_id === standing.owner_id
+      );
 
-  // Sort all 10 teams for the overall playoff race
-  const overallStandings = [...standingsWithTeams].sort((a, b) => {
-    if (b.wins !== a.wins) {
-      return b.wins - a.wins;
+      return {
+        ...standing,
+        team_name:
+          team?.team_name ||
+          standing.owner?.name ||
+          "Unknown",
+        division: team?.division || "No Division",
+      };
     }
+  );
 
-    if (b.ties !== a.ties) {
-      return b.ties - a.ties;
+  // =========================
+  // OVERALL PLAYOFF RACE
+  // =========================
+
+  const overallStandings = [...standingsWithTeams].sort(
+    (a, b) => {
+      if (b.wins !== a.wins) {
+        return b.wins - a.wins;
+      }
+
+      if (b.ties !== a.ties) {
+        return b.ties - a.ties;
+      }
+
+      return (
+        Number(b.points_for) - Number(a.points_for)
+      );
     }
+  );
 
-    return Number(b.points_for) - Number(a.points_for);
-  });
-
-  // Top 4 overall currently occupy playoff positions
+  // Current top 4 overall
   const playoffOwnerIds = new Set(
     overallStandings
       .slice(0, 4)
       .map((standing) => standing.owner_id)
   );
 
-  // Split into divisions and rank each division
-  const unnecessaryRoughness = standingsWithTeams
-    .filter(
+  // =========================
+  // DIVISIONS
+  // =========================
+
+  const sortDivision = (divisionTeams) =>
+    divisionTeams.sort((a, b) => {
+      if (b.wins !== a.wins) {
+        return b.wins - a.wins;
+      }
+
+      if (b.ties !== a.ties) {
+        return b.ties - a.ties;
+      }
+
+      return (
+        Number(b.points_for) - Number(a.points_for)
+      );
+    });
+
+  const unnecessaryRoughness = sortDivision(
+    standingsWithTeams.filter(
       (standing) =>
         standing.division === "Unnecessary Roughness"
     )
-    .sort((a, b) => {
-      if (b.wins !== a.wins) {
-        return b.wins - a.wins;
-      }
+  );
 
-      if (b.ties !== a.ties) {
-        return b.ties - a.ties;
-      }
-
-      return Number(b.points_for) - Number(a.points_for);
-    });
-
-  const illegalContact = standingsWithTeams
-    .filter(
+  const illegalContact = sortDivision(
+    standingsWithTeams.filter(
       (standing) =>
         standing.division === "Illegal Contact"
     )
-    .sort((a, b) => {
-      if (b.wins !== a.wins) {
-        return b.wins - a.wins;
-      }
+  );
 
-      if (b.ties !== a.ties) {
-        return b.ties - a.ties;
-      }
+  // =========================
+  // DIVISION COMPONENT
+  // =========================
 
-      return Number(b.points_for) - Number(a.points_for);
-    });
-
-  function DivisionStandings({ name, teams }) {
+  function DivisionStandings({
+    name,
+    teams: divisionTeams,
+  }) {
     return (
       <div className="division-card">
         <div className="division-title">
@@ -138,7 +200,7 @@ export default async function Home() {
           <span>PF</span>
         </div>
 
-        {teams.map((standing, index) => {
+        {divisionTeams.map((standing, index) => {
           const inPlayoffPosition =
             playoffOwnerIds.has(standing.owner_id);
 
@@ -192,10 +254,15 @@ export default async function Home() {
     );
   }
 
+  // =========================
+  // PAGE
+  // =========================
+
   return (
     <main className="page-shell">
 
       {/* HEADER */}
+
       <header className="site-header">
         <div className="site-title">
           <strong>
@@ -209,6 +276,7 @@ export default async function Home() {
       </header>
 
       {/* HERO */}
+
       <section className="hero">
         <div className="hero-main">
           <p className="eyebrow">
@@ -228,6 +296,7 @@ export default async function Home() {
       </section>
 
       {/* DEFENDING CHAMPION */}
+
       {latestSeason && (
         <section className="champion-strip">
           <div className="champion-strip-title">
@@ -262,28 +331,44 @@ export default async function Home() {
       )}
 
       {/* MAIN NAVIGATION */}
+
       <section className="quick-links">
-        <a href="/seasons">Seasons</a>
-        <a href="/owners">Owners</a>
-        <a href="/champions">Champions</a>
-        <a href="/records">Records</a>
+        <a href="/seasons">
+          Seasons
+        </a>
+
+        <a href="/owners">
+          Owners
+        </a>
+
+        <a href="/champions">
+          Champions
+        </a>
+
+        <a href="/records">
+          Records
+        </a>
+
         <a href="/head-to-head">
           Head-to-Head
         </a>
+
         <a href="/rivalry-week">
           Rivalry Week
         </a>
+
         <a href="/goat">
           GOAT Rankings
         </a>
       </section>
 
       {/* CURRENT STANDINGS */}
+
       <section className="section-block">
         <div className="section-heading">
           <div>
             <p className="eyebrow">
-              2026 SEASON
+              {currentSeason} SEASON
             </p>
 
             <h2>
@@ -292,7 +377,8 @@ export default async function Home() {
           </div>
 
           <span>
-            Week 1 · Top 4 Overall Make Playoffs
+            Week {currentWeek} · Top 4 Overall Make
+            Playoffs
           </span>
         </div>
 
@@ -319,12 +405,13 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* CURRENT WEEK MATCHUPS */}
+      {/* THIS WEEK'S MATCHUPS */}
+
       <section className="section-block">
         <div className="section-heading">
           <div>
             <p className="eyebrow">
-              2026 SEASON
+              {currentSeason} SEASON
             </p>
 
             <h2>
@@ -333,26 +420,111 @@ export default async function Home() {
           </div>
 
           <span>
-            Current Week
+            Week {currentWeek}
           </span>
         </div>
 
-        <div className="current-panel">
-          <div className="empty-current-state">
-            <strong>
-              Current matchups are coming next.
-            </strong>
+        <div className="matchup-grid">
+          {(matchups || []).map((matchup) => {
+            const awayScore = Number(
+              matchup.away_score || 0
+            );
 
-            <p>
-              All five weekly matchups and scores
-              will appear here once the current
-              matchup data is connected.
-            </p>
-          </div>
+            const homeScore = Number(
+              matchup.home_score || 0
+            );
+
+            const awayLeading =
+              awayScore > homeScore;
+
+            const homeLeading =
+              homeScore > awayScore;
+
+            return (
+              <div
+                className="matchup-card"
+                key={matchup.id}
+              >
+                <div className="matchup-card-top">
+                  <span>
+                    WEEK {matchup.matchup_period}
+                  </span>
+
+                  <span className="matchup-status">
+                    MATCHUP
+                  </span>
+                </div>
+
+                <div
+                  className={`matchup-team-row ${
+                    awayLeading
+                      ? "matchup-leading"
+                      : ""
+                  }`}
+                >
+                  <div className="matchup-team-info">
+                    <strong>
+                      {matchup.away_team_name}
+                    </strong>
+
+                    <span>
+                      Away
+                    </span>
+                  </div>
+
+                  <strong className="matchup-score">
+                    {awayScore.toFixed(1)}
+                  </strong>
+                </div>
+
+                <div className="matchup-vs">
+                  <span>AT</span>
+                </div>
+
+                <div
+                  className={`matchup-team-row ${
+                    homeLeading
+                      ? "matchup-leading"
+                      : ""
+                  }`}
+                >
+                  <div className="matchup-team-info">
+                    <strong>
+                      {matchup.home_team_name}
+                    </strong>
+
+                    <span>
+                      Home
+                    </span>
+                  </div>
+
+                  <strong className="matchup-score">
+                    {homeScore.toFixed(1)}
+                  </strong>
+                </div>
+              </div>
+            );
+          })}
         </div>
+
+        {(!matchups || matchups.length === 0) && (
+          <div className="current-panel">
+            <div className="empty-current-state">
+              <strong>
+                No Week {currentWeek} matchups found.
+              </strong>
+
+              <p>
+                Matchups will appear here once they
+                are added to the league database.
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* FOOTER */}
+
       <footer className="site-footer">
         <strong>
           Dirty P Fantasy Football
@@ -363,8 +535,8 @@ export default async function Home() {
         </span>
 
         <p>
-          Independent fantasy league archive.
-          Not affiliated with or endorsed by ESPN.
+          Independent fantasy league archive. Not
+          affiliated with or endorsed by ESPN.
         </p>
       </footer>
 
