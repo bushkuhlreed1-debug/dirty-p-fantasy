@@ -20,29 +20,103 @@ a {
 
 .page-shell {
   min-height: 100vh;
-  padding: 32px;
+  padding: 0 32px 32px;
 }
+
+/* =========================
+   TOP HEADER
+========================= */
+
+.site-header {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 26px 4px 18px;
+}
+
+.site-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.site-title strong {
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.site-title span {
+  color: #8f98a3;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+/* =========================
+   NAVIGATION RIBBON
+========================= */
+
+.nav-ribbon {
+  max-width: 1200px;
+  margin: 0 auto 24px;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  background: #d6a84b;
+  border: 1px solid #e0b75f;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.nav-ribbon a {
+  min-height: 50px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid rgba(11, 13, 16, 0.2);
+  color: #0b0d10;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-align: center;
+  transition: 0.2s ease;
+}
+
+.nav-ribbon a:last-child {
+  border-right: none;
+}
+
+.nav-ribbon a:hover {
+  background: #e1b95f;
+}
+
+.nav-ribbon a.active {
+  background: #11151a;
+  color: #ffffff;
+}
+
+/* =========================
+   HERO
+========================= */
 
 .hero {
   max-width: 1200px;
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 24px;
-  align-items: stretch;
+  display: block;
 }
 
-.hero > div:first-child {
+.hero-main {
   background: linear-gradient(135deg, #11151a, #181d23);
   border: 1px solid #252b33;
   border-radius: 22px;
-  padding: 38px;
+  padding: 42px;
 }
 
 .eyebrow {
   margin: 0 0 10px;
   color: #d6a84b;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -50,64 +124,91 @@ a {
 
 .hero h1 {
   margin: 0;
-  font-size: clamp(2.3rem, 5vw, 4.8rem);
+  max-width: 900px;
+  font-size: clamp(2.5rem, 5vw, 4.7rem);
   line-height: 0.98;
-  max-width: 760px;
+  letter-spacing: -0.04em;
 }
 
 .hero-copy {
-  margin: 22px 0 0;
-  max-width: 680px;
+  margin: 20px 0 0;
+  max-width: 720px;
   color: #aeb6c1;
   font-size: 1.05rem;
-  line-height: 1.7;
+  line-height: 1.65;
 }
 
-.champion-card {
-  background: linear-gradient(160deg, #d6a84b, #8c6726);
-  color: #0b0d10;
-  border-radius: 22px;
-  padding: 30px;
+/* =========================
+   DEFENDING CHAMPION STRIP
+========================= */
+
+.champion-strip {
+  max-width: 1200px;
+  margin: 14px auto 0;
+  padding: 18px 22px;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 260px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: #14181d;
+  border: 1px solid #2a3038;
+  border-left: 4px solid #d6a84b;
+  border-radius: 12px;
 }
 
-.champion-card .card-label {
-  color: rgba(11, 13, 16, 0.7);
+.champion-strip-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
-.champion-card h2 {
-  margin: 10px 0 6px;
-  font-size: 2rem;
+.champion-strip-title strong {
+  color: #ffffff;
+  font-size: 1.2rem;
 }
 
-.champion-card p {
-  margin: 0 0 18px;
+.champion-strip-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #929ba6;
+  font-size: 0.9rem;
 }
 
-.champion-card strong {
-  font-size: 1.15rem;
+.champion-strip-result strong {
+  color: #d6a84b;
+  font-size: 1rem;
 }
+
+.champion-divider {
+  color: #4e5660;
+}
+
+/* =========================
+   ARCHIVE BUTTONS
+========================= */
 
 .quick-links {
   max-width: 1200px;
-  margin: 22px auto 0;
+  margin: 18px auto 0;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 10px;
 }
 
 .quick-links a {
+  min-height: 54px;
+  padding: 14px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #14181d;
   border: 1px solid #252b33;
   border-radius: 12px;
-  padding: 14px 12px;
-  text-align: center;
   color: #d7dce2;
-  font-size: 0.92rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
   transition: 0.2s ease;
 }
 
@@ -115,7 +216,12 @@ a {
   background: #1d232a;
   border-color: #d6a84b;
   color: #ffffff;
+  transform: translateY(-2px);
 }
+
+/* =========================
+   CHAMPIONSHIP HISTORY
+========================= */
 
 .section-block {
   max-width: 1200px;
@@ -147,20 +253,26 @@ a {
 }
 
 .season-card {
-  background: #12161b;
-  border: 1px solid #222830;
-  border-radius: 16px;
+  min-height: 150px;
   padding: 20px;
   display: flex;
   gap: 18px;
-  min-height: 150px;
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+  transition: 0.2s ease;
+}
+
+.season-card:hover {
+  border-color: #3a414b;
+  transform: translateY(-2px);
 }
 
 .season-year {
+  min-width: 68px;
   color: #d6a84b;
   font-size: 1.5rem;
   font-weight: 900;
-  min-width: 68px;
 }
 
 .season-details h3 {
@@ -170,7 +282,7 @@ a {
 
 .card-label {
   color: #7f8995;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -188,29 +300,117 @@ a {
   font-weight: 800;
 }
 
+/* =========================
+   FOOTER
+========================= */
+
+.site-footer {
+  max-width: 1200px;
+  margin: 60px auto 0;
+  padding: 24px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid #252b33;
+  color: #727b86;
+  font-size: 0.75rem;
+}
+
+.site-footer strong {
+  color: #aeb6c1;
+}
+
+.site-footer p {
+  margin: 0 0 0 auto;
+}
+
+/* =========================
+   TABLET
+========================= */
+
 @media (max-width: 900px) {
-  .hero {
-    grid-template-columns: 1fr;
+  .nav-ribbon {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .nav-ribbon a:nth-child(4),
+  .nav-ribbon a:nth-child(8) {
+    border-right: none;
   }
 
   .quick-links {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 
   .season-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .champion-strip {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .site-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .site-footer p {
+    margin-left: 0;
+  }
 }
+
+/* =========================
+   MOBILE
+========================= */
 
 @media (max-width: 600px) {
   .page-shell {
-    padding: 16px;
+    padding: 0 16px 24px;
   }
 
-  .hero > div:first-child,
-  .champion-card {
-    padding: 24px;
+  .site-header {
+    padding-top: 20px;
+  }
+
+  .site-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .nav-ribbon {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .nav-ribbon a:nth-child(even) {
+    border-right: none;
+  }
+
+  .hero-main {
+    padding: 28px 24px;
     border-radius: 18px;
+  }
+
+  .hero h1 {
+    font-size: 2.6rem;
+  }
+
+  .champion-strip {
+    padding: 17px;
+  }
+
+  .champion-strip-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .champion-strip-result {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 
   .quick-links {
