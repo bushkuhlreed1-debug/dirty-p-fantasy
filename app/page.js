@@ -1,4 +1,4 @@
-import { supabase } from "./lib/supabase";
+import { supabase } from "../lib/supabase";
 
 export default async function Home() {
   // =========================
@@ -16,11 +16,18 @@ export default async function Home() {
     .lt("year", 2026)
     .order("year", { ascending: false });
 
+  // =========================
+  // DATABASE ERROR
+  // =========================
+
   if (seasonsError) {
     return (
       <main className="page-shell">
         <h1>Dirty P Fantasy Football</h1>
-        <p>Database error: {seasonsError.message}</p>
+
+        <p>
+          Database error: {seasonsError.message}
+        </p>
       </main>
     );
   }
@@ -36,11 +43,17 @@ export default async function Home() {
 
       <header className="site-header">
         <div className="site-title">
+
           <a href="/">
-            <strong>DIRTY P FANTASY FOOTBALL</strong>
+            <strong>
+              DIRTY P FANTASY FOOTBALL
+            </strong>
           </a>
 
-          <span>THE LEAGUE ARCHIVE · EST. 2014</span>
+          <span>
+            THE LEAGUE ARCHIVE · EST. 2014
+          </span>
+
         </div>
       </header>
 
@@ -77,7 +90,10 @@ export default async function Home() {
 
       <section className="quick-links">
 
-        <a href="/" className="active">
+        <a
+          href="/"
+          className="active"
+        >
           Home
         </a>
 
@@ -116,6 +132,7 @@ export default async function Home() {
         <section className="home-champion">
 
           <div className="home-champion-label">
+
             <p className="eyebrow">
               DEFENDING CHAMPION
             </p>
@@ -123,6 +140,7 @@ export default async function Home() {
             <h2>
               {latestSeason.champion?.name}
             </h2>
+
           </div>
 
           <div className="home-champion-details">
@@ -152,18 +170,41 @@ export default async function Home() {
       <section className="home-stats">
 
         <div className="home-stat-card">
-          <strong>12</strong>
-          <span>SEASONS</span>
+
+          <strong>
+            12
+          </strong>
+
+          <span>
+            SEASONS
+          </span>
+
         </div>
 
-        <div className="home-stat-card">
-          <strong>8</strong>
-          <span>CHAMPIONS</span>
-        </div>
 
         <div className="home-stat-card">
-          <strong>15</strong>
-          <span>TEAM OWNERS</span>
+
+          <strong>
+            8
+          </strong>
+
+          <span>
+            CHAMPIONS
+          </span>
+
+        </div>
+
+
+        <div className="home-stat-card">
+
+          <strong>
+            15
+          </strong>
+
+          <span>
+            TEAM OWNERS
+          </span>
+
         </div>
 
       </section>
@@ -176,7 +217,9 @@ export default async function Home() {
       <section className="home-story">
 
         <div className="section-heading">
+
           <div>
+
             <p className="eyebrow">
               THE STORY
             </p>
@@ -184,7 +227,9 @@ export default async function Home() {
             <h2>
               What Is Dirty P?
             </h2>
+
           </div>
+
         </div>
 
 
@@ -210,10 +255,12 @@ export default async function Home() {
 
           <p>
             Along the way, Dirty P has seen
-            <strong> shadow government, entire teams being
-            traded, collusion, dynasties, championships,
-            heartbreak,</strong> and plenty of questionable
-            decisions.
+            <strong>
+              {" "}shadow government, entire teams being
+              traded, collusion, dynasties, championships,
+              heartbreak,
+            </strong>
+            {" "}and plenty of questionable decisions.
           </p>
 
           <p className="story-final">
@@ -259,7 +306,7 @@ export default async function Home() {
                 2014 marks the beginning of the current version
                 of Dirty P
               </strong>
-              — the era that has continued through today.
+              {" "}— the era that has continued through today.
             </p>
 
           </div>
@@ -276,6 +323,7 @@ export default async function Home() {
       <section className="home-roadmap">
 
         <div className="section-heading">
+
           <div>
 
             <p className="eyebrow">
@@ -304,8 +352,13 @@ export default async function Home() {
 
           <div className="roadmap-states">
 
+            {/* TEXAS */}
+
             <div className="roadmap-state">
-              <strong>TX</strong>
+
+              <strong>
+                TX
+              </strong>
 
               <span>
                 New Braunfels · Pearland · Houston ·
@@ -314,69 +367,112 @@ export default async function Home() {
                 Fort Worth · San Marcos · Kyle · Rosharon ·
                 Iowa Colony
               </span>
+
             </div>
 
 
+            {/* ARKANSAS */}
+
             <div className="roadmap-state">
-              <strong>AR</strong>
+
+              <strong>
+                AR
+              </strong>
 
               <span>
                 Fayetteville · Fort Smith
               </span>
+
             </div>
 
 
+            {/* NORTH CAROLINA */}
+
             <div className="roadmap-state">
-              <strong>NC</strong>
+
+              <strong>
+                NC
+              </strong>
 
               <span>
                 Charlotte
               </span>
+
             </div>
 
 
+            {/* VIRGINIA */}
+
             <div className="roadmap-state">
-              <strong>VA</strong>
+
+              <strong>
+                VA
+              </strong>
 
               <span>
                 Somewhere in Virginia
               </span>
+
             </div>
 
 
+            {/* KENTUCKY */}
+
             <div className="roadmap-state">
-              <strong>KY</strong>
+
+              <strong>
+                KY
+              </strong>
 
               <span>
                 Louisville
               </span>
+
             </div>
 
 
+            {/* ARIZONA */}
+
             <div className="roadmap-state">
-              <strong>AZ</strong>
+
+              <strong>
+                AZ
+              </strong>
 
               <span>
                 Tucson
               </span>
+
             </div>
 
 
+            {/* CALIFORNIA */}
+
             <div className="roadmap-state">
-              <strong>CA</strong>
+
+              <strong>
+                CA
+              </strong>
 
               <span>
                 Palmdale
               </span>
+
             </div>
 
 
+            {/* DELAWARE */}
+
             <div className="roadmap-state">
-              <strong>DE</strong>
+
+              <strong>
+                DE
+              </strong>
 
               <span>
                 Delaware
               </span>
+
             </div>
 
           </div>
