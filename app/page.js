@@ -2,10 +2,9 @@ import { supabase } from "../lib/supabase";
 
 export default async function Home() {
   const currentSeason = 2026;
-  const currentWeek = 2;
 
   // =========================
-  // DEFENDING CHAMPION
+  // LEAGUE HISTORY
   // =========================
 
   const { data: seasons, error: seasonsError } = await supabase
@@ -16,71 +15,21 @@ export default async function Home() {
       champion:champion_owner_id(name),
       runner_up:runner_up_owner_id(name)
     `)
-    .lt("year", currentSeason)
     .order("year", { ascending: false });
 
   // =========================
-  // CURRENT STANDINGS
+  // OWNERS
   // =========================
 
-  const { data: standings, error: standingsError } = await supabase
-    .from("season_results")
-    .select(`
-      owner_id,
-      wins,
-      losses,
-      ties,
-      points_for,
-      points_against,
-      owner:owner_id(name)
-    `)
-    .eq("season_year", currentSeason);
-
-  // =========================
-  // CURRENT TEAMS + DIVISIONS
-  // =========================
-
-  const { data: teams, error: teamsError } = await supabase
-    .from("teams")
-    .select(`
-      owner_id,
-      team_name,
-      division
-    `)
-    .eq("season_year", currentSeason);
-
-  // =========================
-  // CURRENT WEEK MATCHUPS
-  // =========================
-
-  const { data: matchups, error: matchupsError } = await supabase
-    .from("matchups")
-    .select(`
-      id,
-      matchup_period,
-      away_owner_id,
-      home_owner_id,
-      away_team_name,
-      home_team_name,
-      away_score,
-      home_score,
-      winner
-    `)
-    .eq("season_year", currentSeason)
-    .eq("matchup_period", currentWeek)
-    .eq("is_playoff", false)
-    .order("id", { ascending: true });
+  const { data: owners, error: ownersError } = await supabase
+    .from("owners")
+    .select("id, name");
 
   // =========================
   // DATABASE ERROR
   // =========================
 
-  if (
-    seasonsError ||
-    standingsError ||
-    teamsError ||
-    matchupsError
-  ) {
+  if (seasonsError || ownersError) {
     return (
       <main className="page-shell">
         <h1>Dirty P Fantasy Football</h1>
@@ -88,171 +37,27 @@ export default async function Home() {
         <p>
           Database error:{" "}
           {seasonsError?.message ||
-            standingsError?.message ||
-            teamsError?.message ||
-            matchupsError?.message}
+            ownersError?.message}
         </p>
       </main>
     );
   }
 
+  // =========================
+  // ARCHIVE STATS
+  // =========================
+
+  const totalSeasons = seasons?.length || 0;
+
+  const uniqueChampions = new Set(
+    (seasons || [])
+      .map((season) => season.champion?.name)
+      .filter(Boolean)
+  ).size;
+
+  const totalOwners = owners?.length || 0;
+
   const latestSeason = seasons?.[0];
-
-  // =========================
-  // COMBINE STANDINGS + TEAMS
-  // =========================
-
-  const standingsWithTeams = (standings || []).map(
-    (standing) => {
-      const team = teams?.find(
-        (team) => team.owner_id === standing.owner_id
-      );
-
-      return {
-        ...standing,
-        team_name:
-          team?.team_name ||
-          standing.owner?.name ||
-          "Unknown",
-        division: team?.division || "No Division",
-      };
-    }
-  );
-
-  // =========================
-  // OVERALL PLAYOFF RACE
-  // =========================
-
-  const overallStandings = [...standingsWithTeams].sort(
-    (a, b) => {
-      if (b.wins !== a.wins) {
-        return b.wins - a.wins;
-      }
-
-      if (b.ties !== a.ties) {
-        return b.ties - a.ties;
-      }
-
-      return (
-        Number(b.points_for) - Number(a.points_for)
-      );
-    }
-  );
-
-  // Current top 4 overall
-  const playoffOwnerIds = new Set(
-    overallStandings
-      .slice(0, 4)
-      .map((standing) => standing.owner_id)
-  );
-
-  // =========================
-  // DIVISIONS
-  // =========================
-
-  const sortDivision = (divisionTeams) =>
-    divisionTeams.sort((a, b) => {
-      if (b.wins !== a.wins) {
-        return b.wins - a.wins;
-      }
-
-      if (b.ties !== a.ties) {
-        return b.ties - a.ties;
-      }
-
-      return (
-        Number(b.points_for) - Number(a.points_for)
-      );
-    });
-
-  const unnecessaryRoughness = sortDivision(
-    standingsWithTeams.filter(
-      (standing) =>
-        standing.division === "Unnecessary Roughness"
-    )
-  );
-
-  const illegalContact = sortDivision(
-    standingsWithTeams.filter(
-      (standing) =>
-        standing.division === "Illegal Contact"
-    )
-  );
-
-  // =========================
-  // DIVISION COMPONENT
-  // =========================
-
-  function DivisionStandings({
-    name,
-    teams: divisionTeams,
-  }) {
-    return (
-      <div className="division-card">
-        <div className="division-title">
-          <h3>{name}</h3>
-        </div>
-
-        <div className="division-header">
-          <span>RK</span>
-          <span>TEAM</span>
-          <span>W-L</span>
-          <span>PF</span>
-        </div>
-
-        {divisionTeams.map((standing, index) => {
-          const inPlayoffPosition =
-            playoffOwnerIds.has(standing.owner_id);
-
-          return (
-            <div
-              className={`division-row ${
-                inPlayoffPosition
-                  ? "playoff-position"
-                  : ""
-              }`}
-              key={standing.owner_id}
-            >
-              <span className="standings-rank">
-                {index + 1}
-              </span>
-
-              <div className="standings-team">
-                <div className="team-name-line">
-                  <strong>
-                    {standing.team_name}
-                  </strong>
-
-                  {inPlayoffPosition && (
-                    <span className="playoff-badge">
-                      PLAYOFF
-                    </span>
-                  )}
-                </div>
-
-                <span>
-                  {standing.owner?.name}
-                </span>
-              </div>
-
-              <strong className="standings-record">
-                {standing.wins}-{standing.losses}
-                {standing.ties > 0
-                  ? `-${standing.ties}`
-                  : ""}
-              </strong>
-
-              <strong className="standings-pf">
-                {Number(
-                  standing.points_for
-                ).toFixed(2)}
-              </strong>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
 
   // =========================
   // PAGE
@@ -333,9 +138,6 @@ export default async function Home() {
       {/* MAIN NAVIGATION */}
 
       <section className="quick-links">
-        <a href="/seasons">
-          Seasons
-        </a>
 
         <a href="/owners">
           Owners
@@ -360,167 +162,287 @@ export default async function Home() {
         <a href="/goat">
           GOAT Rankings
         </a>
+
+        <a href="/news">
+          Dirty P News
+        </a>
+
       </section>
 
-      {/* CURRENT STANDINGS */}
+      {/* ARCHIVE OVERVIEW */}
 
       <section className="section-block">
+
         <div className="section-heading">
           <div>
             <p className="eyebrow">
-              {currentSeason} SEASON
+              THE ARCHIVE
             </p>
 
             <h2>
-              Current Standings
+              League History
             </h2>
           </div>
 
           <span>
-            Week {currentWeek} · Top 4 Overall Make
-            Playoffs
+            Since 2014
           </span>
         </div>
 
-        <div className="division-grid">
-          <DivisionStandings
-            name="Unnecessary Roughness"
-            teams={unnecessaryRoughness}
-          />
+        <div className="archive-stats">
 
-          <DivisionStandings
-            name="Illegal Contact"
-            teams={illegalContact}
-          />
+          {/* SEASONS */}
+
+          <a
+            href="/seasons"
+            className="archive-stat-card"
+          >
+            <span className="archive-stat-number">
+              {totalSeasons}
+            </span>
+
+            <span className="archive-stat-label">
+              Seasons
+            </span>
+
+            <span className="archive-stat-description">
+              Every season from the beginning
+            </span>
+          </a>
+
+          {/* CHAMPIONS */}
+
+          <a
+            href="/champions"
+            className="archive-stat-card"
+          >
+            <span className="archive-stat-number">
+              {uniqueChampions}
+            </span>
+
+            <span className="archive-stat-label">
+              Champions
+            </span>
+
+            <span className="archive-stat-description">
+              Owners who have captured the title
+            </span>
+          </a>
+
+          {/* OWNERS */}
+
+          <a
+            href="/owners"
+            className="archive-stat-card"
+          >
+            <span className="archive-stat-number">
+              {totalOwners}
+            </span>
+
+            <span className="archive-stat-label">
+              Team Owners
+            </span>
+
+            <span className="archive-stat-description">
+              The people behind the league
+            </span>
+          </a>
+
+          {/* NEWS */}
+
+          <a
+            href="/news"
+            className="archive-stat-card archive-stat-news"
+          >
+            <span className="archive-stat-kicker">
+              DIRTY P
+            </span>
+
+            <span className="archive-stat-label">
+              News
+            </span>
+
+            <span className="archive-stat-description">
+              Recaps, previews, stories, and league
+              bullshit
+            </span>
+          </a>
+
         </div>
 
-        <div className="playoff-key">
-          <span className="playoff-badge">
-            PLAYOFF
-          </span>
-
-          <span>
-            Current top 4 overall
-          </span>
-        </div>
       </section>
 
-      {/* THIS WEEK'S MATCHUPS */}
+      {/* DIRTY P NEWS */}
 
       <section className="section-block">
+
         <div className="section-heading">
           <div>
             <p className="eyebrow">
-              {currentSeason} SEASON
+              DIRTY P NEWS
             </p>
 
             <h2>
-              This Week&apos;s Matchups
+              Around the League
             </h2>
           </div>
 
-          <span>
-            Week {currentWeek}
-          </span>
+          <a
+            href="/news"
+            className="section-link"
+          >
+            View All News →
+          </a>
         </div>
 
-        <div className="matchup-grid">
-          {(matchups || []).map((matchup) => {
-            const awayScore = Number(
-              matchup.away_score || 0
-            );
+        <div className="news-grid">
 
-            const homeScore = Number(
-              matchup.home_score || 0
-            );
+          {/* 2025 RECAP */}
 
-            const awayLeading =
-              awayScore > homeScore;
+          <a
+            href="/news/2025-season-recap"
+            className="news-card"
+          >
+            <div className="news-card-top">
+              <span className="news-kicker">
+                2025 SEASON
+              </span>
 
-            const homeLeading =
-              homeScore > awayScore;
-
-            return (
-              <div
-                className="matchup-card"
-                key={matchup.id}
-              >
-                <div className="matchup-card-top">
-                  <span>
-                    WEEK {matchup.matchup_period}
-                  </span>
-
-                  <span className="matchup-status">
-                    MATCHUP
-                  </span>
-                </div>
-
-                <div
-                  className={`matchup-team-row ${
-                    awayLeading
-                      ? "matchup-leading"
-                      : ""
-                  }`}
-                >
-                  <div className="matchup-team-info">
-                    <strong>
-                      {matchup.away_team_name}
-                    </strong>
-
-                    <span>
-                      Away
-                    </span>
-                  </div>
-
-                  <strong className="matchup-score">
-                    {awayScore.toFixed(1)}
-                  </strong>
-                </div>
-
-                <div className="matchup-vs">
-                  <span>AT</span>
-                </div>
-
-                <div
-                  className={`matchup-team-row ${
-                    homeLeading
-                      ? "matchup-leading"
-                      : ""
-                  }`}
-                >
-                  <div className="matchup-team-info">
-                    <strong>
-                      {matchup.home_team_name}
-                    </strong>
-
-                    <span>
-                      Home
-                    </span>
-                  </div>
-
-                  <strong className="matchup-score">
-                    {homeScore.toFixed(1)}
-                  </strong>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {(!matchups || matchups.length === 0) && (
-          <div className="current-panel">
-            <div className="empty-current-state">
-              <strong>
-                No Week {currentWeek} matchups found.
-              </strong>
-
-              <p>
-                Matchups will appear here once they
-                are added to the league database.
-              </p>
+              <span className="news-arrow">
+                →
+              </span>
             </div>
+
+            <h3>
+              2025 Season Recap
+            </h3>
+
+            <p>
+              The championship run, the biggest
+              storylines, the heartbreak, and the
+              moments that defined the 2025 season.
+            </p>
+
+            <span className="news-read">
+              READ RECAP
+            </span>
+          </a>
+
+          {/* 2026 PREVIEW */}
+
+          <a
+            href="/news/2026-season-preview"
+            className="news-card"
+          >
+            <div className="news-card-top">
+              <span className="news-kicker">
+                2026 SEASON
+              </span>
+
+              <span className="news-arrow">
+                →
+              </span>
+            </div>
+
+            <h3>
+              2026 Season Preview
+            </h3>
+
+            <p>
+              New season. New rivalries. New
+              opportunities to make questionable
+              fantasy football decisions.
+            </p>
+
+            <span className="news-read">
+              READ PREVIEW
+            </span>
+          </a>
+
+        </div>
+
+      </section>
+
+      {/* FEATURED HISTORY */}
+
+      <section className="section-block">
+
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">
+              EXPLORE
+            </p>
+
+            <h2>
+              The League Archive
+            </h2>
           </div>
-        )}
+        </div>
+
+        <div className="archive-links">
+
+          <a href="/seasons">
+            <strong>
+              Seasons
+            </strong>
+
+            <span>
+              Browse the complete season history
+            </span>
+          </a>
+
+          <a href="/champions">
+            <strong>
+              Champions
+            </strong>
+
+            <span>
+              See every championship and runner-up
+            </span>
+          </a>
+
+          <a href="/records">
+            <strong>
+              Records
+            </strong>
+
+            <span>
+              The numbers that define Dirty P
+            </span>
+          </a>
+
+          <a href="/head-to-head">
+            <strong>
+              Head-to-Head
+            </strong>
+
+            <span>
+              See how every owner stacks up
+            </span>
+          </a>
+
+          <a href="/rivalry-week">
+            <strong>
+              Rivalry Week
+            </strong>
+
+            <span>
+              Five rivalries. One miserable week.
+            </span>
+          </a>
+
+          <a href="/goat">
+            <strong>
+              GOAT Rankings
+            </strong>
+
+            <span>
+              The league's all-time legends
+            </span>
+          </a>
+
+        </div>
+
       </section>
 
       {/* FOOTER */}
