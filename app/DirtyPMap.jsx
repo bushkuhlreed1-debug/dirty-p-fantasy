@@ -54,8 +54,11 @@ export default function DirtyPMap() {
   useEffect(() => {
     let cancelled = false;
 
-    const loadLeaflet = async () => {
-      // Load Leaflet CSS
+    async function loadMap() {
+      // =====================================================
+      // LOAD LEAFLET CSS
+      // =====================================================
+
       if (!document.getElementById("leaflet-css")) {
         const link = document.createElement("link");
 
@@ -67,7 +70,10 @@ export default function DirtyPMap() {
         document.head.appendChild(link);
       }
 
-      // Load Leaflet JavaScript
+      // =====================================================
+      // LOAD LEAFLET
+      // =====================================================
+
       if (!window.L) {
         await new Promise((resolve, reject) => {
           const existing = document.querySelector(
@@ -95,18 +101,25 @@ export default function DirtyPMap() {
         });
       }
 
-      if (cancelled || !mapRef.current || !window.L) {
+      if (
+        cancelled ||
+        !mapRef.current ||
+        !window.L
+      ) {
         return;
       }
 
       const L = window.L;
 
-      // Prevent duplicate map initialization
+      // Prevent duplicate initialization
       if (mapInstance.current) {
         return;
       }
 
-      // Create map
+      // =====================================================
+      // CREATE MAP
+      // =====================================================
+
       const map = L.map(mapRef.current, {
         zoomControl: true,
         scrollWheelZoom: false,
@@ -115,22 +128,37 @@ export default function DirtyPMap() {
 
       mapInstance.current = map;
 
-      // Center on the United States
-      map.setView([38.5, -96], 4);
+      // =====================================================
+      // OPENSTREETMAP TILES
+      //
+      // NO API KEY REQUIRED
+      // =====================================================
 
-      // Dark map tiles
       L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
         {
           maxZoom: 19,
           attribution:
-            '&copy; OpenStreetMap contributors &copy; CARTO',
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         }
       ).addTo(map);
 
-      // Custom gold marker
+      // =====================================================
+      // CENTER MAP
+      // =====================================================
+
+      map.setView(
+        [38.5, -96],
+        4
+      );
+
+      // =====================================================
+      // DIRTY P MARKER
+      // =====================================================
+
       const markerIcon = L.divIcon({
-        className: "dirty-p-marker-wrapper",
+        className:
+          "dirty-p-marker-wrapper",
 
         html: `
           <div class="dirty-p-marker">
@@ -144,10 +172,16 @@ export default function DirtyPMap() {
         popupAnchor: [0, -12],
       });
 
-      // Add every location
+      // =====================================================
+      // ADD LOCATIONS
+      // =====================================================
+
       locations.forEach((location) => {
         const marker = L.marker(
-          [location.lat, location.lng],
+          [
+            location.lat,
+            location.lng,
+          ],
           {
             icon: markerIcon,
           }
@@ -155,34 +189,54 @@ export default function DirtyPMap() {
 
         marker.bindPopup(`
           <div class="dirty-p-popup">
-            <strong>${location.name}</strong>
-            <span>${location.state}</span>
+            <strong>
+              ${location.name}
+            </strong>
+
+            <span>
+              ${location.state}
+            </span>
           </div>
         `);
       });
 
-      // Fit all locations into view
-      const bounds = L.latLngBounds(
-        locations.map((location) => [
-          location.lat,
-          location.lng,
-        ])
+      // =====================================================
+      // FIT MAP TO LOCATIONS
+      // =====================================================
+
+      const bounds =
+        L.latLngBounds(
+          locations.map(
+            (location) => [
+              location.lat,
+              location.lng,
+            ]
+          )
+        );
+
+      map.fitBounds(
+        bounds,
+        {
+          padding: [
+            45,
+            45,
+          ],
+          maxZoom: 5,
+        }
       );
 
-      map.fitBounds(bounds, {
-        padding: [45, 45],
-        maxZoom: 5,
-      });
+      // =====================================================
+      // FIX MAP SIZE
+      // =====================================================
 
-      // Force correct sizing after render
       setTimeout(() => {
         if (mapInstance.current) {
           mapInstance.current.invalidateSize();
         }
-      }, 200);
-    };
+      }, 300);
+    }
 
-    loadLeaflet();
+    loadMap();
 
     return () => {
       cancelled = true;
@@ -197,9 +251,9 @@ export default function DirtyPMap() {
   return (
     <section className="dirty-p-map">
 
-      {/* =====================================================
+      {/* ===================================================
           HEADER
-          ===================================================== */}
+          =================================================== */}
 
       <div className="dirty-p-map-header">
 
@@ -219,16 +273,27 @@ export default function DirtyPMap() {
 
         </div>
 
+
         <div className="dirty-p-map-count">
 
           <div>
-            <strong>8</strong>
-            <span>STATES</span>
+            <strong>
+              8
+            </strong>
+
+            <span>
+              STATES
+            </span>
           </div>
 
           <div>
-            <strong>21</strong>
-            <span>LOCATIONS</span>
+            <strong>
+              21
+            </strong>
+
+            <span>
+              LOCATIONS
+            </span>
           </div>
 
         </div>
@@ -236,9 +301,9 @@ export default function DirtyPMap() {
       </div>
 
 
-      {/* =====================================================
+      {/* ===================================================
           MAP
-          ===================================================== */}
+          =================================================== */}
 
       <div className="dirty-p-real-map">
 
@@ -250,9 +315,9 @@ export default function DirtyPMap() {
       </div>
 
 
-      {/* =====================================================
-          MAP FOOTER
-          ===================================================== */}
+      {/* ===================================================
+          FOOTER
+          =================================================== */}
 
       <div className="dirty-p-map-footer">
 
