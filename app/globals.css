@@ -1186,3 +1186,392 @@ a {
     font-size: 0.82rem;
   }
 }
+/* =========================================================
+   DIRTY P HOME PAGE
+   ========================================================= */
+
+.home-hero {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 52px 42px;
+  background: linear-gradient(135deg, #11151a, #181d23);
+  border: 1px solid #252b33;
+  border-radius: 22px;
+}
+
+.home-hero-content {
+  max-width: 850px;
+}
+
+.home-hero h1 {
+  margin: 8px 0 0;
+  color: #f5f5f5;
+  font-size: clamp(3rem, 6vw, 5.2rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.home-hero-copy {
+  max-width: 720px;
+  margin: 20px 0 0;
+  color: #aeb6c1;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+.quick-links a.active {
+  background: #d6a84b;
+  border-color: #d6a84b;
+  color: #11151a;
+}
+
+
+/* =========================================================
+   DEFENDING CHAMPION
+   ========================================================= */
+
+.home-champion {
+  max-width: 1200px;
+  margin: 16px auto 0;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: #14181d;
+  border: 1px solid #2a3038;
+  border-left: 4px solid #d6a84b;
+  border-radius: 12px;
+}
+
+.home-champion-label {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.home-champion-label .eyebrow {
+  margin: 0;
+}
+
+.home-champion-label h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1.25rem;
+}
+
+.home-champion-details {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.home-champion-details span {
+  color: #8f98a3;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.home-champion-details strong {
+  color: #d6a84b;
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.home-champion-details small {
+  color: #8f98a3;
+  font-size: 0.75rem;
+}
+
+.home-champion-details small::before {
+  content: "•";
+  margin-right: 10px;
+  color: #4e5660;
+}
+
+
+/* =========================================================
+   LEAGUE STATS
+   ========================================================= */
+
+.home-stats {
+  max-width: 1200px;
+  margin: 18px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.home-stat-card {
+  min-height: 125px;
+  padding: 25px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+  text-align: center;
+}
+
+.home-stat-card strong {
+  display: block;
+  color: #d6a84b;
+  font-size: 2.8rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.home-stat-card span {
+  display: block;
+  margin-top: 9px;
+  color: #7f8995;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+}
+
+
+/* =========================================================
+   STORY
+   ========================================================= */
+
+.home-story {
+  max-width: 1200px;
+  margin: 42px auto 0;
+}
+
+.home-story .section-heading {
+  margin-bottom: 14px;
+}
+
+.home-story-card {
+  padding: 30px 34px;
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+}
+
+.home-story-card p {
+  max-width: 950px;
+  margin: 0 0 16px;
+  color: #9ca5b0;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.home-story-card p:last-child {
+  margin-bottom: 0;
+}
+
+.home-story-card .story-lead {
+  margin-bottom: 20px;
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.home-story-card strong {
+  color: #d6a84b;
+}
+
+.home-story-card .story-final {
+  margin-top: 24px;
+  color: #d6a84b;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+
+/* =========================================================
+   DID YOU KNOW
+   ========================================================= */
+
+.home-did-you-know {
+  max-width: 1200px;
+  margin: 16px auto 0;
+}
+
+.did-you-know-card {
+  padding: 26px 30px;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  background: linear-gradient(135deg, #171b20, #12161b);
+  border: 1px solid #2a3038;
+  border-radius: 16px;
+}
+
+.did-you-know-icon {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1d2229;
+  border: 1px solid #343b45;
+  border-radius: 10px;
+  font-size: 1.25rem;
+}
+
+.did-you-know-card h2 {
+  margin: 5px 0 10px;
+  color: #ffffff;
+  font-size: 1.35rem;
+}
+
+.did-you-know-card p:not(.eyebrow) {
+  max-width: 900px;
+  margin: 0 0 10px;
+  color: #8f98a3;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.did-you-know-card p:last-child {
+  margin-bottom: 0;
+}
+
+.did-you-know-card strong {
+  color: #d6a84b;
+}
+
+
+/* =========================================================
+   ROAD MAP
+   ========================================================= */
+
+.home-roadmap {
+  max-width: 1200px;
+  margin: 42px auto 0;
+}
+
+.home-roadmap .section-heading {
+  margin-bottom: 14px;
+}
+
+.roadmap-card {
+  padding: 28px 30px;
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+}
+
+.roadmap-intro {
+  margin: 0 0 20px;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.roadmap-states {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.roadmap-state {
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: #171b20;
+  border: 1px solid #252b33;
+  border-radius: 11px;
+}
+
+.roadmap-state strong {
+  min-width: 28px;
+  color: #d6a84b;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.roadmap-state span {
+  color: #9ca5b0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+
+/* =========================================================
+   HOME MOBILE
+   ========================================================= */
+
+@media (max-width: 800px) {
+
+  .home-champion {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .home-champion-label {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .home-champion-details {
+    justify-content: flex-start;
+  }
+
+  .roadmap-states {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+@media (max-width: 600px) {
+
+  .home-hero {
+    padding: 38px 24px;
+    border-radius: 18px;
+  }
+
+  .home-hero h1 {
+    font-size: 3rem;
+  }
+
+  .home-hero-copy {
+    font-size: 0.92rem;
+  }
+
+  .home-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .home-stat-card {
+    min-height: 105px;
+  }
+
+  .home-story-card {
+    padding: 24px;
+  }
+
+  .home-story-card .story-lead {
+    font-size: 1.05rem;
+  }
+
+  .did-you-know-card {
+    padding: 22px;
+  }
+
+  .roadmap-card {
+    padding: 22px;
+  }
+
+  .roadmap-state {
+    padding: 15px;
+  }
+}
