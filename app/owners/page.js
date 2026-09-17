@@ -3,9 +3,9 @@ import { supabase } from "../../lib/supabase";
 export default async function OwnersPage() {
   const currentSeason = 2026;
 
-  // =========================
+  // =========================================================
   // GET OWNERS
-  // =========================
+  // =========================================================
 
   const { data: owners, error: ownersError } =
     await supabase
@@ -18,9 +18,9 @@ export default async function OwnersPage() {
       `)
       .order("name", { ascending: true });
 
-  // =========================
+  // =========================================================
   // GET REGULAR SEASON RESULTS
-  // =========================
+  // =========================================================
 
   const {
     data: seasonResults,
@@ -40,9 +40,9 @@ export default async function OwnersPage() {
       champion
     `);
 
-  // =========================
+  // =========================================================
   // GET ALL HISTORICAL MATCHUPS
-  // =========================
+  // =========================================================
 
   const {
     data: allMatchups,
@@ -65,9 +65,9 @@ export default async function OwnersPage() {
       is_third_place
     `);
 
-  // =========================
+  // =========================================================
   // GET CURRENT TEAM NAMES
-  // =========================
+  // =========================================================
 
   const {
     data: currentTeams,
@@ -80,9 +80,9 @@ export default async function OwnersPage() {
     `)
     .eq("season_year", currentSeason);
 
-  // =========================
+  // =========================================================
   // DATABASE ERROR
-  // =========================
+  // =========================================================
 
   if (
     ownersError ||
@@ -105,14 +105,11 @@ export default async function OwnersPage() {
     );
   }
 
-  // =========================
+  // =========================================================
   // DETERMINE GAME RESULT
-  // =========================
+  // =========================================================
 
-  function getOwnerGameResult(
-    matchup,
-    ownerId
-  ) {
+  function getOwnerGameResult(matchup, ownerId) {
     const homeScore = Number(
       matchup.home_score ?? 0
     );
@@ -150,89 +147,140 @@ export default async function OwnersPage() {
     return "tie";
   }
 
-  // =========================
-  // IDENTIFY GAME TYPE
+  // =========================================================
+  // NORMALIZE TEXT
+  // =========================================================
+
+  function normalize(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_");
+  }
+
+  // =========================================================
+  // IDENTIFY POSTSEASON TYPE
   //
-  // IMPORTANT:
-  // ESPN marks consolation games with
-  // is_playoff = true as well.
+  // We deliberately make this more comprehensive than the
+  // previous version.
   //
-  // Therefore consolation MUST be
-  // checked before is_playoff.
-  // =========================
+  // Consolation is checked FIRST so consolation games do not
+  // get counted as championship-bracket playoff games.
+  // =========================================================
 
   function getPostseasonType(matchup) {
-    const matchupType = String(
-      matchup.matchup_type || ""
-    )
-      .trim()
-      .toLowerCase();
+    const matchupType =
+      normalize(matchup.matchup_type);
 
-    const playoffTier = String(
-      matchup.playoff_tier || ""
-    )
-      .trim()
-      .toLowerCase();
+    const playoffTier =
+      normalize(matchup.playoff_tier);
 
-    // -------------------------
-    // CONSOLATION
-    // -------------------------
+    const combined =
+      `${matchupType} ${playoffTier}`;
 
-    if (
-      matchupType === "consolation" ||
-      matchupType.includes(
-        "consolation"
-      ) ||
-      playoffTier.includes(
-        "consolation"
-      ) ||
-      playoffTier.includes(
-        "losers"
-      ) ||
-      playoffTier.includes(
-        "loser"
-      )
-    ) {
+    // =======================================================
+    // CONSOLATION / LOSERS BRACKET
+    // =======================================================
+
+    const isConsolation =
+      matchupType.includes("consolation") ||
+      matchupType.includes("loser") ||
+      matchupType.includes("losers") ||
+      matchupType.includes("5th_place") ||
+      matchupType.includes("7th_place") ||
+      playoffTier.includes("consolation") ||
+      playoffTier.includes("loser") ||
+      playoffTier.includes("losers") ||
+      playoffTier.includes("consolation_bracket");
+
+    if (isConsolation) {
       return "consolation";
     }
 
-    // -------------------------
-    // CHAMPIONSHIP BRACKET
-    // -------------------------
+    // =======================================================
+    // EXPLICIT CHAMPIONSHIP / THIRD PLACE
+    // =======================================================
 
     if (
-      matchupType === "playoff" ||
-      matchupType.includes(
-        "championship"
-      ) ||
-      playoffTier.includes(
-        "winners_bracket"
-      ) ||
-      playoffTier.includes(
-        "winner"
-      ) ||
-      playoffTier.includes(
-        "championship"
-      ) ||
-      matchup.is_championship ===
-        true ||
-      matchup.is_third_place ===
-        true ||
-      matchup.is_playoff === true
+      matchup.is_championship === true ||
+      matchup.is_third_place === true
     ) {
       return "playoff";
     }
 
-    // -------------------------
-    // REGULAR SEASON
-    // -------------------------
+    // =======================================================
+    // EXPLICIT PLAYOFF FLAGS
+    // =======================================================
+
+    if (matchup.is_playoff === true) {
+      return "playoff";
+    }
+
+    // =======================================================
+    // PLAYOFF MATCHUP TYPES
+    // =======================================================
+
+    const playoffKeywords = [
+      "playoff",
+      "playoffs",
+      "championship",
+      "championship_game",
+      "final",
+      "finals",
+      "semifinal",
+      "semi_final",
+      "semi",
+      "quarterfinal",
+      "quarter_final",
+      "quarter",
+      "wild_card",
+      "wildcard",
+      "first_round",
+      "second_round",
+      "third_round",
+      "round_1",
+      "round_2",
+      "round_3",
+      "third_place",
+      "3rd_place",
+      "runner_up",
+      "winner_bracket",
+      "winners_bracket",
+      "winners",
+      "upper_bracket",
+      "upper",
+      "championship_bracket",
+    ];
+
+    const hasPlayoffKeyword =
+      playoffKeywords.some(
+        (keyword) =>
+          matchupType.includes(keyword) ||
+          playoffTier.includes(keyword)
+      );
+
+    if (hasPlayoffKeyword) {
+      return "playoff";
+    }
+
+    // =======================================================
+    // ADDITIONAL PLAYOFF-TIER DETECTION
+    // =======================================================
+
+    if (
+      combined.includes("bracket") &&
+      !combined.includes("consolation") &&
+      !combined.includes("loser")
+    ) {
+      return "playoff";
+    }
 
     return "regular";
   }
 
-  // =========================
+  // =========================================================
   // BUILD CAREER STATS
-  // =========================
+  // =========================================================
 
   const ownerStats = (owners || []).map(
     (owner) => {
@@ -250,9 +298,9 @@ export default async function OwnersPage() {
           team.owner_id === owner.id
       );
 
-      // =========================
+      // =======================================================
       // REGULAR SEASON RECORD
-      // =========================
+      // =======================================================
 
       const regularWins =
         results.reduce(
@@ -266,9 +314,7 @@ export default async function OwnersPage() {
         results.reduce(
           (total, result) =>
             total +
-            Number(
-              result.losses || 0
-            ),
+            Number(result.losses || 0),
           0
         );
 
@@ -280,17 +326,15 @@ export default async function OwnersPage() {
           0
         );
 
-      // =========================
+      // =======================================================
       // REGULAR SEASON POINTS
-      // =========================
+      // =======================================================
 
       const pointsFor =
         results.reduce(
           (total, result) =>
             total +
-            Number(
-              result.points_for || 0
-            ),
+            Number(result.points_for || 0),
           0
         );
 
@@ -298,29 +342,24 @@ export default async function OwnersPage() {
         results.reduce(
           (total, result) =>
             total +
-            Number(
-              result.points_against || 0
-            ),
+            Number(result.points_against || 0),
           0
         );
 
-      // =========================
+      // =======================================================
       // ACCOMPLISHMENTS
-      // =========================
+      // =======================================================
 
       const playoffAppearances =
         results.filter(
           (result) =>
-            result.playoff_appearance ===
-            true
+            result.playoff_appearance === true
         ).length;
 
       const finalsAppearances =
         results.filter(
           (result) =>
-            result
-              .championship_appearance ===
-            true
+            result.championship_appearance === true
         ).length;
 
       const championships =
@@ -329,47 +368,51 @@ export default async function OwnersPage() {
             result.champion === true
         ).length;
 
-      // =========================
+      // =======================================================
       // ALL MATCHUPS FOR OWNER
-      // =========================
+      // =======================================================
 
       const ownerMatchups = (
         allMatchups || []
       ).filter(
         (matchup) =>
-          matchup.home_owner_id ===
-            owner.id ||
-          matchup.away_owner_id ===
-            owner.id
+          matchup.home_owner_id === owner.id ||
+          matchup.away_owner_id === owner.id
       );
 
-      // =========================
+      // =======================================================
       // PLAYOFF RECORD
-      // =========================
+      // =======================================================
 
       let playoffWins = 0;
       let playoffLosses = 0;
       let playoffTies = 0;
 
-      // =========================
+      // =======================================================
       // CONSOLATION RECORD
-      // =========================
+      // =======================================================
 
       let consolationWins = 0;
       let consolationLosses = 0;
       let consolationTies = 0;
 
+      // =======================================================
+      // TRACK PLAYOFF GAMES BY SEASON
+      //
+      // This is useful for making sure we aren't accidentally
+      // counting the same matchup twice.
+      // =======================================================
+
+      const playoffGamesBySeason = {};
+
       ownerMatchups.forEach(
         (matchup) => {
           const gameType =
-            getPostseasonType(
-              matchup
-            );
+            getPostseasonType(matchup);
 
           if (
             gameType !== "playoff" &&
-            gameType !==
-              "consolation"
+            gameType !== "consolation"
           ) {
             return;
           }
@@ -384,70 +427,62 @@ export default async function OwnersPage() {
             return;
           }
 
-          // -------------------------
+          // =====================================================
           // PLAYOFF GAME
-          // -------------------------
+          // =====================================================
 
           if (gameType === "playoff") {
-            if (
-              gameResult === "win"
-            ) {
+            if (gameResult === "win") {
               playoffWins += 1;
             }
 
-            if (
-              gameResult === "loss"
-            ) {
+            if (gameResult === "loss") {
               playoffLosses += 1;
             }
 
-            if (
-              gameResult === "tie"
-            ) {
+            if (gameResult === "tie") {
               playoffTies += 1;
             }
+
+            const season =
+              matchup.season_year;
+
+            if (
+              !playoffGamesBySeason[season]
+            ) {
+              playoffGamesBySeason[season] = [];
+            }
+
+            playoffGamesBySeason[season].push(
+              matchup.id
+            );
 
             return;
           }
 
-          // -------------------------
+          // =====================================================
           // CONSOLATION GAME
-          // -------------------------
+          // =====================================================
 
-          if (
-            gameType ===
-            "consolation"
-          ) {
-            if (
-              gameResult === "win"
-            ) {
+          if (gameType === "consolation") {
+            if (gameResult === "win") {
               consolationWins += 1;
             }
 
-            if (
-              gameResult === "loss"
-            ) {
+            if (gameResult === "loss") {
               consolationLosses += 1;
             }
 
-            if (
-              gameResult === "tie"
-            ) {
+            if (gameResult === "tie") {
               consolationTies += 1;
             }
           }
         }
       );
 
-      // =========================
+      // =======================================================
       // ALL-GAME RECORD
-      //
-      // Regular Season
-      // +
-      // Playoffs
-      // +
-      // Consolation
-      // =========================
+      // =======================================================
 
       const allWins =
         regularWins +
@@ -469,21 +504,24 @@ export default async function OwnersPage() {
         allLosses +
         allTies;
 
-      // =========================
+      // =======================================================
       // ALL-GAME WIN %
-      // =========================
+      // =======================================================
 
       const winPercentage =
         allGamesPlayed > 0
-          ? ((allWins +
-              allTies * 0.5) /
-              allGamesPlayed) *
-            100
+          ? (
+              (
+                allWins +
+                allTies * 0.5
+              ) /
+              allGamesPlayed
+            ) * 100
           : 0;
 
-      // =========================
+      // =======================================================
       // SEASONS PLAYED
-      // =========================
+      // =======================================================
 
       const seasonsPlayed =
         results.length;
@@ -545,37 +583,38 @@ export default async function OwnersPage() {
         seasonsPlayed,
         firstSeason,
         latestSeason,
+
+        playoffGamesBySeason,
       };
     }
   );
 
-  // =========================
+  // =========================================================
   // SORT OWNERS
-  // =========================
+  // =========================================================
 
-  ownerStats.sort((a, b) => {
-    // Active owners first
-    if (a.active !== b.active) {
-      return a.active ? -1 : 1;
-    }
+  ownerStats.sort(
+    (a, b) => {
+      if (a.active !== b.active) {
+        return a.active ? -1 : 1;
+      }
 
-    // Then championships
-    if (
-      b.championships !==
-      a.championships
-    ) {
-      return (
-        b.championships -
+      if (
+        b.championships !==
         a.championships
+      ) {
+        return (
+          b.championships -
+          a.championships
+        );
+      }
+
+      return (
+        b.regularWins -
+        a.regularWins
       );
     }
-
-    // Then regular season wins
-    return (
-      b.regularWins -
-      a.regularWins
-    );
-  });
+  );
 
   const activeOwners =
     ownerStats.filter(
@@ -587,9 +626,9 @@ export default async function OwnersPage() {
       (owner) => !owner.active
     );
 
-  // =========================
+  // =========================================================
   // RECORD FORMATTER
-  // =========================
+  // =========================================================
 
   function formatRecord(
     wins,
@@ -603,9 +642,9 @@ export default async function OwnersPage() {
     return `${wins}-${losses}`;
   }
 
-  // =========================
+  // =========================================================
   // OWNER CARD
-  // =========================
+  // =========================================================
 
   function OwnerCard({ owner }) {
     return (
@@ -613,10 +652,13 @@ export default async function OwnersPage() {
         className="owner-card"
         href={`/owners/${owner.id}`}
       >
+
         {/* OWNER HEADER */}
 
         <div className="owner-card-top">
+
           <div>
+
             <span className="owner-status">
               {owner.active
                 ? "ACTIVE OWNER"
@@ -632,29 +674,34 @@ export default async function OwnersPage() {
                 {owner.currentTeam}
               </p>
             )}
+
           </div>
 
-          {owner.championships >
-            0 && (
+          {owner.championships > 0 && (
             <div className="owner-title-count">
+
               <strong>
                 {owner.championships}
               </strong>
 
               <span>
-                {owner.championships ===
-                1
+                {owner.championships === 1
                   ? "TITLE"
                   : "TITLES"}
               </span>
+
             </div>
           )}
+
         </div>
+
 
         {/* REGULAR SEASON + WIN % */}
 
         <div className="owner-record">
+
           <div>
+
             <strong>
               {formatRecord(
                 owner.regularWins,
@@ -666,26 +713,30 @@ export default async function OwnersPage() {
             <span>
               REGULAR SEASON RECORD
             </span>
+
           </div>
 
           <div>
+
             <strong>
-              {owner.winPercentage.toFixed(
-                1
-              )}
-              %
+              {owner.winPercentage.toFixed(1)}%
             </strong>
 
             <span>
               ALL-GAME WIN %
             </span>
+
           </div>
+
         </div>
+
 
         {/* PLAYOFF + CONSOLATION */}
 
         <div className="owner-record">
+
           <div>
+
             <strong>
               {formatRecord(
                 owner.playoffWins,
@@ -697,9 +748,11 @@ export default async function OwnersPage() {
             <span>
               PLAYOFF RECORD
             </span>
+
           </div>
 
           <div>
+
             <strong>
               {formatRecord(
                 owner.consolationWins,
@@ -711,13 +764,18 @@ export default async function OwnersPage() {
             <span>
               CONSOLATION RECORD
             </span>
+
           </div>
+
         </div>
+
 
         {/* CAREER ACCOMPLISHMENTS */}
 
         <div className="owner-stats-grid">
+
           <div>
+
             <strong>
               {owner.seasonsPlayed}
             </strong>
@@ -725,9 +783,11 @@ export default async function OwnersPage() {
             <span>
               Seasons
             </span>
+
           </div>
 
           <div>
+
             <strong>
               {owner.playoffAppearances}
             </strong>
@@ -735,9 +795,11 @@ export default async function OwnersPage() {
             <span>
               Playoffs
             </span>
+
           </div>
 
           <div>
+
             <strong>
               {owner.finalsAppearances}
             </strong>
@@ -745,9 +807,11 @@ export default async function OwnersPage() {
             <span>
               Finals
             </span>
+
           </div>
 
           <div>
+
             <strong>
               {owner.championships}
             </strong>
@@ -755,12 +819,16 @@ export default async function OwnersPage() {
             <span>
               Titles
             </span>
+
           </div>
+
         </div>
+
 
         {/* BOTTOM */}
 
         <div className="owner-card-bottom">
+
           <span>
             {owner.firstSeason &&
             owner.latestSeason
@@ -771,14 +839,16 @@ export default async function OwnersPage() {
           <strong>
             View Owner →
           </strong>
+
         </div>
+
       </a>
     );
   }
 
-  // =========================
+  // =========================================================
   // PAGE
-  // =========================
+  // =========================================================
 
   return (
     <main className="page-shell">
@@ -786,7 +856,9 @@ export default async function OwnersPage() {
       {/* HEADER */}
 
       <header className="site-header">
+
         <div className="site-title">
+
           <a href="/">
             <strong>
               DIRTY P FANTASY FOOTBALL
@@ -796,13 +868,18 @@ export default async function OwnersPage() {
           <span>
             THE LEAGUE ARCHIVE · EST. 2014
           </span>
+
         </div>
+
       </header>
+
 
       {/* HERO */}
 
       <section className="owners-hero">
+
         <div>
+
           <p className="eyebrow">
             THE LEAGUE
           </p>
@@ -812,13 +889,15 @@ export default async function OwnersPage() {
           </h1>
 
           <p>
-            The complete history of
-            everyone who has competed in
-            Dirty P Fantasy Football.
+            The complete history of everyone
+            who has competed in Dirty P
+            Fantasy Football.
           </p>
+
         </div>
 
         <div className="owners-count">
+
           <strong>
             {ownerStats.length}
           </strong>
@@ -826,27 +905,35 @@ export default async function OwnersPage() {
           <span>
             ALL-TIME OWNERS
           </span>
+
         </div>
+
       </section>
+
 
       {/* PAGE NAV */}
 
       <div className="page-nav">
+
         <a href="/">
           ← Home
         </a>
 
         <span>
-          Career records through{" "}
-          {currentSeason}
+          Career records through {currentSeason}
         </span>
+
       </div>
+
 
       {/* ACTIVE OWNERS */}
 
       <section className="owners-section">
+
         <div className="section-heading">
+
           <div>
+
             <p className="eyebrow">
               CURRENT LEAGUE
             </p>
@@ -854,14 +941,17 @@ export default async function OwnersPage() {
             <h2>
               Active Owners
             </h2>
+
           </div>
 
           <span>
             {activeOwners.length} Owners
           </span>
+
         </div>
 
         <div className="owners-grid">
+
           {activeOwners.map(
             (owner) => (
               <OwnerCard
@@ -870,15 +960,21 @@ export default async function OwnersPage() {
               />
             )
           )}
+
         </div>
+
       </section>
+
 
       {/* FORMER OWNERS */}
 
       {formerOwners.length > 0 && (
         <section className="owners-section former-owners-section">
+
           <div className="section-heading">
+
             <div>
+
               <p className="eyebrow">
                 LEAGUE HISTORY
               </p>
@@ -886,14 +982,17 @@ export default async function OwnersPage() {
               <h2>
                 Former Owners
               </h2>
+
             </div>
 
             <span>
               {formerOwners.length} Owners
             </span>
+
           </div>
 
           <div className="owners-grid">
+
             {formerOwners.map(
               (owner) => (
                 <OwnerCard
@@ -902,13 +1001,17 @@ export default async function OwnersPage() {
                 />
               )
             )}
+
           </div>
+
         </section>
       )}
+
 
       {/* FOOTER */}
 
       <footer className="site-footer">
+
         <strong>
           Dirty P Fantasy Football
         </strong>
@@ -918,10 +1021,10 @@ export default async function OwnersPage() {
         </span>
 
         <p>
-          Independent fantasy league
-          archive. Not affiliated with or
-          endorsed by ESPN.
+          Independent fantasy league archive.
+          Not affiliated with or endorsed by ESPN.
         </p>
+
       </footer>
 
     </main>
