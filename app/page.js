@@ -1,9 +1,10 @@
 import { supabase } from "../lib/supabase";
+import DirtyPMap from "./DirtyPMap";
 
 export default async function Home() {
-  // =========================
+  // =========================================================
   // DEFENDING CHAMPION
-  // =========================
+  // =========================================================
 
   const { data: seasons, error: seasonsError } = await supabase
     .from("seasons")
@@ -16,18 +17,11 @@ export default async function Home() {
     .lt("year", 2026)
     .order("year", { ascending: false });
 
-  // =========================
-  // DATABASE ERROR
-  // =========================
-
   if (seasonsError) {
     return (
       <main className="page-shell">
         <h1>Dirty P Fantasy Football</h1>
-
-        <p>
-          Database error: {seasonsError.message}
-        </p>
+        <p>Database error: {seasonsError.message}</p>
       </main>
     );
   }
@@ -59,7 +53,7 @@ export default async function Home() {
 
 
       {/* =====================================================
-          HOME HERO
+          HERO
           ===================================================== */}
 
       <section className="home-hero">
@@ -164,7 +158,7 @@ export default async function Home() {
 
 
       {/* =====================================================
-          LEAGUE NUMBERS
+          LEAGUE STATS
           ===================================================== */}
 
       <section className="home-stats">
@@ -242,10 +236,10 @@ export default async function Home() {
           </p>
 
           <p>
-            The original league was made up of our youth group
-            plus our mentor, Ryan. Since then, we've cycled
-            through owners, moved all over the country, and
-            somehow kept the league going.
+            The original league was made up of our church
+            youth group plus our mentor, Ryan. Since then,
+            we've cycled through owners, moved all over the
+            country, and somehow kept the league going.
           </p>
 
           <p>
@@ -254,13 +248,12 @@ export default async function Home() {
           </p>
 
           <p>
-            Along the way, Dirty P has seen
+            Along the way, Dirty P has seen{" "}
             <strong>
-              {" "}shadow government, entire teams being
-              traded, collusion, dynasties, championships,
-              heartbreak,
-            </strong>
-            {" "}and plenty of questionable decisions.
+              shadow government, entire teams being traded,
+              collusion, dynasties, championships, heartbreak,
+            </strong>{" "}
+            and plenty of questionable decisions.
           </p>
 
           <p className="story-final">
@@ -305,8 +298,8 @@ export default async function Home() {
               <strong>
                 2014 marks the beginning of the current version
                 of Dirty P
-              </strong>
-              {" "}— the era that has continued through today.
+              </strong>{" "}
+              — the era that has continued through today.
             </p>
 
           </div>
@@ -320,166 +313,7 @@ export default async function Home() {
           DIRTY P ROAD MAP
           ===================================================== */}
 
-      <section className="home-roadmap">
-
-        <div className="section-heading">
-
-          <div>
-
-            <p className="eyebrow">
-              THE LEAGUE HAS MOVED
-            </p>
-
-            <h2>
-              The Dirty P Road Map
-            </h2>
-
-          </div>
-
-          <span>
-            8 States
-          </span>
-
-        </div>
-
-
-        <div className="roadmap-card">
-
-          <p className="roadmap-intro">
-            One league. A ridiculous number of addresses.
-          </p>
-
-
-          <div className="roadmap-states">
-
-            {/* TEXAS */}
-
-            <div className="roadmap-state">
-
-              <strong>
-                TX
-              </strong>
-
-              <span>
-                New Braunfels · Pearland · Houston ·
-                West Columbia · Huntsville · Greenville ·
-                Rockdale · College Station · Richardson ·
-                Fort Worth · San Marcos · Kyle · Rosharon ·
-                Iowa Colony
-              </span>
-
-            </div>
-
-
-            {/* ARKANSAS */}
-
-            <div className="roadmap-state">
-
-              <strong>
-                AR
-              </strong>
-
-              <span>
-                Fayetteville · Fort Smith
-              </span>
-
-            </div>
-
-
-            {/* NORTH CAROLINA */}
-
-            <div className="roadmap-state">
-
-              <strong>
-                NC
-              </strong>
-
-              <span>
-                Charlotte
-              </span>
-
-            </div>
-
-
-            {/* VIRGINIA */}
-
-            <div className="roadmap-state">
-
-              <strong>
-                VA
-              </strong>
-
-              <span>
-                Somewhere in Virginia
-              </span>
-
-            </div>
-
-
-            {/* KENTUCKY */}
-
-            <div className="roadmap-state">
-
-              <strong>
-                KY
-              </strong>
-
-              <span>
-                Louisville
-              </span>
-
-            </div>
-
-
-            {/* ARIZONA */}
-
-            <div className="roadmap-state">
-
-              <strong>
-                AZ
-              </strong>
-
-              <span>
-                Tucson
-              </span>
-
-            </div>
-
-
-            {/* CALIFORNIA */}
-
-            <div className="roadmap-state">
-
-              <strong>
-                CA
-              </strong>
-
-              <span>
-                Palmdale
-              </span>
-
-            </div>
-
-
-            {/* DELAWARE */}
-
-            <div className="roadmap-state">
-
-              <strong>
-                DE
-              </strong>
-
-              <span>
-                Delaware
-              </span>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
+      <DirtyPMap />
 
 
       {/* =====================================================
