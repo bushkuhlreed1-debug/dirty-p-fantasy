@@ -1659,6 +1659,19 @@ a {
   background: #0d1115;
 }
 
+/* Darken the standard OpenStreetMap tiles */
+.dirty-p-leaflet-map .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.72)
+    contrast(1.05);
+}
+
+/* Keep our gold markers and controls normal */
+.dirty-p-leaflet-map .leaflet-marker-pane,
+.dirty-p-leaflet-map .leaflet-popup-pane,
+.dirty-p-leaflet-map .leaflet-control-container {
+  filter: none;
+}
+
 
 /* =========================================================
    LEAFLET CONTROLS
