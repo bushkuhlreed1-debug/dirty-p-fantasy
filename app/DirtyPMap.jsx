@@ -1,419 +1,215 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-} from "react";
-
+import { useEffect, useRef } from "react";
 
 const locations = [
   {
-    name:
-      "New Braunfels",
-    state:
-      "TX",
-    lat:
-      29.703,
-    lng:
-      -98.125,
+    city: "Houston",
+    state: "TX",
+    lat: 29.7604,
+    lng: -95.3698,
   },
-
   {
-    name:
-      "Fort Worth",
-    state:
-      "TX",
-    lat:
-      32.755,
-    lng:
-      -97.330,
+    city: "Iowa Colony",
+    state: "TX",
+    lat: 29.4416,
+    lng: -95.4155,
   },
-
   {
-    name:
-      "Keller",
-    state:
-      "TX",
-    lat:
-      32.934,
-    lng:
-      -97.229,
+    city: "Rockdale",
+    state: "TX",
+    lat: 30.6552,
+    lng: -97.0014,
   },
-
   {
-    name:
-      "Frisco",
-    state:
-      "TX",
-    lat:
-      33.151,
-    lng:
-      -96.824,
+    city: "New Braunfels",
+    state: "TX",
+    lat: 29.703,
+    lng: -98.1245,
   },
-
   {
-    name:
-      "Rockdale",
-    state:
-      "TX",
-    lat:
-      30.655,
-    lng:
-      -97.001,
+    city: "Fort Worth",
+    state: "TX",
+    lat: 32.7555,
+    lng: -97.3308,
   },
-
   {
-    name:
-      "Houston",
-    state:
-      "TX",
-    lat:
-      29.760,
-    lng:
-      -95.370,
+    city: "Keller",
+    state: "TX",
+    lat: 32.9343,
+    lng: -97.2293,
   },
-
   {
-    name:
-      "Iowa Colony",
-    state:
-      "TX",
-    lat:
-      29.482,
-    lng:
-      -95.415,
+    city: "Charlotte",
+    state: "NC",
+    lat: 35.2271,
+    lng: -80.8431,
   },
-
   {
-    name:
-      "Charlotte",
-    state:
-      "NC",
-    lat:
-      35.227,
-    lng:
-      -80.843,
-  },
-
-  {
-    name:
-      "Milton",
-    state:
-      "DE",
-    lat:
-      38.777,
-    lng:
-      -75.310,
+    city: "Milton",
+    state: "DE",
+    lat: 38.7776,
+    lng: -75.3099,
   },
 ];
 
-
-const stateCount =
-  new Set(
-    locations.map(
-      (location) =>
-        location.state
-    )
-  ).size;
-
-
 export default function DirtyPMap() {
-  const mapRef =
-    useRef(null);
+  const mapRef = useRef(null);
+  const mapInstance = useRef(null);
 
-  const mapInstance =
-    useRef(null);
+  useEffect(() => {
+    let cancelled = false;
 
+    async function loadMap() {
+      if (!document.getElementById("leaflet-css")) {
+        const link = document.createElement("link");
 
-  useEffect(
-    () => {
-      let cancelled =
-        false;
+        link.id = "leaflet-css";
+        link.rel = "stylesheet";
+        link.href =
+          "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 
-
-      async function loadMap() {
-        // ===================================================
-        // LEAFLET CSS
-        // ===================================================
-
-        if (
-          !document.getElementById(
-            "leaflet-css"
-          )
-        ) {
-          const link =
-            document.createElement(
-              "link"
-            );
-
-          link.id =
-            "leaflet-css";
-
-          link.rel =
-            "stylesheet";
-
-          link.href =
-            "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-
-          document.head.appendChild(
-            link
-          );
-        }
-
-
-        // ===================================================
-        // LEAFLET SCRIPT
-        // ===================================================
-
-        if (!window.L) {
-          await new Promise(
-            (
-              resolve,
-              reject
-            ) => {
-              const existing =
-                document.querySelector(
-                  'script[data-leaflet="true"]'
-                );
-
-              if (existing) {
-                existing.addEventListener(
-                  "load",
-                  resolve
-                );
-
-                existing.addEventListener(
-                  "error",
-                  reject
-                );
-
-                return;
-              }
-
-
-              const script =
-                document.createElement(
-                  "script"
-                );
-
-              script.src =
-                "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-
-              script.async =
-                true;
-
-              script.dataset.leaflet =
-                "true";
-
-              script.onload =
-                resolve;
-
-              script.onerror =
-                reject;
-
-              document.body.appendChild(
-                script
-              );
-            }
-          );
-        }
-
-
-        if (
-          cancelled ||
-          !mapRef.current ||
-          !window.L
-        ) {
-          return;
-        }
-
-
-        const L =
-          window.L;
-
-
-        if (
-          mapInstance.current
-        ) {
-          return;
-        }
-
-
-        // ===================================================
-        // CREATE MAP
-        // ===================================================
-
-        const map =
-          L.map(
-            mapRef.current,
-            {
-              zoomControl:
-                true,
-
-              scrollWheelZoom:
-                false,
-
-              attributionControl:
-                true,
-            }
-          );
-
-
-        mapInstance.current =
-          map;
-
-
-        // ===================================================
-        // MAP TILES
-        // ===================================================
-
-        L.tileLayer(
-          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-          {
-            maxZoom:
-              19,
-
-            attribution:
-              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          }
-        ).addTo(
-          map
-        );
-
-
-        // ===================================================
-        // MARKER
-        // ===================================================
-
-        const markerIcon =
-          L.divIcon(
-            {
-              className:
-                "dirty-p-marker-wrapper",
-
-              html: `
-                <div class="dirty-p-marker">
-                  <div class="dirty-p-marker-pulse"></div>
-                  <div class="dirty-p-marker-dot"></div>
-                </div>
-              `,
-
-              iconSize:
-                [22, 22],
-
-              iconAnchor:
-                [11, 11],
-
-              popupAnchor:
-                [0, -12],
-            }
-          );
-
-
-        // ===================================================
-        // LOCATIONS
-        // ===================================================
-
-        locations.forEach(
-          (
-            location
-          ) => {
-            const marker =
-              L.marker(
-                [
-                  location.lat,
-                  location.lng,
-                ],
-                {
-                  icon:
-                    markerIcon,
-                }
-              ).addTo(
-                map
-              );
-
-
-            marker.bindPopup(`
-              <div class="dirty-p-popup">
-
-                <strong>
-                  ${location.name}
-                </strong>
-
-                <span>
-                  ${location.state}
-                </span>
-
-              </div>
-            `);
-          }
-        );
-
-
-        // ===================================================
-        // FIT MAP
-        // ===================================================
-
-        const bounds =
-          L.latLngBounds(
-            locations.map(
-              (
-                location
-              ) => [
-                location.lat,
-                location.lng,
-              ]
-            )
-          );
-
-
-        map.fitBounds(
-          bounds,
-          {
-            padding:
-              [45, 45],
-
-            maxZoom:
-              5,
-          }
-        );
-
-
-        setTimeout(
-          () => {
-            if (
-              mapInstance.current
-            ) {
-              mapInstance.current
-                .invalidateSize();
-            }
-          },
-          300
-        );
+        document.head.appendChild(link);
       }
 
+      if (!window.L) {
+        await new Promise((resolve, reject) => {
+          const existing = document.querySelector(
+            'script[data-leaflet="true"]'
+          );
 
-      loadMap();
+          if (existing) {
+            if (window.L) {
+              resolve();
+              return;
+            }
 
+            existing.addEventListener("load", resolve, {
+              once: true,
+            });
 
-      return () => {
-        cancelled =
-          true;
+            existing.addEventListener("error", reject, {
+              once: true,
+            });
 
-        if (
-          mapInstance.current
-        ) {
-          mapInstance.current
-            .remove();
+            return;
+          }
 
-          mapInstance.current =
-            null;
+          const script = document.createElement("script");
+
+          script.src =
+            "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+
+          script.async = true;
+          script.dataset.leaflet = "true";
+
+          script.onload = resolve;
+          script.onerror = reject;
+
+          document.body.appendChild(script);
+        });
+      }
+
+      if (
+        cancelled ||
+        !mapRef.current ||
+        !window.L
+      ) {
+        return;
+      }
+
+      if (mapInstance.current) {
+        return;
+      }
+
+      const L = window.L;
+
+      const map = L.map(mapRef.current, {
+        zoomControl: true,
+        scrollWheelZoom: false,
+        attributionControl: true,
+      });
+
+      mapInstance.current = map;
+
+      L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         }
-      };
-    },
-    []
-  );
+      ).addTo(map);
 
+      const markerIcon = L.divIcon({
+        className: "dirty-p-marker-wrapper",
+
+        html: `
+          <div class="dirty-p-marker">
+            <div class="dirty-p-marker-pulse"></div>
+            <div class="dirty-p-marker-dot"></div>
+          </div>
+        `,
+
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+        popupAnchor: [0, -12],
+      });
+
+      locations.forEach((location) => {
+        const marker = L.marker(
+          [
+            location.lat,
+            location.lng,
+          ],
+          {
+            icon: markerIcon,
+          }
+        ).addTo(map);
+
+        marker.bindPopup(`
+          <div class="dirty-p-popup">
+            <strong>
+              ${location.city}, ${location.state}
+            </strong>
+          </div>
+        `);
+      });
+
+      const bounds = L.latLngBounds(
+        locations.map((location) => [
+          location.lat,
+          location.lng,
+        ])
+      );
+
+      map.fitBounds(bounds, {
+        padding: [55, 55],
+        maxZoom: 5,
+      });
+
+      setTimeout(() => {
+        if (mapInstance.current) {
+          mapInstance.current.invalidateSize();
+        }
+      }, 250);
+    }
+
+    loadMap();
+
+    return () => {
+      cancelled = true;
+
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
+  }, []);
+
+  const stateCount = new Set(
+    locations.map((location) => location.state)
+  ).size;
 
   return (
     <section className="dirty-p-map">
@@ -423,7 +219,7 @@ export default function DirtyPMap() {
         <div>
 
           <p className="eyebrow">
-            CURRENT OWNERS
+            LEAGUE FOOTPRINT
           </p>
 
           <h2>
@@ -431,16 +227,15 @@ export default function DirtyPMap() {
           </h2>
 
           <p className="dirty-p-map-subtitle">
-            The current Dirty P owners across the country.
+            Dirty P currently spans Texas,
+            North Carolina and Delaware.
           </p>
 
         </div>
 
-
         <div className="dirty-p-map-count">
 
           <div>
-
             <strong>
               {stateCount}
             </strong>
@@ -448,22 +243,16 @@ export default function DirtyPMap() {
             <span>
               STATES
             </span>
-
           </div>
 
-
           <div>
-
             <strong>
-              {
-                locations.length
-              }
+              {locations.length}
             </strong>
 
             <span>
-              OWNERS
+              LOCATIONS
             </span>
-
           </div>
 
         </div>
@@ -484,11 +273,11 @@ export default function DirtyPMap() {
       <div className="dirty-p-map-footer">
 
         <span>
-          9 current owners.
+          Current league footprint
         </span>
 
         <strong>
-          3 states.
+          · Est. 2014
         </strong>
 
       </div>
