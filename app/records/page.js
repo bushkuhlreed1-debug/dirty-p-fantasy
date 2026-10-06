@@ -149,10 +149,6 @@ export default async function RecordsPage() {
     ])
   );
 
-  /*
-   * Only use matchups that actually contain scores.
-   * 0-0 rows are treated as empty/unplayed placeholders.
-   */
   const completedGames = (matchupData || []).filter((game) => {
     const home = Number(game.home_score);
     const away = Number(game.away_score);
@@ -166,6 +162,25 @@ export default async function RecordsPage() {
     );
   });
 
+  const completedSeasonYears = [
+    ...new Set(
+      completedGames.map((game) => Number(game.season_year))
+    ),
+  ]
+    .filter((year) => Number.isFinite(year))
+    .sort((a, b) => a - b);
+
+  const firstSeason =
+    completedSeasonYears[0] || 2014;
+
+  const latestCompletedSeason =
+    completedSeasonYears[
+      completedSeasonYears.length - 1
+    ] || 2025;
+
+  const completedSeasonCount =
+    completedSeasonYears.length;
+
   const regularGames = completedGames.filter(
     (game) => getGameType(game) === "regular"
   );
@@ -178,11 +193,6 @@ export default async function RecordsPage() {
     (game) => getGameType(game) === "consolation"
   );
 
-  /*
-   * "Official games" for headline records:
-   * regular season + championship-bracket playoffs.
-   * Consolation games are kept separate.
-   */
   const officialGames = [
     ...regularGames,
     ...playoffGames,
@@ -196,9 +206,9 @@ export default async function RecordsPage() {
   const regularSides = regularGames.flatMap(gameSides);
   const playoffSides = playoffGames.flatMap(gameSides);
 
-  /* ======================================================
-     SINGLE-GAME RECORDS
-     ====================================================== */
+  // ======================================================
+  // SINGLE GAME RECORDS
+  // ======================================================
 
   const highestRegularScore = [...regularSides].sort(
     (a, b) => b.score - a.score
@@ -246,9 +256,9 @@ export default async function RecordsPage() {
     }))
     .sort((a, b) => a.margin - b.margin)[0];
 
-  /* ======================================================
-     SEASON RECORDS
-     ====================================================== */
+  // ======================================================
+  // SEASON RECORDS
+  // ======================================================
 
   const seasonStats = new Map();
 
@@ -329,9 +339,9 @@ export default async function RecordsPage() {
     (a, b) => b.average - a.average
   )[0];
 
-  /* ======================================================
-     CAREER REGULAR-SEASON RECORDS
-     ====================================================== */
+  // ======================================================
+  // CAREER REGULAR SEASON RECORDS
+  // ======================================================
 
   const careerStats = new Map();
 
@@ -390,9 +400,9 @@ export default async function RecordsPage() {
       return b.wins - a.wins;
     })[0];
 
-  /* ======================================================
-     PLAYOFF CAREER RECORDS
-     ====================================================== */
+  // ======================================================
+  // PLAYOFF CAREER RECORDS
+  // ======================================================
 
   const playoffStats = new Map();
 
@@ -425,9 +435,9 @@ export default async function RecordsPage() {
     (a, b) => b.wins - a.wins
   )[0];
 
-  /* ======================================================
-     CHAMPIONSHIP RECORDS
-     ====================================================== */
+  // ======================================================
+  // CHAMPIONSHIP RECORDS
+  // ======================================================
 
   const championshipDetails = championshipGames.map(
     (game) => {
@@ -478,9 +488,9 @@ export default async function RecordsPage() {
     ...championshipDetails,
   ].sort((a, b) => b.combined - a.combined)[0];
 
-  /* ======================================================
-     WINNING / LOSING STREAKS
-     ====================================================== */
+  // ======================================================
+  // WINNING / LOSING STREAKS
+  // ======================================================
 
   const gamesByOwner = new Map();
 
@@ -629,8 +639,15 @@ export default async function RecordsPage() {
     <main className="page-shell">
       <header className="site-header">
         <div className="site-title">
-          <strong>DIRTY P FANTASY FOOTBALL</strong>
-          <span>LEAGUE ARCHIVE</span>
+          <Link href="/">
+            <strong>
+              DIRTY P FANTASY FOOTBALL
+            </strong>
+          </Link>
+
+          <span>
+            THE LEAGUE ARCHIVE · EST. 2014
+          </span>
         </div>
       </header>
 
@@ -640,7 +657,7 @@ export default async function RecordsPage() {
             LEAGUE RECORD BOOK
           </p>
 
-          <h1>Dirty P Records</h1>
+          <h1>Records</h1>
 
           <p>
             The biggest scores, best seasons, career
@@ -650,19 +667,17 @@ export default async function RecordsPage() {
         </div>
 
         <div className="owners-count">
-          <strong>12</strong>
+          <strong>{completedSeasonCount}</strong>
           <span>SEASONS</span>
         </div>
       </section>
 
       <nav className="page-nav">
         <Link href="/">← Home</Link>
-        <span>2014–2025</span>
+        <span>
+          {firstSeason}–{latestCompletedSeason}
+        </span>
       </nav>
-
-      {/* =========================
-          WEEKLY RECORDS
-          ========================= */}
 
       <section className="owners-section">
         <div className="section-heading">
@@ -670,6 +685,7 @@ export default async function RecordsPage() {
             <p className="eyebrow">
               SINGLE GAME
             </p>
+
             <h2>Weekly Records</h2>
           </div>
         </div>
@@ -757,16 +773,13 @@ export default async function RecordsPage() {
         </div>
       </section>
 
-      {/* =========================
-          SEASON RECORDS
-          ========================= */}
-
       <section className="owners-section">
         <div className="section-heading">
           <div>
             <p className="eyebrow">
               SINGLE SEASON
             </p>
+
             <h2>Season Records</h2>
           </div>
         </div>
@@ -834,14 +847,13 @@ export default async function RecordsPage() {
         </div>
       </section>
 
-      {/* =========================
-          CAREER RECORDS
-          ========================= */}
-
       <section className="owners-section">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">ALL-TIME</p>
+            <p className="eyebrow">
+              ALL-TIME
+            </p>
+
             <h2>Career Records</h2>
           </div>
         </div>
@@ -908,16 +920,13 @@ export default async function RecordsPage() {
         </div>
       </section>
 
-      {/* =========================
-          PLAYOFF RECORDS
-          ========================= */}
-
       <section className="owners-section">
         <div className="section-heading">
           <div>
             <p className="eyebrow">
               POSTSEASON
             </p>
+
             <h2>Playoff Records</h2>
           </div>
         </div>
@@ -925,7 +934,8 @@ export default async function RecordsPage() {
         <div className="record-book-grid">
           {highestPlayoffScore &&
             recordCard({
-              label: "Highest Playoff Score",
+              label:
+                "Highest Playoff Score",
               value: formatScore(
                 highestPlayoffScore.score
               ),
@@ -1004,14 +1014,13 @@ export default async function RecordsPage() {
         </div>
       </section>
 
-      {/* =========================
-          STREAKS
-          ========================= */}
-
       <section className="owners-section">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">STREAKS</p>
+            <p className="eyebrow">
+              STREAKS
+            </p>
+
             <h2>Historic Streaks</h2>
           </div>
         </div>
@@ -1045,12 +1054,16 @@ export default async function RecordsPage() {
 
       <footer className="site-footer">
         <strong>
-          DIRTY P FANTASY FOOTBALL
+          Dirty P Fantasy Football
         </strong>
 
+        <span>
+          The League Archive · Est. 2014
+        </span>
+
         <p>
-          Independent fantasy league archive. Not
-          affiliated with or endorsed by ESPN.
+          Independent fantasy league archive.
+          Not affiliated with or endorsed by ESPN.
         </p>
       </footer>
     </main>
