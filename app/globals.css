@@ -2339,3 +2339,723 @@ a {
     text-align: left;
   }
 }
+/* =========================================================
+   OWNER PROFILE — UNIFIED DIRTY P DESIGN
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   PROFILE HERO
+   --------------------------------------------------------- */
+
+.owner-profile-hero {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 38px 42px;
+  background:
+    linear-gradient(
+      135deg,
+      #181d23 0%,
+      #11151a 65%,
+      #0f1216 100%
+    );
+  border: 1px solid #2a3038;
+  border-radius: 22px;
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.22);
+}
+
+.owner-profile-hero .eyebrow {
+  margin-bottom: 10px;
+}
+
+.owner-profile-hero h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(
+    2.7rem,
+    5vw,
+    4.5rem
+  );
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.owner-profile-hero p:not(.eyebrow) {
+  max-width: 650px;
+  margin: 16px 0 0;
+  color: #aeb6c1;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+
+/* ---------------------------------------------------------
+   PROFILE SECTIONS
+   --------------------------------------------------------- */
+
+.owner-profile-section {
+  max-width: 1200px;
+  margin: 46px auto 0;
+}
+
+.owner-profile-section .section-heading {
+  margin-bottom: 16px;
+}
+
+.owner-profile-section .section-heading h2 {
+  margin-top: 4px;
+}
+
+.owner-profile-section .section-heading > span {
+  color: #7f8995;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+
+/* =========================================================
+   SEASON HISTORY + MATCHUP HISTORY TABLES
+   ========================================================= */
+
+.profile-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  background: #12161b;
+  border: 1px solid #252b33;
+  border-radius: 16px;
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.16);
+}
+
+.profile-table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+}
+
+.profile-table thead {
+  background:
+    linear-gradient(
+      135deg,
+      #1a1f25,
+      #15191e
+    );
+}
+
+.profile-table th {
+  padding: 15px 17px;
+  color: #7f8995;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-bottom: 1px solid #303741;
+}
+
+.profile-table td {
+  padding: 16px 17px;
+  color: #aeb6c1;
+  font-size: 0.86rem;
+  white-space: nowrap;
+  border-bottom: 1px solid #222830;
+}
+
+.profile-table tbody tr {
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.profile-table tbody tr:hover {
+  background: #171c22;
+}
+
+.profile-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.profile-table td strong {
+  color: #ffffff;
+  font-weight: 900;
+}
+
+/* Season year */
+
+.profile-table td:first-child strong {
+  color: #d6a84b;
+}
+
+/* Current season — newest row is first */
+
+.profile-table tbody tr:first-child {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(214, 168, 75, 0.07),
+      transparent 55%
+    );
+}
+
+/* Champion label */
+
+.profile-champion-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 9px;
+  background:
+    rgba(214, 168, 75, 0.13);
+  border:
+    1px solid
+    rgba(214, 168, 75, 0.38);
+  border-radius: 6px;
+  color: #d6a84b;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+
+/* =========================================================
+   ALL-FRANCHISE TEAM
+   ========================================================= */
+
+.all-franchise-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+  gap: 14px;
+}
+
+.all-franchise-card {
+  position: relative;
+  min-height: 190px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  background: #12161b;
+  border: 1px solid #252b33;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: 0.2s ease;
+}
+
+.all-franchise-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: #d6a84b;
+  opacity: 0.8;
+}
+
+.all-franchise-card:hover {
+  background: #161b21;
+  border-color: #d6a84b;
+  transform: translateY(-2px);
+}
+
+.all-franchise-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 48px;
+  padding: 6px 10px;
+  margin-bottom: 15px;
+  background:
+    rgba(214, 168, 75, 0.12);
+  border:
+    1px solid
+    rgba(214, 168, 75, 0.35);
+  border-radius: 7px;
+  color: #d6a84b;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+}
+
+.all-franchise-player {
+  margin-bottom: 8px;
+  color: #ffffff;
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.all-franchise-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.all-franchise-meta span {
+  color: #7f8995;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.all-franchise-meta span + span::before {
+  content: "·";
+  margin-right: 7px;
+  color: #444c56;
+}
+
+.all-franchise-team-name {
+  margin-top: auto;
+  padding-top: 16px;
+  color: #aeb6c1;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.all-franchise-points {
+  margin-top: 7px;
+  color: #d6a84b;
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+.all-franchise-points small {
+  color: #727b86;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+
+/* =========================================================
+   HEAD TO HEAD
+   ========================================================= */
+
+.h2h-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+  gap: 14px;
+}
+
+.h2h-card {
+  min-height: 165px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(
+      135deg,
+      #151a20,
+      #11151a
+    );
+  border: 1px solid #252b33;
+  border-radius: 16px;
+  transition: 0.2s ease;
+}
+
+.h2h-card:hover {
+  background: #171c22;
+  border-color: #d6a84b;
+  transform: translateY(-2px);
+}
+
+.h2h-card > span {
+  margin-bottom: 7px;
+  color: #727b86;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.h2h-card > strong {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.h2h-card > div {
+  margin-top: auto;
+  padding-top: 20px;
+  color: #d6a84b;
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.h2h-card > small {
+  margin-top: 4px;
+  color: #727b86;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   CAREER HIGHS & LOWS
+   ========================================================= */
+
+.career-record-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
+  gap: 14px;
+}
+
+.career-record-card {
+  min-height: 175px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(
+      135deg,
+      #151a20,
+      #11151a
+    );
+  border: 1px solid #252b33;
+  border-radius: 16px;
+  transition: 0.2s ease;
+}
+
+.career-record-card:hover {
+  background: #171c22;
+  border-color: #d6a84b;
+  transform: translateY(-2px);
+}
+
+.career-record-card > span:first-child {
+  margin-bottom: 18px;
+  color: #d6a84b;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.career-record-card > strong {
+  margin-top: auto;
+  color: #ffffff;
+  font-size: 1.65rem;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.career-record-card > strong + span {
+  margin-top: 7px;
+  color: #aeb6c1;
+  font-size: 0.78rem;
+}
+
+.career-record-card small {
+  display: block;
+  margin-top: 5px;
+  color: #727b86;
+  font-size: 0.68rem;
+}
+
+
+/* =========================================================
+   TEAM NAME HISTORY
+   ========================================================= */
+
+.team-history-list {
+  overflow: hidden;
+  background: #12161b;
+  border: 1px solid #252b33;
+  border-radius: 16px;
+}
+
+.team-history-row {
+  min-height: 64px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid #222830;
+  transition: 0.15s ease;
+}
+
+.team-history-row:last-child {
+  border-bottom: none;
+}
+
+.team-history-row:hover {
+  background: #171c22;
+}
+
+.team-history-row strong {
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.team-history-row span {
+  color: #d6a84b;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-align: right;
+  letter-spacing: 0.03em;
+}
+
+
+/* =========================================================
+   MATCHUP HISTORY
+   ========================================================= */
+
+.matchup-history-table {
+  min-width: 760px;
+}
+
+.matchup-history-table td:nth-child(3) {
+  color: #7f8995;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.matchup-history-table td:nth-child(4) {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.matchup-history-table td:last-child {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+
+/* ---------------------------------------------------------
+   WIN / LOSS BADGES
+   --------------------------------------------------------- */
+
+.game-win,
+.game-loss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.game-win {
+  background:
+    rgba(214, 168, 75, 0.14);
+  color: #d6a84b !important;
+  border:
+    1px solid
+    rgba(214, 168, 75, 0.3);
+}
+
+.game-loss {
+  background: #1a1f25;
+  color: #8f98a3 !important;
+  border: 1px solid #303741;
+}
+
+
+/* =========================================================
+   EMPTY STATES
+   ========================================================= */
+
+.current-panel {
+  overflow: hidden;
+  background: #12161b;
+  border: 1px solid #252b33;
+  border-radius: 16px;
+}
+
+.empty-current-state {
+  padding: 34px;
+  text-align: center;
+}
+
+.empty-current-state strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.empty-current-state p {
+  max-width: 520px;
+  margin: 0 auto;
+  color: #7f8995;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+.profile-table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+
+.profile-table-wrap::-webkit-scrollbar-track {
+  background: #0f1317;
+}
+
+.profile-table-wrap::-webkit-scrollbar-thumb {
+  background: #3a414b;
+  border-radius: 999px;
+}
+
+.profile-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #d6a84b;
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (
+  max-width: 900px
+) {
+
+  .all-franchise-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .h2h-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .career-record-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (
+  max-width: 600px
+) {
+
+  .owner-profile-hero {
+    padding: 28px 22px;
+    border-radius: 18px;
+  }
+
+  .owner-profile-hero h1 {
+    font-size: 2.6rem;
+  }
+
+  .owner-profile-hero p:not(.eyebrow) {
+    font-size: 0.9rem;
+  }
+
+  .owner-profile-section {
+    margin-top: 36px;
+  }
+
+  .owner-profile-section .section-heading {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .all-franchise-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .all-franchise-card {
+    min-height: 165px;
+    padding: 18px;
+  }
+
+  .h2h-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+    gap: 9px;
+  }
+
+  .h2h-card {
+    min-height: 145px;
+    padding: 16px;
+  }
+
+  .h2h-card > strong {
+    font-size: 0.88rem;
+  }
+
+  .h2h-card > div {
+    font-size: 1.5rem;
+  }
+
+  .career-record-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .career-record-card {
+    min-height: 145px;
+    padding: 18px;
+  }
+
+  .team-history-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+    padding: 16px 18px;
+  }
+
+  .team-history-row span {
+    text-align: left;
+  }
+
+  .profile-table th {
+    padding: 12px 13px;
+    font-size: 0.6rem;
+  }
+
+  .profile-table td {
+    padding: 13px;
+    font-size: 0.8rem;
+  }
+
+}
