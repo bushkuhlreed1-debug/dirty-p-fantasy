@@ -42,6 +42,49 @@ function urlBase64ToUint8Array(
 }
 
 
+async function saveSubscription(
+  ownerId,
+  subscription
+) {
+  const response =
+    await fetch(
+      "/api/push/subscribe",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body:
+          JSON.stringify({
+            ownerId:
+              Number(ownerId),
+
+            subscription:
+              subscription.toJSON(),
+          }),
+      }
+    );
+
+
+  const result =
+    await response.json();
+
+
+  if (!response.ok) {
+    throw new Error(
+      result?.error ||
+        "Unable to save notification subscription."
+    );
+  }
+
+
+  return result;
+}
+
+
 export default function NotificationButton({
   owners = [],
 }) {
@@ -89,9 +132,11 @@ export default function NotificationButton({
         "PushManager" in window &&
         "Notification" in window;
 
+
       setSupported(
         pushSupported
       );
+
 
       if (!pushSupported) {
         return;
@@ -102,6 +147,7 @@ export default function NotificationButton({
         window.localStorage.getItem(
           "dirtyPNotificationOwnerId"
         );
+
 
       if (savedOwnerId) {
         setOwnerId(
@@ -125,13 +171,73 @@ export default function NotificationButton({
             .getSubscription();
 
 
-        if (subscription) {
-          setEnabled(true);
+        if (!subscription) {
+          setEnabled(false);
+
+          return;
         }
+
+
+        // If we already know who this
+        // device belongs to, re-sync
+        // the existing browser
+        // subscription with Supabase.
+        if (savedOwnerId) {
+          try {
+            await saveSubscription(
+              savedOwnerId,
+              subscription
+            );
+
+
+            setEnabled(true);
+
+            setMessage(
+              "Notifications are enabled."
+            );
+          } catch (error) {
+            console.error(
+              "Subscription sync error:",
+              error
+            );
+
+
+            setEnabled(false);
+
+            setMessage(
+              error?.message ||
+                "Unable to sync notifications."
+            );
+          }
+
+
+          return;
+        }
+
+
+        // A browser subscription exists,
+        // but the failed first attempt
+        // may not have saved an owner.
+        setEnabled(false);
+
+        setChoosingOwner(true);
+
+        setMessage(
+          "Choose your name to finish notification setup."
+        );
+
       } catch (error) {
         console.error(
           "Service worker error:",
           error
+        );
+
+
+        setEnabled(false);
+
+        setMessage(
+          error?.message ||
+            "Unable to check notifications."
         );
       }
     }
@@ -188,6 +294,11 @@ export default function NotificationButton({
           );
 
 
+      await navigator
+        .serviceWorker
+        .ready;
+
+
       let subscription =
         await registration
           .pushManager
@@ -222,42 +333,10 @@ export default function NotificationButton({
       }
 
 
-      const response =
-        await fetch(
-          "/api/push/subscribe",
-          {
-            method:
-              "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify({
-                ownerId:
-                  Number(
-                    selectedOwnerId
-                  ),
-
-                subscription:
-                  subscription.toJSON(),
-              }),
-          }
-        );
-
-
-      const result =
-        await response.json();
-
-
-      if (!response.ok) {
-        throw new Error(
-          result?.error ||
-            "Unable to save notification subscription."
-        );
-      }
+      await saveSubscription(
+        selectedOwnerId,
+        subscription
+      );
 
 
       window.localStorage.setItem(
@@ -275,6 +354,7 @@ export default function NotificationButton({
       );
 
       setEnabled(true);
+
       setChoosingOwner(false);
 
       setMessage(
@@ -286,6 +366,9 @@ export default function NotificationButton({
         "Notification setup error:",
         error
       );
+
+
+      setEnabled(false);
 
       setMessage(
         error?.message ||
@@ -317,6 +400,8 @@ export default function NotificationButton({
 
 
     setChoosingOwner(true);
+
+    setMessage("");
   }
 
 
@@ -325,13 +410,15 @@ export default function NotificationButton({
 
       <div className="notification-card-copy">
 
-        <span>
+        <span className="notification-eyebrow">
           LIVE LEAGUE ALERTS
         </span>
 
-        <strong>
+
+        <strong className="notification-title">
           Stay on top of your matchup.
         </strong>
+
 
         <p>
           Get matchup start alerts,
@@ -350,11 +437,14 @@ export default function NotificationButton({
         {!supported && (
 
           <span className="notification-status">
+
             Push notifications are not
             supported in this browser.
+
             On iPhone, add the site to
             your Home Screen and open it
             from there.
+
           </span>
 
         )}
@@ -372,9 +462,7 @@ export default function NotificationButton({
 
             <select
               id="notification-owner"
-              value={
-                ownerId
-              }
+              value={ownerId}
               onChange={(
                 event
               ) =>
