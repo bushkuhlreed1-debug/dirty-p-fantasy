@@ -1,58 +1,112 @@
 import Link from "next/link";
-import { supabase } from "../../lib/supabase";
+import { getLeagueData } from "../../lib/leagueData";
 
 export const dynamic = "force-dynamic";
-
-const CURRENT_SEASON = 2026;
 
 // =========================================================
 // HELPERS
 // =========================================================
 
 function num(value) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  const parsed =
+    Number(value);
+
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
 }
 
 function formatScore(value) {
-  return num(value).toFixed(2);
+  return num(
+    value
+  ).toFixed(2);
 }
 
-function recordText(wins, losses, ties = 0) {
-  return ties > 0
-    ? `${wins}-${losses}-${ties}`
-    : `${wins}-${losses}`;
+function recordText(
+  wins,
+  losses,
+  ties = 0
+) {
+  if (ties > 0) {
+    return `${wins}-${losses}-${ties}`;
+  }
+
+  return `${wins}-${losses}`;
 }
+
+// =========================================================
+// GAME TYPE
+// =========================================================
 
 function getGameType(game) {
-  const matchupType = String(
-    game.matchup_type || ""
-  )
-    .trim()
-    .toLowerCase();
+  const matchupType =
+    String(
+      game.matchup_type ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
 
-  const playoffTier = String(
-    game.playoff_tier || ""
-  )
-    .trim()
-    .toLowerCase();
+  const playoffTier =
+    String(
+      game.playoff_tier ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+  // =======================================================
+  // CONSOLATION FIRST
+  // =======================================================
 
   if (
-    matchupType.includes("consolation") ||
-    playoffTier.includes("consolation") ||
-    playoffTier.includes("losers") ||
-    playoffTier.includes("loser")
+    matchupType ===
+      "consolation" ||
+    matchupType.includes(
+      "consolation"
+    ) ||
+    playoffTier.includes(
+      "consolation"
+    ) ||
+    playoffTier.includes(
+      "losers"
+    ) ||
+    playoffTier.includes(
+      "loser"
+    ) ||
+    game.is_consolation ===
+      true
   ) {
     return "consolation";
   }
 
+  // =======================================================
+  // CHAMPIONSHIP BRACKET
+  // =======================================================
+
   if (
-    matchupType === "playoff" ||
-    matchupType.includes("championship") ||
-    playoffTier.includes("winners_bracket") ||
-    playoffTier.includes("winner") ||
-    playoffTier.includes("championship") ||
-    game.is_championship === true
+    matchupType ===
+      "playoff" ||
+    matchupType.includes(
+      "championship"
+    ) ||
+    playoffTier.includes(
+      "winners_bracket"
+    ) ||
+    playoffTier.includes(
+      "winner"
+    ) ||
+    playoffTier.includes(
+      "championship"
+    ) ||
+    game.is_playoff ===
+      true ||
+    game.is_championship ===
+      true ||
+    game.is_third_place ===
+      true
   ) {
     return "playoff";
   }
@@ -60,73 +114,120 @@ function getGameType(game) {
   return "regular";
 }
 
-function getResult(game, ownerId) {
-  const homeId = Number(
-    game.home_owner_id
-  );
+// =========================================================
+// RESULT
+// =========================================================
 
-  const awayId = Number(
-    game.away_owner_id
-  );
-
-  const homeScore = num(
-    game.home_score
-  );
-
-  const awayScore = num(
-    game.away_score
-  );
+function getResult(
+  game,
+  side
+) {
+  const winner =
+    String(
+      game.winner ||
+        ""
+    ).toUpperCase();
 
   if (
-    ownerId !== homeId &&
-    ownerId !== awayId
+    winner === "TIE"
   ) {
-    return null;
+    return "T";
   }
 
-  const ownerScore =
-    ownerId === homeId
-      ? homeScore
-      : awayScore;
-
-  const opponentScore =
-    ownerId === homeId
-      ? awayScore
-      : homeScore;
-
-  if (ownerScore > opponentScore) {
+  if (
+    winner === side
+  ) {
     return "W";
   }
 
-  if (ownerScore < opponentScore) {
+  if (
+    winner === "HOME" ||
+    winner === "AWAY"
+  ) {
     return "L";
   }
 
-  return "T";
+  const home =
+    num(
+      game.home_score
+    );
+
+  const away =
+    num(
+      game.away_score
+    );
+
+  if (
+    home === away
+  ) {
+    return "T";
+  }
+
+  if (
+    side === "HOME"
+  ) {
+    return home > away
+      ? "W"
+      : "L";
+  }
+
+  return away > home
+    ? "W"
+    : "L";
 }
+
+// =========================================================
+// SERIES RECORD
+// =========================================================
 
 function buildRecord(
   games,
   owner1Id
 ) {
-  let owner1Wins = 0;
-  let owner2Wins = 0;
-  let ties = 0;
+  let owner1Wins =
+    0;
 
-  games.forEach((game) => {
-    const result = getResult(
-      game,
-      owner1Id
-    );
+  let owner2Wins =
+    0;
 
-    if (result === "W") {
-      owner1Wins += 1;
-    } else if (result === "L") {
-      owner2Wins += 1;
-    } else if (result === "T") {
-      ties += 1;
+  let ties =
+    0;
+
+  for (
+    const game of
+    games
+  ) {
+    const owner1IsHome =
+      Number(
+        game.home_owner_id
+      ) ===
+      Number(
+        owner1Id
+      );
+
+    const result =
+      getResult(
+        game,
+        owner1IsHome
+          ? "HOME"
+          : "AWAY"
+      );
+
+    if (
+      result === "W"
+    ) {
+      owner1Wins +=
+        1;
+    } else if (
+      result === "L"
+    ) {
+      owner2Wins +=
+        1;
+    } else {
+      ties +=
+        1;
     }
-  });
+  }
 
   return {
     owner1Wins,
@@ -134,6 +235,10 @@ function buildRecord(
     ties,
   };
 }
+
+// =========================================================
+// NORMALIZED MATCHUP VIEW
+// =========================================================
 
 function getGameView(
   game,
@@ -143,17 +248,28 @@ function getGameView(
   const owner1IsHome =
     Number(
       game.home_owner_id
-    ) === owner1Id;
+    ) ===
+    Number(
+      owner1Id
+    );
 
   const owner1Score =
     owner1IsHome
-      ? num(game.home_score)
-      : num(game.away_score);
+      ? num(
+          game.home_score
+        )
+      : num(
+          game.away_score
+        );
 
   const owner2Score =
     owner1IsHome
-      ? num(game.away_score)
-      : num(game.home_score);
+      ? num(
+          game.away_score
+        )
+      : num(
+          game.home_score
+        );
 
   const owner1Team =
     owner1IsHome
@@ -168,16 +284,20 @@ function getGameView(
   const owner1Result =
     getResult(
       game,
-      owner1Id
+      owner1IsHome
+        ? "HOME"
+        : "AWAY"
     );
 
   return {
     ...game,
 
     owner1Id,
+
     owner2Id,
 
     owner1Score,
+
     owner2Score,
 
     owner1Team:
@@ -191,7 +311,15 @@ function getGameView(
     owner1Result,
 
     type:
-      getGameType(game),
+      getGameType(
+        game
+      ),
+
+    margin:
+      Math.abs(
+        owner1Score -
+        owner2Score
+      ),
 
     season:
       Number(
@@ -202,28 +330,83 @@ function getGameView(
       Number(
         game.matchup_period
       ),
-
-    margin:
-      Math.abs(
-        owner1Score -
-          owner2Score
-      ),
   };
 }
 
-function getCurrentStreak(games) {
-  if (!games.length) {
+// =========================================================
+// OFFICIAL RIVALRY WEEK PAIRS
+// =========================================================
+
+const OFFICIAL_RIVALRIES = [
+  [
+    "Reed Bushkuhl",
+    "Austin Lloyd",
+  ],
+
+  [
+    "Ryan Goodlett",
+    "Matthew Aitkens",
+  ],
+
+  [
+    "Tyler Guenther",
+    "Edward Wachtel",
+  ],
+
+  [
+    "Brent Fleischer",
+    "Valentin Almendarez",
+  ],
+
+  [
+    "Jacob Madden",
+    "Cody Stinnett",
+  ],
+];
+
+function isOfficialRivalry(
+  owner1Name,
+  owner2Name
+) {
+  return OFFICIAL_RIVALRIES.some(
+    ([a, b]) =>
+      (
+        a ===
+          owner1Name &&
+        b ===
+          owner2Name
+      ) ||
+      (
+        a ===
+          owner2Name &&
+        b ===
+          owner1Name
+      )
+  );
+}
+
+// =========================================================
+// CURRENT SERIES STREAK
+// =========================================================
+
+function getCurrentStreak(
+  games
+) {
+  if (
+    !games.length
+  ) {
     return null;
   }
 
-  const newestFirst =
-    [...games].sort(
-      (a, b) =>
-        b.season -
-          a.season ||
-        b.week -
-          a.week
-    );
+  const newestFirst = [
+    ...games,
+  ].sort(
+    (a, b) =>
+      b.season -
+        a.season ||
+      b.week -
+        a.week
+  );
 
   const latest =
     newestFirst[0];
@@ -238,7 +421,8 @@ function getCurrentStreak(games) {
   const targetResult =
     latest.owner1Result;
 
-  let count = 0;
+  let count =
+    0;
 
   for (
     const game of
@@ -248,7 +432,8 @@ function getCurrentStreak(games) {
       game.owner1Result ===
       targetResult
     ) {
-      count += 1;
+      count +=
+        1;
     } else {
       break;
     }
@@ -256,7 +441,8 @@ function getCurrentStreak(games) {
 
   return {
     owner:
-      targetResult === "W"
+      targetResult ===
+      "W"
         ? "owner1"
         : "owner2",
 
@@ -264,25 +450,40 @@ function getCurrentStreak(games) {
   };
 }
 
-function getLongestStreak(games) {
-  if (!games.length) {
+// =========================================================
+// LONGEST SERIES WIN STREAK
+// =========================================================
+
+function getLongestStreak(
+  games
+) {
+  if (
+    !games.length
+  ) {
     return null;
   }
 
-  const chronological =
-    [...games].sort(
-      (a, b) =>
-        a.season -
-          b.season ||
-        a.week -
-          b.week
-    );
+  const chronological = [
+    ...games,
+  ].sort(
+    (a, b) =>
+      a.season -
+        b.season ||
+      a.week -
+        b.week
+  );
 
-  let currentOwner = null;
-  let currentCount = 0;
+  let currentOwner =
+    null;
 
-  let bestOwner = null;
-  let bestCount = 0;
+  let currentCount =
+    0;
+
+  let bestOwner =
+    null;
+
+  let bestCount =
+    0;
 
   for (
     const game of
@@ -292,8 +493,12 @@ function getLongestStreak(games) {
       game.owner1Result ===
       "T"
     ) {
-      currentOwner = null;
-      currentCount = 0;
+      currentOwner =
+        null;
+
+      currentCount =
+        0;
+
       continue;
     }
 
@@ -304,12 +509,17 @@ function getLongestStreak(games) {
         : "owner2";
 
     if (
-      winner === currentOwner
+      winner ===
+      currentOwner
     ) {
-      currentCount += 1;
+      currentCount +=
+        1;
     } else {
-      currentOwner = winner;
-      currentCount = 1;
+      currentOwner =
+        winner;
+
+      currentCount =
+        1;
     }
 
     if (
@@ -324,7 +534,9 @@ function getLongestStreak(games) {
     }
   }
 
-  if (!bestOwner) {
+  if (
+    !bestOwner
+  ) {
     return null;
   }
 
@@ -338,47 +550,31 @@ function getLongestStreak(games) {
 }
 
 // =========================================================
-// OFFICIAL RIVALRY WEEK PAIRS
+// GAME WINNER
 // =========================================================
 
-const OFFICIAL_RIVALRIES = [
-  [
-    "Reed Bushkuhl",
-    "Austin Lloyd",
-  ],
-  [
-    "Ryan Goodlett",
-    "Matthew Aitkens",
-  ],
-  [
-    "Tyler Guenther",
-    "Edward Wachtel",
-  ],
-  [
-    "Brent Fleischer",
-    "Valentin Almendarez",
-  ],
-  [
-    "Jacob Madden",
-    "Cody Stinnett",
-  ],
-];
-
-function isOfficialRivalry(
-  owner1Name,
-  owner2Name
+function getWinnerSide(
+  game
 ) {
-  return OFFICIAL_RIVALRIES.some(
-    ([a, b]) =>
-      (
-        a === owner1Name &&
-        b === owner2Name
-      ) ||
-      (
-        a === owner2Name &&
-        b === owner1Name
-      )
-  );
+  if (!game) {
+    return null;
+  }
+
+  if (
+    game.owner1Result ===
+    "W"
+  ) {
+    return "owner1";
+  }
+
+  if (
+    game.owner1Result ===
+    "L"
+  ) {
+    return "owner2";
+  }
+
+  return null;
 }
 
 // =========================================================
@@ -393,85 +589,106 @@ export default async function HeadToHeadPage({
 
   const requestedOwner1 =
     Number(
-      params?.owner1 || 0
+      params?.owner1 ||
+        0
     );
 
   const requestedOwner2 =
     Number(
-      params?.owner2 || 0
+      params?.owner2 ||
+        0
     );
 
-  const [
-    ownersResult,
-    matchupsResult,
-  ] =
-    await Promise.all([
-      supabase
-        .from("owners")
-        .select(
-          "id, name"
-        )
-        .order(
-          "name",
-          {
-            ascending:
-              true,
-          }
-        ),
+  // =========================================================
+  // LIVE LEAGUE DATA
+  // =========================================================
 
-      supabase
-        .from("matchups")
-        .select("*")
-        .lt(
-          "season_year",
-          CURRENT_SEASON
-        )
-        .order(
-          "season_year",
-          {
-            ascending:
-              true,
-          }
-        )
-        .order(
-          "matchup_period",
-          {
-            ascending:
-              true,
-          }
-        ),
-    ]);
+  let leagueData;
 
-  if (
-    ownersResult.error ||
-    matchupsResult.error
-  ) {
+  try {
+    leagueData =
+      await getLeagueData();
+  } catch (error) {
     return (
       <main className="page-shell">
 
-        <h1>
-          Head-to-Head
-        </h1>
+        <header className="site-header">
 
-        <p>
-          Database error:{" "}
-          {ownersResult.error
-            ?.message ||
-            matchupsResult.error
-              ?.message}
-        </p>
+          <div className="site-title">
+
+            <Link href="/">
+              <strong>
+                DIRTY P FANTASY FOOTBALL
+              </strong>
+            </Link>
+
+            <span>
+              THE LEAGUE ARCHIVE · EST. 2014
+            </span>
+
+          </div>
+
+        </header>
+
+
+        <section className="owners-section">
+
+          <article className="owner-card">
+
+            <div className="owner-card-top">
+
+              <div>
+
+                <span className="owner-status">
+                  DATA ERROR
+                </span>
+
+                <h3>
+                  Head-to-Head
+                </h3>
+
+                <p className="owner-team-name">
+                  {error?.message ||
+                    "Unable to load league data."}
+                </p>
+
+              </div>
+
+            </div>
+
+          </article>
+
+        </section>
 
       </main>
     );
   }
 
-  const ownerList =
-    ownersResult.data ||
-    [];
+  const {
+    currentSeason,
+    owners,
+    matchups,
+    completedCurrentMatchups,
+    unmatchedEspnOwners,
+  } =
+    leagueData;
 
-  const matchupData =
-    matchupsResult.data ||
-    [];
+  // =========================================================
+  // OWNERS
+  // =========================================================
+
+  const ownerList = [
+    ...owners,
+  ].sort(
+    (a, b) =>
+      String(
+        a.name
+      ).localeCompare(
+        String(
+          b.name
+        )
+      )
+  );
 
   const ownerMap =
     new Map(
@@ -480,13 +697,15 @@ export default async function HeadToHeadPage({
           Number(
             owner.id
           ),
-          owner,
+          owner.name,
         ]
       )
     );
 
   // =========================================================
   // DEFAULT MATCHUP
+  //
+  // Reed vs Austin
   // =========================================================
 
   const reed =
@@ -507,8 +726,7 @@ export default async function HeadToHeadPage({
     requestedOwner1 ||
     Number(
       reed?.id ||
-        ownerList[0]
-          ?.id ||
+        ownerList[0]?.id ||
         0
     );
 
@@ -516,89 +734,100 @@ export default async function HeadToHeadPage({
     requestedOwner2 ||
     Number(
       austin?.id ||
-        ownerList[1]
-          ?.id ||
+        ownerList[1]?.id ||
         0
     );
 
   // =========================================================
-  // COMPLETED GAMES
+  // COMPLETED MATCHUPS
+  //
+  // Historical Supabase games +
+  // completed current ESPN games.
   // =========================================================
 
   const completedGames =
-    matchupData.filter(
+    matchups.filter(
       (game) => {
-        const home =
+        const homeId =
+          Number(
+            game.home_owner_id
+          );
+
+        const awayId =
+          Number(
+            game.away_owner_id
+          );
+
+        const homeScore =
           Number(
             game.home_score
           );
 
-        const away =
+        const awayScore =
           Number(
             game.away_score
           );
 
         return (
-          game.home_owner_id &&
-          game.away_owner_id &&
+          homeId > 0 &&
+          awayId > 0 &&
           game.home_score !==
             null &&
           game.away_score !==
             null &&
           Number.isFinite(
-            home
+            homeScore
           ) &&
           Number.isFinite(
-            away
+            awayScore
           ) &&
           !(
-            home === 0 &&
-            away === 0
+            homeScore ===
+              0 &&
+            awayScore ===
+              0
           )
         );
       }
     );
 
   // =========================================================
-  // SEASON RANGE
+  // CURRENT COMPLETED WEEK
   // =========================================================
 
-  const seasonYears =
-    [
-      ...new Set(
-        completedGames.map(
-          (game) =>
-            Number(
-              game.season_year
-            )
-        )
-      ),
-    ]
-      .filter(
-        Number.isFinite
+  const completedWeeks =
+    completedCurrentMatchups
+      .map(
+        (game) =>
+          Number(
+            game.matchup_period
+          )
       )
-      .sort(
-        (a, b) =>
-          a - b
+      .filter(
+        (week) =>
+          Number.isFinite(
+            week
+          ) &&
+          week > 0
       );
 
-  const firstSeason =
-    seasonYears[0] ||
-    2014;
-
-  const lastSeason =
-    seasonYears[
-      seasonYears.length -
-        1
-    ] || 2025;
+  const latestCompletedWeek =
+    completedWeeks.length >
+    0
+      ? Math.max(
+          ...completedWeeks
+        )
+      : 0;
 
   // =========================================================
-  // COMPARISON
+  // VALID SELECTION
   // =========================================================
 
   const validSelection =
-    selectedOwner1 > 0 &&
-    selectedOwner2 > 0 &&
+    selectedOwner1 >
+      0 &&
+    selectedOwner2 >
+      0 &&
     selectedOwner1 !==
       selectedOwner2 &&
     ownerMap.has(
@@ -608,18 +837,29 @@ export default async function HeadToHeadPage({
       selectedOwner2
     );
 
-  let comparison = null;
+  // =========================================================
+  // BUILD COMPARISON
+  // =========================================================
 
-  if (validSelection) {
-    const owner1 =
+  let comparison =
+    null;
+
+  if (
+    validSelection
+  ) {
+    const owner1Name =
       ownerMap.get(
         selectedOwner1
       );
 
-    const owner2 =
+    const owner2Name =
       ownerMap.get(
         selectedOwner2
       );
+
+    // =======================================================
+    // GAMES BETWEEN THESE TWO OWNERS
+    // =======================================================
 
     const rawGames =
       completedGames.filter(
@@ -669,6 +909,10 @@ export default async function HeadToHeadPage({
               a.week
         );
 
+    // =======================================================
+    // SPLITS
+    // =======================================================
+
     const regularRaw =
       rawGames.filter(
         (game) =>
@@ -696,40 +940,45 @@ export default async function HeadToHeadPage({
           "consolation"
       );
 
+    // =======================================================
+    // RECORDS
+    // =======================================================
+
     const overall =
       buildRecord(
         rawGames,
         selectedOwner1
       );
 
-    const regular =
+    const regularRecord =
       buildRecord(
         regularRaw,
         selectedOwner1
       );
 
-    const playoffs =
+    const playoffRecord =
       buildRecord(
         playoffRaw,
         selectedOwner1
       );
 
-    const consolation =
+    const consolationRecord =
       buildRecord(
         consolationRaw,
         selectedOwner1
       );
 
-    const meetings =
-      games.length;
+    // =======================================================
+    // POINTS
+    // =======================================================
 
     const owner1Points =
       games.reduce(
         (
-          total,
+          sum,
           game
         ) =>
-          total +
+          sum +
           game.owner1Score,
         0
       );
@@ -737,13 +986,16 @@ export default async function HeadToHeadPage({
     const owner2Points =
       games.reduce(
         (
-          total,
+          sum,
           game
         ) =>
-          total +
+          sum +
           game.owner2Score,
         0
       );
+
+    const meetings =
+      games.length;
 
     const owner1Average =
       meetings > 0
@@ -757,6 +1009,10 @@ export default async function HeadToHeadPage({
           meetings
         : 0;
 
+    // =======================================================
+    // SPECIAL GAMES
+    // =======================================================
+
     const decidedGames =
       games.filter(
         (game) =>
@@ -765,7 +1021,8 @@ export default async function HeadToHeadPage({
       );
 
     const biggestWin =
-      decidedGames.length > 0
+      decidedGames.length >
+      0
         ? [
             ...decidedGames,
           ].sort(
@@ -776,7 +1033,8 @@ export default async function HeadToHeadPage({
         : null;
 
     const closestGame =
-      decidedGames.length > 0
+      decidedGames.length >
+      0
         ? [
             ...decidedGames,
           ].sort(
@@ -785,6 +1043,23 @@ export default async function HeadToHeadPage({
               b.margin
           )[0]
         : null;
+
+    const latestGame =
+      games.length >
+      0
+        ? games[0]
+        : null;
+
+    const championshipGames =
+      games.filter(
+        (game) =>
+          game.is_championship ===
+          true
+      );
+
+    // =======================================================
+    // STREAKS
+    // =======================================================
 
     const currentStreak =
       getCurrentStreak(
@@ -796,17 +1071,26 @@ export default async function HeadToHeadPage({
         games
       );
 
+    // =======================================================
+    // RETURN COMPARISON
+    // =======================================================
+
     comparison = {
-      owner1,
-      owner2,
+      owner1Name,
+
+      owner2Name,
 
       games,
+
       meetings,
 
       overall,
-      regular,
-      playoffs,
-      consolation,
+
+      regularRecord,
+
+      playoffRecord,
+
+      consolationRecord,
 
       regularMeetings:
         regularRaw.length,
@@ -817,81 +1101,103 @@ export default async function HeadToHeadPage({
       consolationMeetings:
         consolationRaw.length,
 
+      championshipGames,
+
       owner1Points,
+
       owner2Points,
 
       owner1Average,
+
       owner2Average,
 
       biggestWin,
+
       closestGame,
 
-      currentStreak,
-      longestStreak,
+      latestGame,
 
-      championshipGames:
-        games.filter(
-          (game) =>
-            game.is_championship ===
-            true
-        ),
+      currentStreak,
+
+      longestStreak,
 
       officialRivalry:
         isOfficialRivalry(
-          owner1.name,
-          owner2.name
+          owner1Name,
+          owner2Name
         ),
     };
   }
 
-  const currentStreakOwner =
+  // =========================================================
+  // DISPLAY HELPERS
+  // =========================================================
+
+  const latestWinnerSide =
+    comparison
+      ? getWinnerSide(
+          comparison.latestGame
+        )
+      : null;
+
+  const latestWinnerName =
+    latestWinnerSide ===
+      "owner1"
+      ? comparison
+          ?.owner1Name
+      : latestWinnerSide ===
+          "owner2"
+        ? comparison
+            ?.owner2Name
+        : null;
+
+  const biggestWinnerSide =
+    comparison
+      ? getWinnerSide(
+          comparison.biggestWin
+        )
+      : null;
+
+  const biggestWinnerName =
+    biggestWinnerSide ===
+      "owner1"
+      ? comparison
+          ?.owner1Name
+      : biggestWinnerSide ===
+          "owner2"
+        ? comparison
+            ?.owner2Name
+        : null;
+
+  const currentStreakName =
     comparison
       ?.currentStreak
       ?.owner ===
     "owner1"
       ? comparison
-          .owner1
-          .name
+          .owner1Name
       : comparison
-            ?.currentStreak
-            ?.owner ===
-          "owner2"
+          ?.currentStreak
+          ?.owner ===
+        "owner2"
         ? comparison
-            .owner2
-            .name
-        : "No active streak";
+            .owner2Name
+        : null;
 
-  const longestStreakOwner =
+  const longestStreakName =
     comparison
       ?.longestStreak
       ?.owner ===
     "owner1"
       ? comparison
-          .owner1
-          .name
+          .owner1Name
       : comparison
-            ?.longestStreak
-            ?.owner ===
-          "owner2"
+          ?.longestStreak
+          ?.owner ===
+        "owner2"
         ? comparison
-            .owner2
-            .name
-        : "—";
-
-  const biggestWinOwner =
-    comparison
-      ?.biggestWin
-      ? comparison
-            .biggestWin
-            .owner1Result ===
-          "W"
-        ? comparison
-            .owner1
-            .name
-        : comparison
-            .owner2
-            .name
-      : "—";
+            .owner2Name
+        : null;
 
   // =========================================================
   // PAGE
@@ -907,9 +1213,11 @@ export default async function HeadToHeadPage({
         <div className="site-title">
 
           <Link href="/">
+
             <strong>
               DIRTY P FANTASY FOOTBALL
             </strong>
+
           </Link>
 
           <span>
@@ -936,9 +1244,9 @@ export default async function HeadToHeadPage({
           </h1>
 
           <p>
-            Pick any two Dirty P owners
-            and compare their complete
-            history against each other.
+            Compare any two Dirty P owners
+            across every completed matchup
+            in league history.
           </p>
 
         </div>
@@ -968,15 +1276,62 @@ export default async function HeadToHeadPage({
         </Link>
 
         <span>
-          {firstSeason}–
-          {lastSeason}
+
+          {latestCompletedWeek >
+          0
+            ? `Through ${currentSeason} Week ${latestCompletedWeek}`
+            : `Through ${currentSeason}`}
+
         </span>
 
       </nav>
 
 
+      {/* ESPN OWNER WARNING */}
+
+      {unmatchedEspnOwners.length >
+        0 && (
+
+        <section className="owners-section">
+
+          <article className="owner-card">
+
+            <div className="owner-card-top">
+
+              <div>
+
+                <span className="owner-status">
+                  ESPN OWNER MATCH WARNING
+                </span>
+
+                <h3>
+                  Some current owners could not be matched
+                </h3>
+
+                <p className="owner-team-name">
+
+                  {unmatchedEspnOwners
+                    .map(
+                      (owner) =>
+                        `${owner.ownerName} (${owner.teamName})`
+                    )
+                    .join(", ")}
+
+                </p>
+
+              </div>
+
+            </div>
+
+          </article>
+
+        </section>
+
+      )}
+
+
       {/* =====================================================
-          SEARCH
+          MATCHUP SEARCH
           ===================================================== */}
 
       <section className="owners-section">
@@ -996,7 +1351,7 @@ export default async function HeadToHeadPage({
           </div>
 
           <span>
-            Every completed matchup
+            Every completed matchup counts
           </span>
 
         </div>
@@ -1026,6 +1381,7 @@ export default async function HeadToHeadPage({
               <option value="">
                 Select owner
               </option>
+
 
               {ownerList.map(
                 (owner) => (
@@ -1074,6 +1430,7 @@ export default async function HeadToHeadPage({
                 Select owner
               </option>
 
+
               {ownerList.map(
                 (owner) => (
 
@@ -1119,7 +1476,7 @@ export default async function HeadToHeadPage({
 
 
       {/* =====================================================
-          SERIES
+          COMPARISON
           ===================================================== */}
 
       {comparison && (
@@ -1135,832 +1492,847 @@ export default async function HeadToHeadPage({
                 <p className="eyebrow">
 
                   {comparison.officialRivalry
-                    ? "RIVALRY WEEK MATCHUP"
+                    ? "🔥 OFFICIAL RIVALRY"
                     : "ALL-TIME MATCHUP"}
 
                 </p>
 
                 <h2>
-                  {comparison.owner1.name}
+
+                  {comparison.owner1Name}
                   {" vs "}
-                  {comparison.owner2.name}
+                  {comparison.owner2Name}
+
                 </h2>
 
               </div>
 
 
               <span>
+
                 {comparison.meetings}{" "}
+
                 {comparison.meetings ===
                 1
                   ? "Meeting"
                   : "Meetings"}
+
               </span>
 
             </div>
 
 
-            <div className="owners-grid">
+            {comparison.officialRivalry && (
 
-              {/* OWNER 1 */}
+              <div className="h2h-rivalry-banner">
 
-              <article className="owner-card">
+                <span>
+                  🔥 RIVALRY WEEK
+                </span>
 
-                <div className="owner-card-top">
+                <strong>
+                  OFFICIAL DIRTY P RIVALS
+                </strong>
 
-                  <div>
+              </div>
 
-                    <span className="owner-status">
-                      OWNER 1
+            )}
+
+
+            {comparison.meetings ===
+            0 ? (
+
+              <div className="current-panel">
+
+                <div className="empty-current-state">
+
+                  <strong>
+                    No matchups found
+                  </strong>
+
+                  <p>
+                    These two owners have
+                    not played a completed
+                    Dirty P matchup.
+                  </p>
+
+                </div>
+
+              </div>
+
+            ) : (
+
+              <>
+
+                {/* =================================================
+                    FEATURED SERIES CARD
+                    ================================================= */}
+
+                <div className="h2h-series-card h2h-featured-series">
+
+                  <div className="h2h-series-top">
+
+                    <span>
+
+                      {comparison.officialRivalry
+                        ? "RIVALRY SERIES"
+                        : "ALL-TIME SERIES"}
+
                     </span>
 
-                    <h3>
-                      {comparison.owner1.name}
-                    </h3>
+                    <strong>
 
-                    <p className="owner-team-name">
-                      Head-to-Head Résumé
-                    </p>
+                      {comparison.meetings}{" "}
+                      MEETINGS
+
+                    </strong>
 
                   </div>
 
 
-                  <div className="owner-title-count">
+                  <div className="h2h-series-matchup">
 
-                    <strong>
-                      {
-                        comparison
+                    <div className="h2h-series-owner">
+
+                      <Link
+                        href={`/owners/${selectedOwner1}`}
+                      >
+                        {comparison.owner1Name}
+                      </Link>
+
+                      <strong>
+
+                        {
+                          comparison
+                            .overall
+                            .owner1Wins
+                        }
+
+                      </strong>
+
+                      <span>
+                        WINS
+                      </span>
+
+                    </div>
+
+
+                    <div className="h2h-series-vs">
+
+                      <span>
+                        SERIES
+                      </span>
+
+                      <strong>
+
+                        {recordText(
+                          comparison
+                            .overall
+                            .owner1Wins,
+                          comparison
+                            .overall
+                            .owner2Wins,
+                          comparison
+                            .overall
+                            .ties
+                        )}
+
+                      </strong>
+
+                      <small>
+
+                        {comparison
                           .overall
-                          .owner1Wins
-                      }
-                    </strong>
+                          .ties >
+                        0
+                          ? `${
+                              comparison
+                                .overall
+                                .ties
+                            } tie${
+                              comparison
+                                .overall
+                                .ties ===
+                              1
+                                ? ""
+                                : "s"
+                            }`
+                          : "No ties"}
 
-                    <span>
-                      WINS
-                    </span>
+                      </small>
+
+                    </div>
+
+
+                    <div className="h2h-series-owner right">
+
+                      <Link
+                        href={`/owners/${selectedOwner2}`}
+                      >
+                        {comparison.owner2Name}
+                      </Link>
+
+                      <strong>
+
+                        {
+                          comparison
+                            .overall
+                            .owner2Wins
+                        }
+
+                      </strong>
+
+                      <span>
+                        WINS
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  <div className="h2h-series-stats">
+
+                    <div>
+
+                      <span>
+                        {comparison.owner1Name}
+                      </span>
+
+                      <strong>
+
+                        {formatScore(
+                          comparison.owner1Points
+                        )}
+
+                      </strong>
+
+                      <small>
+                        TOTAL POINTS
+                      </small>
+
+                    </div>
+
+
+                    <div>
+
+                      <span>
+                        AVERAGE SCORE
+                      </span>
+
+                      <strong>
+
+                        {formatScore(
+                          comparison.owner1Average
+                        )}
+
+                        {" – "}
+
+                        {formatScore(
+                          comparison.owner2Average
+                        )}
+
+                      </strong>
+
+                      <small>
+                        ALL MATCHUPS
+                      </small>
+
+                    </div>
+
+
+                    <div>
+
+                      <span>
+                        {comparison.owner2Name}
+                      </span>
+
+                      <strong>
+
+                        {formatScore(
+                          comparison.owner2Points
+                        )}
+
+                      </strong>
+
+                      <small>
+                        TOTAL POINTS
+                      </small>
+
+                    </div>
 
                   </div>
 
                 </div>
 
+              </>
 
-                <div className="owner-record">
-
-                  <div>
-
-                    <strong>
-                      {recordText(
-                        comparison
-                          .overall
-                          .owner1Wins,
-                        comparison
-                          .overall
-                          .owner2Wins,
-                        comparison
-                          .overall
-                          .ties
-                      )}
-                    </strong>
-
-                    <span>
-                      SERIES RECORD
-                    </span>
-
-                  </div>
-
-
-                  <div>
-
-                    <strong>
-                      {formatScore(
-                        comparison
-                          .owner1Average
-                      )}
-                    </strong>
-
-                    <span>
-                      AVG SCORE
-                    </span>
-
-                  </div>
-
-                </div>
-
-
-                <div className="owner-stats-grid">
-
-                  <div>
-                    <strong>
-                      {comparison.regular.owner1Wins}
-                    </strong>
-                    <span>
-                      Reg. Wins
-                    </span>
-                  </div>
-
-                  <div>
-                    <strong>
-                      {comparison.playoffs.owner1Wins}
-                    </strong>
-                    <span>
-                      Playoffs
-                    </span>
-                  </div>
-
-                  <div>
-                    <strong>
-                      {comparison.consolation.owner1Wins}
-                    </strong>
-                    <span>
-                      Consolation
-                    </span>
-                  </div>
-
-                  <div>
-                    <strong>
-                      {formatScore(
-                        comparison.owner1Points
-                      )}
-                    </strong>
-                    <span>
-                      Points
-                    </span>
-                  </div>
-
-                </div>
-
-
-                <div className="owner-card-bottom">
-
-                  <span>
-                    {comparison.meetings} meetings
-                  </span>
-
-                  <Link
-                    href={`/owners/${comparison.owner1.id}`}
-                  >
-                    <strong>
-                      View Owner →
-                    </strong>
-                  </Link>
-
-                </div>
-
-              </article>
-
-
-              {/* OWNER 2 */}
-
-              <article className="owner-card">
-
-                <div className="owner-card-top">
-
-                  <div>
-
-                    <span className="owner-status">
-                      OWNER 2
-                    </span>
-
-                    <h3>
-                      {comparison.owner2.name}
-                    </h3>
-
-                    <p className="owner-team-name">
-                      Head-to-Head Résumé
-                    </p>
-
-                  </div>
-
-
-                  <div className="owner-title-count">
-
-                    <strong>
-                      {
-                        comparison
-                          .overall
-                          .owner2Wins
-                      }
-                    </strong>
-
-                    <span>
-                      WINS
-                    </span>
-
-                  </div>
-
-                </div>
-
-
-                <div className="owner-record">
-
-                  <div>
-
-                    <strong>
-                      {recordText(
-                        comparison
-                          .overall
-                          .owner2Wins,
-                        comparison
-                          .overall
-                          .owner1Wins,
-                        comparison
-                          .overall
-                          .ties
-                      )}
-                    </strong>
-
-                    <span>
-                      SERIES RECORD
-                    </span>
-
-                  </div>
-
-
-                  <div>
-
-                    <strong>
-                      {formatScore(
-                        comparison
-                          .owner2Average
-                      )}
-                    </strong>
-
-                    <span>
-                      AVG SCORE
-                    </span>
-
-                  </div>
-
-                </div>
-
-
-                <div className="owner-stats-grid">
-
-                  <div>
-                    <strong>
-                      {comparison.regular.owner2Wins}
-                    </strong>
-                    <span>
-                      Reg. Wins
-                    </span>
-                  </div>
-
-                  <div>
-                    <strong>
-                      {comparison.playoffs.owner2Wins}
-                    </strong>
-                    <span>
-                      Playoffs
-                    </span>
-                  </div>
-
-                  <div>
-                    <strong>
-                      {comparison.consolation.owner2Wins}
-                    </strong>
-                    <span>
-                      Consolation
-                    </span>
-                  </div>
-
-                  <div>
-                    <strong>
-                      {formatScore(
-                        comparison.owner2Points
-                      )}
-                    </strong>
-                    <span>
-                      Points
-                    </span>
-                  </div>
-
-                </div>
-
-
-                <div className="owner-card-bottom">
-
-                  <span>
-                    {comparison.meetings} meetings
-                  </span>
-
-                  <Link
-                    href={`/owners/${comparison.owner2.id}`}
-                  >
-                    <strong>
-                      View Owner →
-                    </strong>
-                  </Link>
-
-                </div>
-
-              </article>
-
-            </div>
+            )}
 
           </section>
 
 
-          {/* =================================================
-              SERIES SUMMARY
-              ================================================= */}
+          {/* ===================================================
+              SERIES BREAKDOWN
+              =================================================== */}
 
           {comparison.meetings >
             0 && (
 
-            <section className="owners-section">
+            <>
 
-              <div className="section-heading">
+              <section className="owners-section">
 
-                <div>
-
-                  <p className="eyebrow">
-                    SERIES BREAKDOWN
-                  </p>
-
-                  <h2>
-                    Series Summary
-                  </h2>
-
-                </div>
-
-                <span>
-                  All-Time
-                </span>
-
-              </div>
-
-
-              <article className="owner-card">
-
-                <div className="owner-card-top">
+                <div className="section-heading">
 
                   <div>
 
-                    <span className="owner-status">
-                      ALL-TIME SERIES
-                    </span>
-
-                    <h3>
-                      {comparison.owner1.name}
-                      {" vs "}
-                      {comparison.owner2.name}
-                    </h3>
-
-                    <p className="owner-team-name">
-                      {comparison.meetings} completed meetings
+                    <p className="eyebrow">
+                      SERIES BREAKDOWN
                     </p>
 
-                  </div>
-
-
-                  <div className="owner-title-count">
-
-                    <strong>
-                      {comparison.meetings}
-                    </strong>
-
-                    <span>
-                      GAMES
-                    </span>
+                    <h2>
+                      Head-to-Head Stats
+                    </h2>
 
                   </div>
+
+                  <span>
+                    Live All-Time Results
+                  </span>
 
                 </div>
 
 
-                <div className="owner-record">
+                <div className="record-book-grid">
 
-                  <div>
+                  {/* REGULAR SEASON */}
 
-                    <strong>
+                  <div className="record-book-card">
+
+                    <span className="record-book-label">
+                      Regular Season
+                    </span>
+
+                    <strong className="record-book-value">
+
                       {recordText(
-                        comparison.overall.owner1Wins,
-                        comparison.overall.owner2Wins,
-                        comparison.overall.ties
+                        comparison
+                          .regularRecord
+                          .owner1Wins,
+                        comparison
+                          .regularRecord
+                          .owner2Wins,
+                        comparison
+                          .regularRecord
+                          .ties
                       )}
+
                     </strong>
 
-                    <span>
-                      SERIES RECORD
+                    <span className="record-book-owner">
+                      {comparison.owner1Name} perspective
+                    </span>
+
+                    <span className="record-book-detail">
+
+                      {comparison.regularMeetings}{" "}
+
+                      regular-season{" "}
+
+                      {comparison.regularMeetings ===
+                      1
+                        ? "meeting"
+                        : "meetings"}
+
                     </span>
 
                   </div>
 
 
-                  <div>
+                  {/* PLAYOFFS */}
 
-                    <strong>
-                      {comparison.championshipGames.length}
+                  <div className="record-book-card">
+
+                    <span className="record-book-label">
+                      Championship-Bracket Playoffs
+                    </span>
+
+                    <strong className="record-book-value">
+
+                      {recordText(
+                        comparison
+                          .playoffRecord
+                          .owner1Wins,
+                        comparison
+                          .playoffRecord
+                          .owner2Wins,
+                        comparison
+                          .playoffRecord
+                          .ties
+                      )}
+
                     </strong>
 
-                    <span>
-                      TITLE-GAME MEETINGS
+                    <span className="record-book-owner">
+                      {comparison.owner1Name} perspective
+                    </span>
+
+                    <span className="record-book-detail">
+
+                      {comparison.playoffMeetings}{" "}
+
+                      playoff{" "}
+
+                      {comparison.playoffMeetings ===
+                      1
+                        ? "meeting"
+                        : "meetings"}
+
                     </span>
 
                   </div>
 
-                </div>
+
+                  {/* CONSOLATION */}
+
+                  <div className="record-book-card">
+
+                    <span className="record-book-label">
+                      Consolation Games
+                    </span>
+
+                    <strong className="record-book-value">
+
+                      {recordText(
+                        comparison
+                          .consolationRecord
+                          .owner1Wins,
+                        comparison
+                          .consolationRecord
+                          .owner2Wins,
+                        comparison
+                          .consolationRecord
+                          .ties
+                      )}
+
+                    </strong>
+
+                    <span className="record-book-owner">
+                      Counted in overall series
+                    </span>
+
+                    <span className="record-book-detail">
+
+                      {comparison.consolationMeetings}{" "}
+
+                      consolation{" "}
+
+                      {comparison.consolationMeetings ===
+                      1
+                        ? "meeting"
+                        : "meetings"}
+
+                    </span>
+
+                  </div>
 
 
-                <div className="owner-stats-grid">
+                  {/* CHAMPIONSHIP */}
 
-                  <div>
+                  <div className="record-book-card">
 
-                    <strong>
+                    <span className="record-book-label">
+                      Championship Meetings
+                    </span>
+
+                    <strong className="record-book-value">
+
+                      {
+                        comparison
+                          .championshipGames
+                          .length
+                      }
+
+                    </strong>
+
+                    <span className="record-book-owner">
+                      Dirty P Championship
+                    </span>
+
+                    <span className="record-book-detail">
+                      All-time title-game meetings
+                    </span>
+
+                  </div>
+
+
+                  {/* LATEST MEETING */}
+
+                  <div className="record-book-card">
+
+                    <span className="record-book-label">
+                      Latest Meeting
+                    </span>
+
+                    <strong className="record-book-value">
+
+                      {comparison.latestGame
+                        ? `${formatScore(
+                            comparison
+                              .latestGame
+                              .owner1Score
+                          )} – ${formatScore(
+                            comparison
+                              .latestGame
+                              .owner2Score
+                          )}`
+                        : "—"}
+
+                    </strong>
+
+                    <span className="record-book-owner">
+
+                      {latestWinnerName ||
+                        "Tie"}
+
+                    </span>
+
+                    <span className="record-book-detail">
+
+                      {comparison.latestGame
+                        ? `${comparison.latestGame.season} • Week ${comparison.latestGame.week}`
+                        : ""}
+
+                    </span>
+
+                  </div>
+
+
+                  {/* BIGGEST WIN */}
+
+                  <div className="record-book-card">
+
+                    <span className="record-book-label">
+                      Biggest Win
+                    </span>
+
+                    <strong className="record-book-value">
+
                       {comparison.biggestWin
                         ? formatScore(
-                            comparison.biggestWin.margin
+                            comparison
+                              .biggestWin
+                              .margin
                           )
                         : "—"}
+
                     </strong>
 
-                    <span>
-                      Biggest Margin
+                    <span className="record-book-owner">
+
+                      {biggestWinnerName ||
+                        "No result"}
+
+                    </span>
+
+                    <span className="record-book-detail">
+
+                      {comparison.biggestWin
+                        ? `${comparison.biggestWin.season} • Week ${comparison.biggestWin.week}`
+                        : ""}
+
                     </span>
 
                   </div>
 
 
-                  <div>
+                  {/* CLOSEST GAME */}
 
-                    <strong>
-                      {comparison.closestGame
-                        ? formatScore(
-                            comparison.closestGame.margin
-                          )
-                        : "—"}
-                    </strong>
+                  <div className="record-book-card">
 
-                    <span>
+                    <span className="record-book-label">
                       Closest Game
                     </span>
 
-                  </div>
+                    <strong className="record-book-value">
 
+                      {comparison.closestGame
+                        ? formatScore(
+                            comparison
+                              .closestGame
+                              .margin
+                          )
+                        : "—"}
 
-                  <div>
-
-                    <strong>
-                      {comparison.currentStreak?.count || 0}
                     </strong>
 
-                    <span>
-                      Current Streak
+                    <span className="record-book-owner">
+                      Point Margin
+                    </span>
+
+                    <span className="record-book-detail">
+
+                      {comparison.closestGame
+                        ? `${comparison.closestGame.season} • Week ${comparison.closestGame.week}`
+                        : ""}
+
                     </span>
 
                   </div>
 
 
-                  <div>
+                  {/* CURRENT STREAK */}
 
-                    <strong>
-                      {comparison.longestStreak?.count || 0}
+                  <div className="record-book-card">
+
+                    <span className="record-book-label">
+                      Current Series Streak
+                    </span>
+
+                    <strong className="record-book-value">
+
+                      {comparison
+                        .currentStreak
+                        ?.count ||
+                        0}
+
                     </strong>
 
-                    <span>
-                      Longest Streak
+                    <span className="record-book-owner">
+
+                      {currentStreakName ||
+                        "No active streak"}
+
+                    </span>
+
+                    <span className="record-book-detail">
+                      Consecutive wins
+                    </span>
+
+                  </div>
+
+
+                  {/* LONGEST STREAK */}
+
+                  <div className="record-book-card">
+
+                    <span className="record-book-label">
+                      Longest Series Win Streak
+                    </span>
+
+                    <strong className="record-book-value">
+
+                      {comparison
+                        .longestStreak
+                        ?.count ||
+                        0}
+
+                    </strong>
+
+                    <span className="record-book-owner">
+
+                      {longestStreakName ||
+                        "—"}
+
+                    </span>
+
+                    <span className="record-book-detail">
+                      Consecutive wins
                     </span>
 
                   </div>
 
                 </div>
 
+              </section>
 
-                <div className="owner-record">
 
-                  <div>
+              {/* =================================================
+                  GAME LOG
+                  ================================================= */}
 
-                    <strong>
-                      {biggestWinOwner}
-                    </strong>
+              <section className="owners-section">
 
-                    <span>
-                      BIGGEST WIN OWNER
-                    </span>
-
-                  </div>
-
+                <div className="section-heading">
 
                   <div>
 
-                    <strong>
-                      {currentStreakOwner}
-                    </strong>
+                    <p className="eyebrow">
+                      GAME LOG
+                    </p>
 
-                    <span>
-                      CURRENT STREAK
-                    </span>
+                    <h2>
+                      Complete Matchup History
+                    </h2>
 
                   </div>
-
-                </div>
-
-
-                <div className="owner-card-bottom">
 
                   <span>
-                    Longest streak: {longestStreakOwner}
+                    Newest First
                   </span>
 
-                  <strong>
-                    {comparison.regularMeetings} Regular ·{" "}
-                    {comparison.playoffMeetings} Playoff ·{" "}
-                    {comparison.consolationMeetings} Consolation
-                  </strong>
-
                 </div>
 
-              </article>
 
-            </section>
+                <div className="profile-table-wrap">
 
-          )}
+                  <table className="profile-table matchup-history-table">
 
+                    <thead>
 
-          {/* =================================================
-              MATCHUP HISTORY CARDS
-              ================================================= */}
+                      <tr>
 
-          {comparison.meetings >
-            0 && (
+                        <th>
+                          Season
+                        </th>
 
-            <section className="owners-section">
+                        <th>
+                          Week
+                        </th>
 
-              <div className="section-heading">
+                        <th>
+                          Type
+                        </th>
 
-                <div>
+                        <th>
+                          {comparison.owner1Name}
+                        </th>
 
-                  <p className="eyebrow">
-                    GAME LOG
-                  </p>
+                        <th>
+                          Score
+                        </th>
 
-                  <h2>
-                    Complete Matchup History
-                  </h2>
+                        <th>
+                          {comparison.owner2Name}
+                        </th>
 
-                </div>
+                        <th>
+                          Result
+                        </th>
 
-                <span>
-                  Newest First
-                </span>
+                      </tr>
 
-              </div>
-
-
-              <div className="owners-grid">
-
-                {comparison.games.map(
-                  (
-                    game,
-                    index
-                  ) => {
-                    const winnerName =
-                      game.owner1Result ===
-                      "W"
-                        ? comparison
-                            .owner1
-                            .name
-
-                        : game.owner1Result ===
-                            "L"
-
-                          ? comparison
-                              .owner2
-                              .name
-
-                          : "Tie";
-
-                    const gameLabel =
-                      game.is_championship
-                        ? "CHAMPIONSHIP"
-
-                        : game.type ===
-                            "playoff"
-
-                          ? "PLAYOFF"
-
-                          : game.type ===
-                              "consolation"
-
-                            ? "CONSOLATION"
-
-                            : "REGULAR SEASON";
-
-                    return (
-                      <article
-                        className="owner-card"
-                        key={`${game.season}-${game.week}-${index}`}
-                      >
-
-                        {/* TOP */}
-
-                        <div className="owner-card-top">
-
-                          <div>
-
-                            <span className="owner-status">
-                              {game.season} · WEEK {game.week} · {gameLabel}
-                            </span>
-
-                            <h3>
-                              {comparison.owner1.name}
-                              {" vs "}
-                              {comparison.owner2.name}
-                            </h3>
-
-                            <p className="owner-team-name">
-                              {winnerName ===
-                              "Tie"
-                                ? "Game ended in a tie"
-                                : `${winnerName} won`}
-                            </p>
-
-                          </div>
+                    </thead>
 
 
-                          <div className="owner-title-count">
+                    <tbody>
 
-                            <strong>
-                              {game.owner1Result}
-                            </strong>
+                      {comparison.games.map(
+                        (
+                          game,
+                          index
+                        ) => (
 
-                            <span>
-                              {comparison.owner1.name
-                                .split(" ")[0]
-                                .toUpperCase()}
-                            </span>
+                          <tr
+                            key={`${game.season}-${game.week}-${game.id || index}`}
+                          >
 
-                          </div>
+                            <td>
 
-                        </div>
+                              <strong>
+                                {game.season}
+                              </strong>
+
+                            </td>
 
 
-                        {/* SCORE */}
+                            <td>
+                              Week {game.week}
+                            </td>
 
-                        <div className="owner-record">
 
-                          <div>
+                            <td>
 
-                            <strong>
+                              {game.is_championship
+                                ? "Championship"
+
+                                : game.type ===
+                                    "playoff"
+                                  ? "Playoff"
+
+                                  : game.type ===
+                                      "consolation"
+                                    ? "Consolation"
+
+                                    : "Regular"}
+
+                            </td>
+
+
+                            <td>
+
+                              <strong>
+                                {game.owner1Team}
+                              </strong>
+
+                            </td>
+
+
+                            <td>
+
                               {formatScore(
                                 game.owner1Score
                               )}
-                            </strong>
 
-                            <span>
-                              {game.owner1Team}
-                            </span>
+                              {" – "}
 
-                          </div>
-
-
-                          <div>
-
-                            <strong>
                               {formatScore(
                                 game.owner2Score
                               )}
-                            </strong>
 
-                            <span>
-                              {game.owner2Team}
-                            </span>
-
-                          </div>
-
-                        </div>
+                            </td>
 
 
-                        {/* GAME DETAILS */}
+                            <td>
 
-                        <div className="owner-stats-grid">
+                              <strong>
+                                {game.owner2Team}
+                              </strong>
 
-                          <div>
-
-                            <strong>
-                              {game.season}
-                            </strong>
-
-                            <span>
-                              Season
-                            </span>
-
-                          </div>
+                            </td>
 
 
-                          <div>
+                            <td>
 
-                            <strong>
-                              {game.week}
-                            </strong>
+                              <span
+                                className={
+                                  game.owner1Result ===
+                                  "W"
+                                    ? "game-win"
 
-                            <span>
-                              Week
-                            </span>
+                                    : game.owner1Result ===
+                                        "L"
+                                      ? "game-loss"
 
-                          </div>
+                                      : ""
+                                }
+                              >
 
+                                {game.owner1Result}
 
-                          <div>
+                              </span>
 
-                            <strong>
-                              {formatScore(
-                                game.margin
-                              )}
-                            </strong>
+                            </td>
 
-                            <span>
-                              Margin
-                            </span>
+                          </tr>
 
-                          </div>
+                        )
+                      )}
 
+                    </tbody>
 
-                          <div>
+                  </table>
 
-                            <strong>
-                              {game.owner1Result}
-                            </strong>
+                </div>
 
-                            <span>
-                              Result
-                            </span>
+              </section>
 
-                          </div>
-
-                        </div>
-
-
-                        {/* BOTTOM */}
-
-                        <div className="owner-card-bottom">
-
-                          <span>
-                            {gameLabel}
-                          </span>
-
-                          <strong>
-                            {formatScore(
-                              game.owner1Score
-                            )}
-                            {" – "}
-                            {formatScore(
-                              game.owner2Score
-                            )}
-                          </strong>
-
-                        </div>
-
-                      </article>
-                    );
-                  }
-                )}
-
-              </div>
-
-            </section>
+            </>
 
           )}
 
         </>
-
-      )}
-
-
-      {/* NO MATCHUPS */}
-
-      {comparison &&
-        comparison.meetings ===
-          0 && (
-
-        <section className="owners-section">
-
-          <article className="owner-card">
-
-            <div className="owner-card-top">
-
-              <div>
-
-                <span className="owner-status">
-                  NO HISTORY
-                </span>
-
-                <h3>
-                  No completed matchups
-                </h3>
-
-                <p className="owner-team-name">
-                  These owners have not played
-                  a completed Dirty P matchup.
-                </p>
-
-              </div>
-
-            </div>
-
-          </article>
-
-        </section>
 
       )}
 
