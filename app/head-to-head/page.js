@@ -11,98 +11,48 @@ const CURRENT_SEASON = 2026;
 
 function num(value) {
   const parsed = Number(value);
-
-  return Number.isFinite(parsed)
-    ? parsed
-    : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function formatScore(value) {
   return num(value).toFixed(2);
 }
 
-function recordText(
-  wins,
-  losses,
-  ties = 0
-) {
-  if (ties > 0) {
-    return `${wins}-${losses}-${ties}`;
-  }
-
-  return `${wins}-${losses}`;
+function recordText(wins, losses, ties = 0) {
+  return ties > 0
+    ? `${wins}-${losses}-${ties}`
+    : `${wins}-${losses}`;
 }
-
-function invertRecord(record) {
-  return {
-    wins:
-      record.owner2Wins,
-
-    losses:
-      record.owner1Wins,
-
-    ties:
-      record.ties,
-  };
-}
-
-// =========================================================
-// GAME TYPE
-// =========================================================
 
 function getGameType(game) {
-  const matchupType =
-    String(
-      game.matchup_type ||
-        ""
-    )
-      .trim()
-      .toLowerCase();
+  const matchupType = String(
+    game.matchup_type || ""
+  )
+    .trim()
+    .toLowerCase();
 
-  const playoffTier =
-    String(
-      game.playoff_tier ||
-        ""
-    )
-      .trim()
-      .toLowerCase();
+  const playoffTier = String(
+    game.playoff_tier || ""
+  )
+    .trim()
+    .toLowerCase();
 
   if (
-    matchupType ===
-      "consolation" ||
-    matchupType.includes(
-      "consolation"
-    ) ||
-    playoffTier.includes(
-      "consolation"
-    ) ||
-    playoffTier.includes(
-      "losers"
-    ) ||
-    playoffTier.includes(
-      "loser"
-    )
+    matchupType.includes("consolation") ||
+    playoffTier.includes("consolation") ||
+    playoffTier.includes("losers") ||
+    playoffTier.includes("loser")
   ) {
     return "consolation";
   }
 
   if (
-    matchupType ===
-      "playoff" ||
-    matchupType.includes(
-      "championship"
-    ) ||
-    playoffTier.includes(
-      "winners_bracket"
-    ) ||
-    playoffTier.includes(
-      "winner"
-    ) ||
-    playoffTier.includes(
-      "championship"
-    ) ||
-    game.is_championship ===
-      true
+    matchupType === "playoff" ||
+    matchupType.includes("championship") ||
+    playoffTier.includes("winners_bracket") ||
+    playoffTier.includes("winner") ||
+    playoffTier.includes("championship") ||
+    game.is_championship === true
   ) {
     return "playoff";
   }
@@ -110,33 +60,22 @@ function getGameType(game) {
   return "regular";
 }
 
-// =========================================================
-// RESULT
-// =========================================================
+function getResult(game, ownerId) {
+  const homeId = Number(
+    game.home_owner_id
+  );
 
-function getResult(
-  game,
-  ownerId
-) {
-  const homeId =
-    Number(
-      game.home_owner_id
-    );
+  const awayId = Number(
+    game.away_owner_id
+  );
 
-  const awayId =
-    Number(
-      game.away_owner_id
-    );
+  const homeScore = num(
+    game.home_score
+  );
 
-  const homeScore =
-    num(
-      game.home_score
-    );
-
-  const awayScore =
-    num(
-      game.away_score
-    );
+  const awayScore = num(
+    game.away_score
+  );
 
   if (
     ownerId !== homeId &&
@@ -155,26 +94,16 @@ function getResult(
       ? awayScore
       : homeScore;
 
-  if (
-    ownerScore >
-    opponentScore
-  ) {
+  if (ownerScore > opponentScore) {
     return "W";
   }
 
-  if (
-    ownerScore <
-    opponentScore
-  ) {
+  if (ownerScore < opponentScore) {
     return "L";
   }
 
   return "T";
 }
-
-// =========================================================
-// SERIES RECORD
-// =========================================================
 
 function buildRecord(
   games,
@@ -184,33 +113,20 @@ function buildRecord(
   let owner2Wins = 0;
   let ties = 0;
 
-  games.forEach(
-    (game) => {
-      const result =
-        getResult(
-          game,
-          owner1Id
-        );
+  games.forEach((game) => {
+    const result = getResult(
+      game,
+      owner1Id
+    );
 
-      if (
-        result === "W"
-      ) {
-        owner1Wins += 1;
-      }
-
-      if (
-        result === "L"
-      ) {
-        owner2Wins += 1;
-      }
-
-      if (
-        result === "T"
-      ) {
-        ties += 1;
-      }
+    if (result === "W") {
+      owner1Wins += 1;
+    } else if (result === "L") {
+      owner2Wins += 1;
+    } else if (result === "T") {
+      ties += 1;
     }
-  );
+  });
 
   return {
     owner1Wins,
@@ -218,10 +134,6 @@ function buildRecord(
     ties,
   };
 }
-
-// =========================================================
-// GAME VIEW
-// =========================================================
 
 function getGameView(
   game,
@@ -231,26 +143,17 @@ function getGameView(
   const owner1IsHome =
     Number(
       game.home_owner_id
-    ) ===
-    owner1Id;
+    ) === owner1Id;
 
   const owner1Score =
     owner1IsHome
-      ? num(
-          game.home_score
-        )
-      : num(
-          game.away_score
-        );
+      ? num(game.home_score)
+      : num(game.away_score);
 
   const owner2Score =
     owner1IsHome
-      ? num(
-          game.away_score
-        )
-      : num(
-          game.home_score
-        );
+      ? num(game.away_score)
+      : num(game.home_score);
 
   const owner1Team =
     owner1IsHome
@@ -277,8 +180,13 @@ function getGameView(
     owner1Score,
     owner2Score,
 
-    owner1Team,
-    owner2Team,
+    owner1Team:
+      owner1Team ||
+      "Unknown Team",
+
+    owner2Team:
+      owner2Team ||
+      "Unknown Team",
 
     owner1Result,
 
@@ -303,13 +211,7 @@ function getGameView(
   };
 }
 
-// =========================================================
-// STREAKS
-// =========================================================
-
-function getCurrentStreak(
-  games
-) {
+function getCurrentStreak(games) {
   if (!games.length) {
     return null;
   }
@@ -333,7 +235,7 @@ function getCurrentStreak(
     return null;
   }
 
-  const result =
+  const targetResult =
     latest.owner1Result;
 
   let count = 0;
@@ -344,7 +246,7 @@ function getCurrentStreak(
   ) {
     if (
       game.owner1Result ===
-      result
+      targetResult
     ) {
       count += 1;
     } else {
@@ -354,7 +256,7 @@ function getCurrentStreak(
 
   return {
     owner:
-      result === "W"
+      targetResult === "W"
         ? "owner1"
         : "owner2",
 
@@ -362,9 +264,7 @@ function getCurrentStreak(
   };
 }
 
-function getLongestStreak(
-  games
-) {
+function getLongestStreak(games) {
   if (!games.length) {
     return null;
   }
@@ -378,65 +278,51 @@ function getLongestStreak(
           b.week
     );
 
-  let currentOwner =
-    null;
+  let currentOwner = null;
+  let currentCount = 0;
 
-  let currentCount =
-    0;
+  let bestOwner = null;
+  let bestCount = 0;
 
-  let bestOwner =
-    null;
-
-  let bestCount =
-    0;
-
-  chronological.forEach(
-    (game) => {
-      if (
-        game.owner1Result ===
-        "T"
-      ) {
-        currentOwner =
-          null;
-
-        currentCount =
-          0;
-
-        return;
-      }
-
-      const winner =
-        game.owner1Result ===
-        "W"
-          ? "owner1"
-          : "owner2";
-
-      if (
-        winner ===
-        currentOwner
-      ) {
-        currentCount +=
-          1;
-      } else {
-        currentOwner =
-          winner;
-
-        currentCount =
-          1;
-      }
-
-      if (
-        currentCount >
-        bestCount
-      ) {
-        bestOwner =
-          currentOwner;
-
-        bestCount =
-          currentCount;
-      }
+  for (
+    const game of
+    chronological
+  ) {
+    if (
+      game.owner1Result ===
+      "T"
+    ) {
+      currentOwner = null;
+      currentCount = 0;
+      continue;
     }
-  );
+
+    const winner =
+      game.owner1Result ===
+      "W"
+        ? "owner1"
+        : "owner2";
+
+    if (
+      winner === currentOwner
+    ) {
+      currentCount += 1;
+    } else {
+      currentOwner = winner;
+      currentCount = 1;
+    }
+
+    if (
+      currentCount >
+      bestCount
+    ) {
+      bestOwner =
+        currentOwner;
+
+      bestCount =
+        currentCount;
+    }
+  }
 
   if (!bestOwner) {
     return null;
@@ -452,7 +338,7 @@ function getLongestStreak(
 }
 
 // =========================================================
-// RIVALRY WEEK PAIRS
+// OFFICIAL RIVALRY WEEK PAIRS
 // =========================================================
 
 const OFFICIAL_RIVALRIES = [
@@ -460,22 +346,18 @@ const OFFICIAL_RIVALRIES = [
     "Reed Bushkuhl",
     "Austin Lloyd",
   ],
-
   [
     "Ryan Goodlett",
     "Matthew Aitkens",
   ],
-
   [
     "Tyler Guenther",
     "Edward Wachtel",
   ],
-
   [
     "Brent Fleischer",
     "Valentin Almendarez",
   ],
-
   [
     "Jacob Madden",
     "Cody Stinnett",
@@ -483,18 +365,18 @@ const OFFICIAL_RIVALRIES = [
 ];
 
 function isOfficialRivalry(
-  owner1,
-  owner2
+  owner1Name,
+  owner2Name
 ) {
   return OFFICIAL_RIVALRIES.some(
     ([a, b]) =>
       (
-        a === owner1 &&
-        b === owner2
+        a === owner1Name &&
+        b === owner2Name
       ) ||
       (
-        a === owner2 &&
-        b === owner1
+        a === owner2Name &&
+        b === owner1Name
       )
   );
 }
@@ -511,38 +393,24 @@ export default async function HeadToHeadPage({
 
   const requestedOwner1 =
     Number(
-      params?.owner1 ||
-        0
+      params?.owner1 || 0
     );
 
   const requestedOwner2 =
     Number(
-      params?.owner2 ||
-        0
+      params?.owner2 || 0
     );
 
   const [
-    {
-      data: owners,
-      error:
-        ownersError,
-    },
-
-    {
-      data: matchupData,
-      error:
-        matchupsError,
-    },
+    ownersResult,
+    matchupsResult,
   ] =
     await Promise.all([
       supabase
         .from("owners")
-        .select(`
-          id,
-          name,
-          current_team_name,
-          active
-        `)
+        .select(
+          "id, name"
+        )
         .order(
           "name",
           {
@@ -574,13 +442,9 @@ export default async function HeadToHeadPage({
         ),
     ]);
 
-  // =========================================================
-  // ERROR
-  // =========================================================
-
   if (
-    ownersError ||
-    matchupsError
+    ownersResult.error ||
+    matchupsResult.error
   ) {
     return (
       <main className="page-shell">
@@ -591,8 +455,10 @@ export default async function HeadToHeadPage({
 
         <p>
           Database error:{" "}
-          {ownersError?.message ||
-            matchupsError?.message}
+          {ownersResult.error
+            ?.message ||
+            matchupsResult.error
+              ?.message}
         </p>
 
       </main>
@@ -600,7 +466,12 @@ export default async function HeadToHeadPage({
   }
 
   const ownerList =
-    owners || [];
+    ownersResult.data ||
+    [];
+
+  const matchupData =
+    matchupsResult.data ||
+    [];
 
   const ownerMap =
     new Map(
@@ -655,10 +526,7 @@ export default async function HeadToHeadPage({
   // =========================================================
 
   const completedGames =
-    (
-      matchupData ||
-      []
-    ).filter(
+    matchupData.filter(
       (game) => {
         const home =
           Number(
@@ -707,10 +575,7 @@ export default async function HeadToHeadPage({
       ),
     ]
       .filter(
-        (year) =>
-          Number.isFinite(
-            year
-          )
+        Number.isFinite
       )
       .sort(
         (a, b) =>
@@ -728,14 +593,12 @@ export default async function HeadToHeadPage({
     ] || 2025;
 
   // =========================================================
-  // VALIDATION
+  // COMPARISON
   // =========================================================
 
   const validSelection =
-    selectedOwner1 >
-      0 &&
-    selectedOwner2 >
-      0 &&
+    selectedOwner1 > 0 &&
+    selectedOwner2 > 0 &&
     selectedOwner1 !==
       selectedOwner2 &&
     ownerMap.has(
@@ -745,16 +608,9 @@ export default async function HeadToHeadPage({
       selectedOwner2
     );
 
-  let comparison =
-    null;
+  let comparison = null;
 
-  // =========================================================
-  // BUILD COMPARISON
-  // =========================================================
-
-  if (
-    validSelection
-  ) {
+  if (validSelection) {
     const owner1 =
       ownerMap.get(
         selectedOwner1
@@ -909,8 +765,7 @@ export default async function HeadToHeadPage({
       );
 
     const biggestWin =
-      decidedGames.length >
-      0
+      decidedGames.length > 0
         ? [
             ...decidedGames,
           ].sort(
@@ -921,8 +776,7 @@ export default async function HeadToHeadPage({
         : null;
 
     const closestGame =
-      decidedGames.length >
-      0
+      decidedGames.length > 0
         ? [
             ...decidedGames,
           ].sort(
@@ -932,17 +786,6 @@ export default async function HeadToHeadPage({
           )[0]
         : null;
 
-    const latestGame =
-      games[0] ||
-      null;
-
-    const championshipGames =
-      games.filter(
-        (game) =>
-          game.is_championship ===
-          true
-      );
-
     const currentStreak =
       getCurrentStreak(
         games
@@ -951,12 +794,6 @@ export default async function HeadToHeadPage({
     const longestStreak =
       getLongestStreak(
         games
-      );
-
-    const officialRivalry =
-      isOfficialRivalry(
-        owner1.name,
-        owner2.name
       );
 
     comparison = {
@@ -988,48 +825,24 @@ export default async function HeadToHeadPage({
 
       biggestWin,
       closestGame,
-      latestGame,
-
-      championshipGames,
 
       currentStreak,
       longestStreak,
 
-      officialRivalry,
+      championshipGames:
+        games.filter(
+          (game) =>
+            game.is_championship ===
+            true
+        ),
+
+      officialRivalry:
+        isOfficialRivalry(
+          owner1.name,
+          owner2.name
+        ),
     };
   }
-
-  // =========================================================
-  // DISPLAY VALUES
-  // =========================================================
-
-  const owner2Overall =
-    comparison
-      ? invertRecord(
-          comparison.overall
-        )
-      : null;
-
-  const owner2Regular =
-    comparison
-      ? invertRecord(
-          comparison.regular
-        )
-      : null;
-
-  const owner2Playoffs =
-    comparison
-      ? invertRecord(
-          comparison.playoffs
-        )
-      : null;
-
-  const owner2Consolation =
-    comparison
-      ? invertRecord(
-          comparison.consolation
-        )
-      : null;
 
   const currentStreakOwner =
     comparison
@@ -1039,16 +852,13 @@ export default async function HeadToHeadPage({
       ? comparison
           .owner1
           .name
-
       : comparison
             ?.currentStreak
             ?.owner ===
           "owner2"
-
         ? comparison
             .owner2
             .name
-
         : "No active streak";
 
   const longestStreakOwner =
@@ -1059,16 +869,13 @@ export default async function HeadToHeadPage({
       ? comparison
           .owner1
           .name
-
       : comparison
             ?.longestStreak
             ?.owner ===
           "owner2"
-
         ? comparison
             .owner2
             .name
-
         : "—";
 
   const biggestWinOwner =
@@ -1078,15 +885,12 @@ export default async function HeadToHeadPage({
             .biggestWin
             .owner1Result ===
           "W"
-
         ? comparison
             .owner1
             .name
-
         : comparison
             .owner2
             .name
-
       : "—";
 
   // =========================================================
@@ -1096,9 +900,7 @@ export default async function HeadToHeadPage({
   return (
     <main className="page-shell">
 
-      {/* =====================================================
-          HEADER
-          ===================================================== */}
+      {/* HEADER */}
 
       <header className="site-header">
 
@@ -1119,9 +921,7 @@ export default async function HeadToHeadPage({
       </header>
 
 
-      {/* =====================================================
-          HERO
-          ===================================================== */}
+      {/* HERO */}
 
       <section className="owners-hero">
 
@@ -1159,9 +959,7 @@ export default async function HeadToHeadPage({
       </section>
 
 
-      {/* =====================================================
-          NAV
-          ===================================================== */}
+      {/* NAV */}
 
       <nav className="page-nav">
 
@@ -1178,7 +976,7 @@ export default async function HeadToHeadPage({
 
 
       {/* =====================================================
-          OWNER SELECTOR
+          SEARCH
           ===================================================== */}
 
       <section className="owners-section">
@@ -1321,7 +1119,7 @@ export default async function HeadToHeadPage({
 
 
       {/* =====================================================
-          MATCHUP
+          SERIES
           ===================================================== */}
 
       {comparison && (
@@ -1350,6 +1148,7 @@ export default async function HeadToHeadPage({
 
               </div>
 
+
               <span>
                 {comparison.meetings}{" "}
                 {comparison.meetings ===
@@ -1360,10 +1159,6 @@ export default async function HeadToHeadPage({
 
             </div>
 
-
-            {/* =================================================
-                OWNER CARDS
-                ================================================= */}
 
             <div className="owners-grid">
 
@@ -1384,8 +1179,7 @@ export default async function HeadToHeadPage({
                     </h3>
 
                     <p className="owner-team-name">
-                      {comparison.owner1.current_team_name ||
-                        "Dirty P Owner"}
+                      Head-to-Head Résumé
                     </p>
 
                   </div>
@@ -1394,7 +1188,11 @@ export default async function HeadToHeadPage({
                   <div className="owner-title-count">
 
                     <strong>
-                      {comparison.overall.owner1Wins}
+                      {
+                        comparison
+                          .overall
+                          .owner1Wins
+                      }
                     </strong>
 
                     <span>
@@ -1412,14 +1210,20 @@ export default async function HeadToHeadPage({
 
                     <strong>
                       {recordText(
-                        comparison.overall.owner1Wins,
-                        comparison.overall.owner2Wins,
-                        comparison.overall.ties
+                        comparison
+                          .overall
+                          .owner1Wins,
+                        comparison
+                          .overall
+                          .owner2Wins,
+                        comparison
+                          .overall
+                          .ties
                       )}
                     </strong>
 
                     <span>
-                      ALL-TIME RECORD
+                      SERIES RECORD
                     </span>
 
                   </div>
@@ -1429,7 +1233,8 @@ export default async function HeadToHeadPage({
 
                     <strong>
                       {formatScore(
-                        comparison.owner1Average
+                        comparison
+                          .owner1Average
                       )}
                     </strong>
 
@@ -1445,56 +1250,41 @@ export default async function HeadToHeadPage({
                 <div className="owner-stats-grid">
 
                   <div>
-
                     <strong>
                       {comparison.regular.owner1Wins}
                     </strong>
-
                     <span>
                       Reg. Wins
                     </span>
-
                   </div>
 
-
                   <div>
-
                     <strong>
                       {comparison.playoffs.owner1Wins}
                     </strong>
-
                     <span>
-                      Playoff Wins
+                      Playoffs
                     </span>
-
                   </div>
 
-
                   <div>
-
                     <strong>
                       {comparison.consolation.owner1Wins}
                     </strong>
-
                     <span>
                       Consolation
                     </span>
-
                   </div>
 
-
                   <div>
-
                     <strong>
                       {formatScore(
                         comparison.owner1Points
                       )}
                     </strong>
-
                     <span>
                       Points
                     </span>
-
                   </div>
 
                 </div>
@@ -1503,7 +1293,7 @@ export default async function HeadToHeadPage({
                 <div className="owner-card-bottom">
 
                   <span>
-                    {comparison.meetings} career meetings
+                    {comparison.meetings} meetings
                   </span>
 
                   <Link
@@ -1536,8 +1326,7 @@ export default async function HeadToHeadPage({
                     </h3>
 
                     <p className="owner-team-name">
-                      {comparison.owner2.current_team_name ||
-                        "Dirty P Owner"}
+                      Head-to-Head Résumé
                     </p>
 
                   </div>
@@ -1546,7 +1335,11 @@ export default async function HeadToHeadPage({
                   <div className="owner-title-count">
 
                     <strong>
-                      {comparison.overall.owner2Wins}
+                      {
+                        comparison
+                          .overall
+                          .owner2Wins
+                      }
                     </strong>
 
                     <span>
@@ -1564,14 +1357,20 @@ export default async function HeadToHeadPage({
 
                     <strong>
                       {recordText(
-                        owner2Overall.wins,
-                        owner2Overall.losses,
-                        owner2Overall.ties
+                        comparison
+                          .overall
+                          .owner2Wins,
+                        comparison
+                          .overall
+                          .owner1Wins,
+                        comparison
+                          .overall
+                          .ties
                       )}
                     </strong>
 
                     <span>
-                      ALL-TIME RECORD
+                      SERIES RECORD
                     </span>
 
                   </div>
@@ -1581,7 +1380,8 @@ export default async function HeadToHeadPage({
 
                     <strong>
                       {formatScore(
-                        comparison.owner2Average
+                        comparison
+                          .owner2Average
                       )}
                     </strong>
 
@@ -1597,56 +1397,41 @@ export default async function HeadToHeadPage({
                 <div className="owner-stats-grid">
 
                   <div>
-
                     <strong>
-                      {owner2Regular.wins}
+                      {comparison.regular.owner2Wins}
                     </strong>
-
                     <span>
                       Reg. Wins
                     </span>
-
                   </div>
 
-
                   <div>
-
                     <strong>
-                      {owner2Playoffs.wins}
+                      {comparison.playoffs.owner2Wins}
                     </strong>
-
                     <span>
-                      Playoff Wins
+                      Playoffs
                     </span>
-
                   </div>
 
-
                   <div>
-
                     <strong>
-                      {owner2Consolation.wins}
+                      {comparison.consolation.owner2Wins}
                     </strong>
-
                     <span>
                       Consolation
                     </span>
-
                   </div>
 
-
                   <div>
-
                     <strong>
                       {formatScore(
                         comparison.owner2Points
                       )}
                     </strong>
-
                     <span>
                       Points
                     </span>
-
                   </div>
 
                 </div>
@@ -1655,7 +1440,7 @@ export default async function HeadToHeadPage({
                 <div className="owner-card-bottom">
 
                   <span>
-                    {comparison.meetings} career meetings
+                    {comparison.meetings} meetings
                   </span>
 
                   <Link
@@ -1707,8 +1492,6 @@ export default async function HeadToHeadPage({
 
               <article className="owner-card">
 
-                {/* TOP */}
-
                 <div className="owner-card-top">
 
                   <div>
@@ -1724,11 +1507,7 @@ export default async function HeadToHeadPage({
                     </h3>
 
                     <p className="owner-team-name">
-
-                      {comparison.officialRivalry
-                        ? "Official Rivalry Week pairing"
-                        : `${comparison.meetings} completed meetings`}
-
+                      {comparison.meetings} completed meetings
                     </p>
 
                   </div>
@@ -1748,8 +1527,6 @@ export default async function HeadToHeadPage({
 
                 </div>
 
-
-                {/* SERIES RECORD */}
 
                 <div className="owner-record">
 
@@ -1784,8 +1561,6 @@ export default async function HeadToHeadPage({
 
                 </div>
 
-
-                {/* SERIES STATS */}
 
                 <div className="owner-stats-grid">
 
@@ -1826,8 +1601,7 @@ export default async function HeadToHeadPage({
                   <div>
 
                     <strong>
-                      {comparison.currentStreak?.count ||
-                        0}
+                      {comparison.currentStreak?.count || 0}
                     </strong>
 
                     <span>
@@ -1840,8 +1614,7 @@ export default async function HeadToHeadPage({
                   <div>
 
                     <strong>
-                      {comparison.longestStreak?.count ||
-                        0}
+                      {comparison.longestStreak?.count || 0}
                     </strong>
 
                     <span>
@@ -1852,8 +1625,6 @@ export default async function HeadToHeadPage({
 
                 </div>
 
-
-                {/* DETAILS */}
 
                 <div className="owner-record">
 
@@ -1877,7 +1648,7 @@ export default async function HeadToHeadPage({
                     </strong>
 
                     <span>
-                      CURRENT SERIES STREAK
+                      CURRENT STREAK
                     </span>
 
                   </div>
@@ -1907,7 +1678,7 @@ export default async function HeadToHeadPage({
 
 
           {/* =================================================
-              GAME HISTORY
+              MATCHUP HISTORY CARDS
               ================================================= */}
 
           {comparison.meetings >
@@ -1930,160 +1701,220 @@ export default async function HeadToHeadPage({
                 </div>
 
                 <span>
-                  Newest first
+                  Newest First
                 </span>
 
               </div>
 
 
-              <div className="profile-table-wrap">
+              <div className="owners-grid">
 
-                <table className="profile-table matchup-history-table">
+                {comparison.games.map(
+                  (
+                    game,
+                    index
+                  ) => {
+                    const winnerName =
+                      game.owner1Result ===
+                      "W"
+                        ? comparison
+                            .owner1
+                            .name
 
-                  <thead>
+                        : game.owner1Result ===
+                            "L"
 
-                    <tr>
+                          ? comparison
+                              .owner2
+                              .name
 
-                      <th>
-                        Season
-                      </th>
+                          : "Tie";
 
-                      <th>
-                        Week
-                      </th>
+                    const gameLabel =
+                      game.is_championship
+                        ? "CHAMPIONSHIP"
 
-                      <th>
-                        Type
-                      </th>
+                        : game.type ===
+                            "playoff"
 
-                      <th>
-                        {comparison.owner1.name}
-                      </th>
+                          ? "PLAYOFF"
 
-                      <th>
-                        Score
-                      </th>
+                          : game.type ===
+                              "consolation"
 
-                      <th>
-                        {comparison.owner2.name}
-                      </th>
+                            ? "CONSOLATION"
 
-                      <th>
-                        Result
-                      </th>
+                            : "REGULAR SEASON";
 
-                    </tr>
+                    return (
+                      <article
+                        className="owner-card"
+                        key={`${game.season}-${game.week}-${index}`}
+                      >
 
-                  </thead>
+                        {/* TOP */}
+
+                        <div className="owner-card-top">
+
+                          <div>
+
+                            <span className="owner-status">
+                              {game.season} · WEEK {game.week} · {gameLabel}
+                            </span>
+
+                            <h3>
+                              {comparison.owner1.name}
+                              {" vs "}
+                              {comparison.owner2.name}
+                            </h3>
+
+                            <p className="owner-team-name">
+                              {winnerName ===
+                              "Tie"
+                                ? "Game ended in a tie"
+                                : `${winnerName} won`}
+                            </p>
+
+                          </div>
 
 
-                  <tbody>
+                          <div className="owner-title-count">
 
-                    {comparison.games.map(
-                      (
-                        game,
-                        index
-                      ) => (
+                            <strong>
+                              {game.owner1Result}
+                            </strong>
 
-                        <tr
-                          key={`${game.season}-${game.week}-${index}`}
-                        >
+                            <span>
+                              {comparison.owner1.name
+                                .split(" ")[0]
+                                .toUpperCase()}
+                            </span>
 
-                          <td>
+                          </div>
+
+                        </div>
+
+
+                        {/* SCORE */}
+
+                        <div className="owner-record">
+
+                          <div>
+
+                            <strong>
+                              {formatScore(
+                                game.owner1Score
+                              )}
+                            </strong>
+
+                            <span>
+                              {game.owner1Team}
+                            </span>
+
+                          </div>
+
+
+                          <div>
+
+                            <strong>
+                              {formatScore(
+                                game.owner2Score
+                              )}
+                            </strong>
+
+                            <span>
+                              {game.owner2Team}
+                            </span>
+
+                          </div>
+
+                        </div>
+
+
+                        {/* GAME DETAILS */}
+
+                        <div className="owner-stats-grid">
+
+                          <div>
+
                             <strong>
                               {game.season}
                             </strong>
-                          </td>
+
+                            <span>
+                              Season
+                            </span>
+
+                          </div>
 
 
-                          <td>
-                            Week {game.week}
-                          </td>
-
-
-                          <td>
-
-                            {game.is_championship
-                              ? "Championship"
-
-                              : game.type ===
-                                  "playoff"
-
-                                ? "Playoff"
-
-                                : game.type ===
-                                    "consolation"
-
-                                  ? "Consolation"
-
-                                  : "Regular"}
-
-                          </td>
-
-
-                          <td>
+                          <div>
 
                             <strong>
-                              {game.owner1Team}
+                              {game.week}
                             </strong>
 
-                          </td>
+                            <span>
+                              Week
+                            </span>
+
+                          </div>
 
 
-                          <td>
+                          <div>
 
+                            <strong>
+                              {formatScore(
+                                game.margin
+                              )}
+                            </strong>
+
+                            <span>
+                              Margin
+                            </span>
+
+                          </div>
+
+
+                          <div>
+
+                            <strong>
+                              {game.owner1Result}
+                            </strong>
+
+                            <span>
+                              Result
+                            </span>
+
+                          </div>
+
+                        </div>
+
+
+                        {/* BOTTOM */}
+
+                        <div className="owner-card-bottom">
+
+                          <span>
+                            {gameLabel}
+                          </span>
+
+                          <strong>
                             {formatScore(
                               game.owner1Score
                             )}
-
                             {" – "}
-
                             {formatScore(
                               game.owner2Score
                             )}
+                          </strong>
 
-                          </td>
+                        </div>
 
-
-                          <td>
-
-                            <strong>
-                              {game.owner2Team}
-                            </strong>
-
-                          </td>
-
-
-                          <td>
-
-                            <span
-                              className={
-                                game.owner1Result ===
-                                "W"
-
-                                  ? "game-win"
-
-                                  : game.owner1Result ===
-                                      "L"
-
-                                    ? "game-loss"
-
-                                    : ""
-                              }
-                            >
-                              {game.owner1Result}
-                            </span>
-
-                          </td>
-
-                        </tr>
-
-                      )
-                    )}
-
-                  </tbody>
-
-                </table>
+                      </article>
+                    );
+                  }
+                )}
 
               </div>
 
@@ -2096,9 +1927,7 @@ export default async function HeadToHeadPage({
       )}
 
 
-      {/* =====================================================
-          NO MATCHUPS
-          ===================================================== */}
+      {/* NO MATCHUPS */}
 
       {comparison &&
         comparison.meetings ===
@@ -2121,8 +1950,8 @@ export default async function HeadToHeadPage({
                 </h3>
 
                 <p className="owner-team-name">
-                  These two owners have not played
-                  a completed Dirty P game.
+                  These owners have not played
+                  a completed Dirty P matchup.
                 </p>
 
               </div>
@@ -2136,9 +1965,7 @@ export default async function HeadToHeadPage({
       )}
 
 
-      {/* =====================================================
-          FOOTER
-          ===================================================== */}
+      {/* FOOTER */}
 
       <footer className="site-footer">
 
