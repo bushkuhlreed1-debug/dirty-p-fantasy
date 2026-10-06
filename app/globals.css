@@ -157,7 +157,7 @@ a {
   max-width: 1200px;
   margin: 18px auto 0;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 10px;
 }
 
@@ -753,8 +753,6 @@ a {
   font-size: 0.75rem;
 }
 
-/* Former owners slightly muted */
-
 .former-owners-section .owner-card {
   background: #101419;
 }
@@ -933,8 +931,6 @@ a {
     font-size: 1.15rem;
   }
 
-  /* Owners mobile */
-
   .owners-hero {
     padding: 28px 24px;
     align-items: stretch;
@@ -987,1397 +983,34 @@ a {
   .owner-stats-grid > div {
     padding: 13px 4px;
   }
-}
 
+  .owner-stats-grid span {
+    font-size: 0.56rem;
+  }
+
+  .owner-card-bottom {
+    padding: 0 16px;
+  }
+}
 
 /* =========================================================
-   RIVALRY WEEK
+   OWNER PROFILE PAGE
    ========================================================= */
-
-.rivalry-hero {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 38px 42px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 30px;
-  background: linear-gradient(135deg, #11151a, #181d23);
-  border: 1px solid #252b33;
-  border-radius: 22px;
-}
-
-.rivalry-hero h1 {
-  margin: 0;
-  font-size: clamp(2.8rem, 6vw, 5rem);
-  line-height: 1;
-  letter-spacing: -0.05em;
-}
-
-.rivalry-hero p:not(.eyebrow) {
-  max-width: 650px;
-  margin: 16px 0 0;
-  color: #aeb6c1;
-  font-size: 1rem;
-  line-height: 1.6;
-}
-
-.rivalry-count {
-  min-width: 150px;
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #12161b;
-  border: 1px solid #2a3038;
-  border-radius: 14px;
-}
-
-.rivalry-count strong {
-  color: #d6a84b;
-  font-size: 3.5rem;
-  line-height: 1;
-  font-weight: 900;
-}
-
-.rivalry-count span {
-  margin-top: 8px;
-  color: #7f8995;
-  font-size: 0.65rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-}
-
-
-/* =========================================================
-   RIVALRY GRID
-   ========================================================= */
-
-.rivalry-section {
-  max-width: 1200px;
-  margin: 42px auto 0;
-}
-
-.rivalry-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.rivalry-card {
-  min-height: 235px;
-  padding: 25px;
-  display: flex;
-  flex-direction: column;
-  background: #12161b;
-  border: 1px solid #222830;
-  border-radius: 16px;
-  transition: 0.2s ease;
-}
-
-.rivalry-card:hover {
-  background: #161b21;
-  border-color: #d6a84b;
-  transform: translateY(-2px);
-}
-
-
-/* =========================================================
-   RIVALRY NAME
-   ========================================================= */
-
-.rivalry-name {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-.rivalry-emoji {
-  font-size: 1.25rem;
-  line-height: 1;
-}
-
-.rivalry-name h3 {
-  margin: 0;
-  color: #ffffff;
-  font-size: 1rem;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-}
-
-
-/* =========================================================
-   MATCHUP
-   ========================================================= */
-
-.rivalry-matchup {
-  margin-top: 13px;
-  color: #d6a84b;
-  font-size: 1.15rem;
-  font-weight: 900;
-  line-height: 1.3;
-}
-
-
-/* =========================================================
-   DESCRIPTION
-   ========================================================= */
-
-.rivalry-description {
-  margin: 12px 0 0;
-  color: #8f98a3;
-  font-size: 0.88rem;
-  line-height: 1.65;
-}
-
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (max-width: 700px) {
-
-  .rivalry-hero {
-    padding: 28px 24px;
-    flex-direction: column;
-    align-items: flex-start;
-    border-radius: 18px;
-  }
-
-  .rivalry-hero h1 {
-    font-size: 3rem;
-  }
-
-  .rivalry-count {
-    min-width: 100%;
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 12px;
-    padding: 15px 18px;
-  }
-
-  .rivalry-count strong {
-    font-size: 2rem;
-  }
-
-  .rivalry-count span {
-    margin-top: 0;
-  }
-
-  .rivalry-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .rivalry-card {
-    min-height: auto;
-    padding: 20px;
-  }
-
-  .rivalry-name h3 {
-    font-size: 0.9rem;
-  }
-
-  .rivalry-matchup {
-    font-size: 1rem;
-  }
-
-  .rivalry-description {
-    font-size: 0.82rem;
-  }
-}
-/* =========================================================
-   DIRTY P HOME PAGE
-   ========================================================= */
-
-.home-hero {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 52px 42px;
-  background: linear-gradient(135deg, #11151a, #181d23);
-  border: 1px solid #252b33;
-  border-radius: 22px;
-}
-
-.home-hero-content {
-  max-width: 850px;
-}
-
-.home-hero h1 {
-  margin: 8px 0 0;
-  color: #f5f5f5;
-  font-size: clamp(3rem, 6vw, 5.2rem);
-  line-height: 0.98;
-  letter-spacing: -0.05em;
-}
-
-.home-hero-copy {
-  max-width: 720px;
-  margin: 20px 0 0;
-  color: #aeb6c1;
-  font-size: 1rem;
-  line-height: 1.65;
-}
-
-
-/* =========================================================
-   NAVIGATION
-   ========================================================= */
-
-.quick-links a.active {
-  background: #d6a84b;
-  border-color: #d6a84b;
-  color: #11151a;
-}
-
-
-/* =========================================================
-   DEFENDING CHAMPION
-   ========================================================= */
-
-.home-champion {
-  max-width: 1200px;
-  margin: 16px auto 0;
-  padding: 20px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  background: #14181d;
-  border: 1px solid #2a3038;
-  border-left: 4px solid #d6a84b;
-  border-radius: 12px;
-}
-
-.home-champion-label {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.home-champion-label .eyebrow {
-  margin: 0;
-}
-
-.home-champion-label h2 {
-  margin: 0;
-  color: #ffffff;
-  font-size: 1.25rem;
-}
-
-.home-champion-details {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.home-champion-details span {
-  color: #8f98a3;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-}
-
-.home-champion-details strong {
-  color: #d6a84b;
-  font-size: 0.95rem;
-  font-weight: 900;
-}
-
-.home-champion-details small {
-  color: #8f98a3;
-  font-size: 0.75rem;
-}
-
-.home-champion-details small::before {
-  content: "•";
-  margin-right: 10px;
-  color: #4e5660;
-}
-
-
-/* =========================================================
-   LEAGUE STATS
-   ========================================================= */
-
-.home-stats {
-  max-width: 1200px;
-  margin: 18px auto 0;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-}
-
-.home-stat-card {
-  min-height: 125px;
-  padding: 25px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #12161b;
-  border: 1px solid #222830;
-  border-radius: 16px;
-  text-align: center;
-}
-
-.home-stat-card strong {
-  display: block;
-  color: #d6a84b;
-  font-size: 2.8rem;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.home-stat-card span {
-  display: block;
-  margin-top: 9px;
-  color: #7f8995;
-  font-size: 0.65rem;
-  font-weight: 900;
-  letter-spacing: 0.13em;
-}
-
-
-/* =========================================================
-   STORY
-   ========================================================= */
-
-.home-story {
-  max-width: 1200px;
-  margin: 42px auto 0;
-}
-
-.home-story .section-heading {
-  margin-bottom: 14px;
-}
-
-.home-story-card {
-  padding: 30px 34px;
-  background: #12161b;
-  border: 1px solid #222830;
-  border-radius: 16px;
-}
-
-.home-story-card p {
-  max-width: 950px;
-  margin: 0 0 16px;
-  color: #9ca5b0;
-  font-size: 0.95rem;
-  line-height: 1.7;
-}
-
-.home-story-card p:last-child {
-  margin-bottom: 0;
-}
-
-.home-story-card .story-lead {
-  margin-bottom: 20px;
-  color: #ffffff;
-  font-size: 1.15rem;
-  font-weight: 800;
-  line-height: 1.55;
-}
-
-.home-story-card strong {
-  color: #d6a84b;
-}
-
-.home-story-card .story-final {
-  margin-top: 24px;
-  color: #d6a84b;
-  font-size: 1rem;
-  font-weight: 900;
-}
-
-
-/* =========================================================
-   DID YOU KNOW
-   ========================================================= */
-
-.home-did-you-know {
-  max-width: 1200px;
-  margin: 16px auto 0;
-}
-
-.did-you-know-card {
-  padding: 26px 30px;
-  display: flex;
-  align-items: flex-start;
-  gap: 20px;
-  background: linear-gradient(135deg, #171b20, #12161b);
-  border: 1px solid #2a3038;
-  border-radius: 16px;
-}
-
-.did-you-know-icon {
-  width: 46px;
-  height: 46px;
-  flex: 0 0 46px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #1d2229;
-  border: 1px solid #343b45;
-  border-radius: 10px;
-  font-size: 1.25rem;
-}
-
-.did-you-know-card h2 {
-  margin: 5px 0 10px;
-  color: #ffffff;
-  font-size: 1.35rem;
-}
-
-.did-you-know-card p:not(.eyebrow) {
-  max-width: 900px;
-  margin: 0 0 10px;
-  color: #8f98a3;
-  font-size: 0.9rem;
-  line-height: 1.65;
-}
-
-.did-you-know-card p:last-child {
-  margin-bottom: 0;
-}
-
-.did-you-know-card strong {
-  color: #d6a84b;
-}
-
-
-/* =========================================================
-   ROAD MAP
-   ========================================================= */
-
-.home-roadmap {
-  max-width: 1200px;
-  margin: 42px auto 0;
-}
-
-.home-roadmap .section-heading {
-  margin-bottom: 14px;
-}
-
-.roadmap-card {
-  padding: 28px 30px;
-  background: #12161b;
-  border: 1px solid #222830;
-  border-radius: 16px;
-}
-
-.roadmap-intro {
-  margin: 0 0 20px;
-  color: #ffffff;
-  font-size: 0.95rem;
-  font-weight: 800;
-}
-
-.roadmap-states {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.roadmap-state {
-  padding: 16px 18px;
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  background: #171b20;
-  border: 1px solid #252b33;
-  border-radius: 11px;
-}
-
-.roadmap-state strong {
-  min-width: 28px;
-  color: #d6a84b;
-  font-size: 0.8rem;
-  font-weight: 900;
-}
-
-.roadmap-state span {
-  color: #9ca5b0;
-  font-size: 0.82rem;
-  line-height: 1.55;
-}
-
-
-/* =========================================================
-   HOME MOBILE
-   ========================================================= */
-
-@media (max-width: 800px) {
-
-  .home-champion {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .home-champion-label {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 5px;
-  }
-
-  .home-champion-details {
-    justify-content: flex-start;
-  }
-
-  .roadmap-states {
-    grid-template-columns: 1fr;
-  }
-}
-
-
-@media (max-width: 600px) {
-
-  .home-hero {
-    padding: 38px 24px;
-    border-radius: 18px;
-  }
-
-  .home-hero h1 {
-    font-size: 3rem;
-  }
-
-  .home-hero-copy {
-    font-size: 0.92rem;
-  }
-
-  .home-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .home-stat-card {
-    min-height: 105px;
-  }
-
-  .home-story-card {
-    padding: 24px;
-  }
-
-  .home-story-card .story-lead {
-    font-size: 1.05rem;
-  }
-
-  .did-you-know-card {
-    padding: 22px;
-  }
-
-  .roadmap-card {
-    padding: 22px;
-  }
-
-  .roadmap-state {
-    padding: 15px;
-  }
-}
-/* =========================================================
-   DIRTY P ROAD MAP
-   ========================================================= */
-
-.dirty-p-map {
-  max-width: 1200px;
-  margin: 45px auto 0;
-}
-
-.dirty-p-map-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 30px;
-  margin-bottom: 16px;
-}
-
-.dirty-p-map-header h2 {
-  margin: 5px 0 0;
-  color: #ffffff;
-  font-size: 2rem;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-}
-
-.dirty-p-map-subtitle {
-  margin: 9px 0 0;
-  color: #8f98a3;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.dirty-p-map-count {
-  display: flex;
-  gap: 10px;
-}
-
-.dirty-p-map-count > div {
-  min-width: 90px;
-  padding: 12px 15px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: #12161b;
-  border: 1px solid #252b33;
-  border-radius: 10px;
-}
-
-.dirty-p-map-count strong {
-  color: #d6a84b;
-  font-size: 1.5rem;
-  line-height: 1;
-  font-weight: 900;
-}
-
-.dirty-p-map-count span {
-  margin-top: 5px;
-  color: #7f8995;
-  font-size: 0.55rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-}
-
-
-/* =========================================================
-   ACTUAL MAP
-   ========================================================= */
-
-.dirty-p-real-map {
-  position: relative;
-  width: 100%;
-  height: 560px;
-  overflow: hidden;
-  background: #0d1115;
-  border: 1px solid #252b33;
-  border-radius: 18px;
-}
-
-.dirty-p-leaflet-map {
-  width: 100%;
-  height: 100%;
-  background: #0d1115;
-}
-
-/* Darken the standard OpenStreetMap tiles */
-.dirty-p-leaflet-map .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.72)
-    contrast(1.05);
-}
-
-/* Keep our gold markers and controls normal */
-.dirty-p-leaflet-map .leaflet-marker-pane,
-.dirty-p-leaflet-map .leaflet-popup-pane,
-.dirty-p-leaflet-map .leaflet-control-container {
-  filter: none;
-}
-
-
-/* =========================================================
-   LEAFLET CONTROLS
-   ========================================================= */
-
-.dirty-p-leaflet-map .leaflet-control-zoom {
-  border: 1px solid #343b45 !important;
-  border-radius: 8px !important;
-  overflow: hidden;
-}
-
-.dirty-p-leaflet-map .leaflet-control-zoom a {
-  width: 32px !important;
-  height: 32px !important;
-  line-height: 32px !important;
-  background: #12161b !important;
-  color: #d6a84b !important;
-  border-bottom: 1px solid #343b45 !important;
-}
-
-.dirty-p-leaflet-map .leaflet-control-zoom a:last-child {
-  border-bottom: none !important;
-}
-
-.dirty-p-leaflet-map .leaflet-control-zoom a:hover {
-  background: #1b2026 !important;
-}
-
-
-/* =========================================================
-   DIRTY P MARKERS
-   ========================================================= */
-
-.dirty-p-marker-wrapper {
-  background: transparent !important;
-  border: none !important;
-}
-
-.dirty-p-marker {
-  position: relative;
-  width: 22px;
-  height: 22px;
-}
-
-.dirty-p-marker-dot {
-  position: absolute;
-  left: 6px;
-  top: 6px;
-  width: 10px;
-  height: 10px;
-  background: #d6a84b;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 0 8px rgba(214, 168, 75, 0.75);
-  z-index: 2;
-}
-
-.dirty-p-marker-pulse {
-  position: absolute;
-  left: 1px;
-  top: 1px;
-  width: 20px;
-  height: 20px;
-  background: #d6a84b;
-  border-radius: 50%;
-  opacity: 0.18;
-  animation: dirty-p-pulse 2s infinite;
-}
-
-@keyframes dirty-p-pulse {
-  0% {
-    transform: scale(0.7);
-    opacity: 0.35;
-  }
-
-  70% {
-    transform: scale(1.35);
-    opacity: 0;
-  }
-
-  100% {
-    transform: scale(1.35);
-    opacity: 0;
-  }
-}
-
-
-/* =========================================================
-   POPUPS
-   ========================================================= */
-
-.dirty-p-leaflet-map .leaflet-popup-content-wrapper {
-  background: #12161b;
-  color: #ffffff;
-  border: 1px solid #343b45;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-}
-
-.dirty-p-leaflet-map .leaflet-popup-tip {
-  background: #12161b;
-}
-
-.dirty-p-leaflet-map .leaflet-popup-content {
-  margin: 12px 15px;
-}
-
-.dirty-p-popup {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.dirty-p-popup strong {
-  color: #ffffff;
-  font-size: 0.9rem;
-  font-weight: 900;
-}
-
-.dirty-p-popup span {
-  color: #d6a84b;
-  font-size: 0.7rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-}
-
-
-/* =========================================================
-   ATTRIBUTION
-   ========================================================= */
-
-.dirty-p-leaflet-map .leaflet-control-attribution {
-  background: rgba(10, 13, 16, 0.85) !important;
-  color: #66707b !important;
-  font-size: 9px !important;
-}
-
-.dirty-p-leaflet-map .leaflet-control-attribution a {
-  color: #8a929c !important;
-}
-
-
-/* =========================================================
-   MAP FOOTER
-   ========================================================= */
-
-.dirty-p-map-footer {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 6px;
-  padding: 13px 4px 0;
-}
-
-.dirty-p-map-footer span {
-  color: #727b86;
-  font-size: 0.8rem;
-  font-style: italic;
-}
-
-.dirty-p-map-footer strong {
-  color: #d6a84b;
-  font-size: 0.8rem;
-  font-style: italic;
-}
-
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (max-width: 700px) {
-
-  .dirty-p-map {
-    margin-top: 35px;
-  }
-
-  .dirty-p-map-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 15px;
-  }
-
-  .dirty-p-map-header h2 {
-    font-size: 1.7rem;
-  }
-
-  .dirty-p-map-count {
-    width: 100%;
-  }
-
-  .dirty-p-map-count > div {
-    flex: 1;
-  }
-
-  .dirty-p-real-map {
-    height: 430px;
-    border-radius: 14px;
-  }
-
-  .dirty-p-map-footer {
-    justify-content: flex-start;
-  }
-}
-/* =========================================================
-   RIVALRY WEEK
-   ========================================================= */
-
-.rivalry-hero {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 30px;
-  position: relative;
-  overflow: hidden;
-  background:
-    radial-gradient(
-      circle at 85% 20%,
-      rgba(214, 168, 75, 0.16),
-      transparent 35%
-    ),
-    linear-gradient(
-      135deg,
-      #11151a,
-      #181d23
-    );
-  border: 1px solid rgba(214, 168, 75, 0.45);
-  border-radius: 22px;
-}
-
-.rivalry-hero::after {
-  content: "VS";
-  position: absolute;
-  right: 190px;
-  top: 50%;
-  transform: translateY(-50%) rotate(-8deg);
-  color: rgba(214, 168, 75, 0.045);
-  font-size: 10rem;
-  font-weight: 1000;
-  line-height: 1;
-  pointer-events: none;
-}
-
-.rivalry-hero > div {
-  position: relative;
-  z-index: 1;
-}
-
-.rivalry-hero h1 {
-  margin: 0;
-  color: #ffffff;
-  font-size: clamp(2.5rem, 5vw, 4.4rem);
-  line-height: 1;
-  letter-spacing: -0.04em;
-}
-
-.rivalry-hero p:not(.eyebrow) {
-  max-width: 620px;
-  margin: 16px 0 0;
-  color: #aeb6c1;
-  font-size: 1rem;
-  line-height: 1.6;
-}
-
-.rivalry-count {
-  min-width: 150px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #0e1115;
-  border: 1px solid #d6a84b;
-  border-radius: 14px;
-  text-align: center;
-}
-
-.rivalry-count strong {
-  color: #d6a84b;
-  font-size: 2.5rem;
-  line-height: 1;
-}
-
-.rivalry-count span {
-  margin-top: 8px;
-  color: #7f8995;
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-}
-
-
-/* =========================================================
-   EVENT STRIP
-   ========================================================= */
-
-.rivalry-event-strip {
-  max-width: 1200px;
-  margin: 22px auto 0;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  overflow: hidden;
-  background: #12161b;
-  border: 1px solid #222830;
-  border-radius: 16px;
-}
-
-.rivalry-event-strip > div {
-  min-height: 90px;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-right: 1px solid #222830;
-  text-align: center;
-}
-
-.rivalry-event-strip > div:last-child {
-  border-right: none;
-}
-
-.rivalry-event-strip span {
-  margin-bottom: 7px;
-  color: #727b86;
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-}
-
-.rivalry-event-strip strong {
-  color: #d6a84b;
-  font-size: 1.35rem;
-  font-weight: 900;
-}
-
-
-/* =========================================================
-   MATCHUP GRID
-   ========================================================= */
-
-.rivalry-matchup-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.rivalry-matchup-card {
-  overflow: hidden;
-  background:
-    linear-gradient(
-      145deg,
-      #12161b,
-      #101419
-    );
-  border: 1px solid #222830;
-  border-radius: 18px;
-  transition: 0.2s ease;
-}
-
-.rivalry-matchup-card:hover {
-  border-color: #d6a84b;
-  transform: translateY(-2px);
-}
-
-.rivalry-matchup-card:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-}
-
-.rivalry-featured {
-  border-color: rgba(214, 168, 75, 0.7);
-  box-shadow:
-    0 0 0 1px rgba(214, 168, 75, 0.08),
-    0 16px 40px rgba(0, 0, 0, 0.18);
-}
-
-
-/* =========================================================
-   CARD TOP
-   ========================================================= */
-
-.rivalry-card-top {
-  min-height: 42px;
-  padding: 0 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: #181d23;
-  border-bottom: 1px solid #2a3038;
-  color: #7f8995;
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.09em;
-}
-
-.rivalry-card-top strong {
-  color: #d6a84b;
-  font-size: 0.62rem;
-}
-
-
-/* =========================================================
-   MATCHUP NAMES
-   ========================================================= */
-
-.rivalry-card-names {
-  padding: 25px 22px 20px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 14px;
-  text-align: center;
-}
-
-.rivalry-card-names a {
-  color: #ffffff;
-  font-size: 1.05rem;
-  font-weight: 900;
-  line-height: 1.25;
-}
-
-.rivalry-card-names a:hover {
-  color: #d6a84b;
-}
-
-.rivalry-card-names > span {
-  color: #5f6873;
-  font-size: 0.65rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-}
-
-
-/* =========================================================
-   SERIES SCORE
-   ========================================================= */
-
-.rivalry-series-score {
-  margin: 0 20px;
-  display: grid;
-  grid-template-columns: 1fr 1.5fr 1fr;
-  align-items: stretch;
-  overflow: hidden;
-  background: #0e1115;
-  border: 1px solid #252b33;
-  border-radius: 14px;
-}
-
-.rivalry-series-score > div {
-  min-height: 92px;
-  padding: 14px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.rivalry-series-score > div:first-child {
-  border-right: 1px solid #252b33;
-}
-
-.rivalry-series-score > div:last-child {
-  border-left: 1px solid #252b33;
-}
-
-.rivalry-series-score > div > strong {
-  color: #ffffff;
-  font-size: 1.8rem;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.rivalry-series-score > div > span {
-  margin-top: 7px;
-  color: #727b86;
-  font-size: 0.57rem;
-  font-weight: 900;
-  letter-spacing: 0.09em;
-}
-
-.rivalry-series-middle span {
-  margin: 0 0 6px !important;
-  color: #d6a84b !important;
-}
-
-.rivalry-series-middle strong {
-  color: #d6a84b !important;
-  font-size: 1.35rem !important;
-}
-
-.rivalry-series-middle small {
-  margin-top: 5px;
-  color: #727b86;
-  font-size: 0.58rem;
-  font-weight: 800;
-  letter-spacing: 0.07em;
-}
-
-
-/* =========================================================
-   BLURB
-   ========================================================= */
-
-.rivalry-series-blurb {
-  min-height: 72px;
-  margin: 0;
-  padding: 18px 22px;
-  color: #aeb6c1;
-  font-size: 0.86rem;
-  line-height: 1.6;
-}
-
-
-/* =========================================================
-   CARD STATS
-   ========================================================= */
-
-.rivalry-card-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid #222830;
-  border-bottom: 1px solid #222830;
-}
-
-.rivalry-card-stats > div {
-  min-height: 76px;
-  padding: 13px 10px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-  border-right: 1px solid #222830;
-}
-
-.rivalry-card-stats > div:last-child {
-  border-right: none;
-}
-
-.rivalry-card-stats span {
-  margin-bottom: 7px;
-  color: #727b86;
-  font-size: 0.54rem;
-  font-weight: 900;
-  letter-spacing: 0.07em;
-}
-
-.rivalry-card-stats strong {
-  color: #ffffff;
-  font-size: 0.77rem;
-  font-weight: 900;
-}
-
-
-/* =========================================================
-   LAST MEETING
-   ========================================================= */
-
-.rivalry-last-meeting {
-  min-height: 58px;
-  padding: 13px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.rivalry-last-meeting span {
-  color: #727b86;
-  font-size: 0.56rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-}
-
-.rivalry-last-meeting strong {
-  color: #aeb6c1;
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-align: right;
-}
-
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (max-width: 800px) {
-  .rivalry-hero {
-    padding: 30px 24px;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .rivalry-count {
-    width: 100%;
-  }
-
-  .rivalry-hero::after {
-    right: -15px;
-    top: 40px;
-    transform: none;
-    font-size: 7rem;
-  }
-
-  .rivalry-matchup-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .rivalry-matchup-card:last-child:nth-child(odd) {
-    grid-column: auto;
-  }
-}
-
-@media (max-width: 600px) {
-  .rivalry-event-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .rivalry-event-strip > div {
-    border-right: none;
-    border-bottom: 1px solid #222830;
-  }
-
-  .rivalry-event-strip > div:last-child {
-    border-bottom: none;
-  }
-
-  .rivalry-card-names {
-    padding: 22px 16px 18px;
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
-  .rivalry-card-names > span {
-    padding: 3px 0;
-  }
-
-  .rivalry-series-score {
-    margin: 0 14px;
-  }
-
-  .rivalry-card-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .rivalry-card-stats > div {
-    border-right: none;
-    border-bottom: 1px solid #222830;
-  }
-
-  .rivalry-card-stats > div:last-child {
-    border-bottom: none;
-  }
-
-  .rivalry-last-meeting {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .rivalry-last-meeting strong {
-    text-align: left;
-  }
-}
-/* =========================================================
-   OWNER PROFILE — UNIFIED DIRTY P DESIGN
-   ========================================================= */
-
-/* ---------------------------------------------------------
-   PROFILE HERO
-   --------------------------------------------------------- */
 
 .owner-profile-hero {
   max-width: 1200px;
   margin: 0 auto;
   padding: 38px 42px;
-  background:
-    linear-gradient(
-      135deg,
-      #181d23 0%,
-      #11151a 65%,
-      #0f1216 100%
-    );
-  border: 1px solid #2a3038;
+  background: linear-gradient(135deg, #11151a, #181d23);
+  border: 1px solid #252b33;
   border-radius: 22px;
-  box-shadow:
-    0 18px 45px rgba(0, 0, 0, 0.22);
-}
-
-.owner-profile-hero .eyebrow {
-  margin-bottom: 10px;
 }
 
 .owner-profile-hero h1 {
   margin: 0;
-  color: #ffffff;
-  font-size: clamp(
-    2.7rem,
-    5vw,
-    4.5rem
-  );
-  line-height: 0.98;
-  letter-spacing: -0.045em;
+  font-size: clamp(2.5rem, 5vw, 4.4rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
 }
 
 .owner-profile-hero p:not(.eyebrow) {
@@ -2388,44 +1021,17 @@ a {
   line-height: 1.6;
 }
 
-
-/* ---------------------------------------------------------
-   PROFILE SECTIONS
-   --------------------------------------------------------- */
-
 .owner-profile-section {
   max-width: 1200px;
-  margin: 46px auto 0;
+  margin: 42px auto 0;
 }
-
-.owner-profile-section .section-heading {
-  margin-bottom: 16px;
-}
-
-.owner-profile-section .section-heading h2 {
-  margin-top: 4px;
-}
-
-.owner-profile-section .section-heading > span {
-  color: #7f8995;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-
-
-/* =========================================================
-   SEASON HISTORY + MATCHUP HISTORY TABLES
-   ========================================================= */
 
 .profile-table-wrap {
   width: 100%;
   overflow-x: auto;
   background: #12161b;
-  border: 1px solid #252b33;
+  border: 1px solid #222830;
   border-radius: 16px;
-  box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.16);
 }
 
 .profile-table {
@@ -2435,246 +1041,85 @@ a {
 }
 
 .profile-table thead {
-  background:
-    linear-gradient(
-      135deg,
-      #1a1f25,
-      #15191e
-    );
+  background: #181d23;
 }
 
 .profile-table th {
-  padding: 15px 17px;
+  padding: 14px 16px;
   color: #7f8995;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 900;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-align: left;
   text-transform: uppercase;
   white-space: nowrap;
-  border-bottom: 1px solid #303741;
+  border-bottom: 1px solid #2a3038;
 }
 
 .profile-table td {
-  padding: 16px 17px;
+  padding: 15px 16px;
   color: #aeb6c1;
-  font-size: 0.86rem;
+  font-size: 0.88rem;
   white-space: nowrap;
   border-bottom: 1px solid #222830;
-}
-
-.profile-table tbody tr {
-  transition:
-    background 0.15s ease,
-    transform 0.15s ease;
-}
-
-.profile-table tbody tr:hover {
-  background: #171c22;
 }
 
 .profile-table tbody tr:last-child td {
   border-bottom: none;
 }
 
+.profile-table tbody tr {
+  transition: 0.15s ease;
+}
+
+.profile-table tbody tr:hover {
+  background: #161b21;
+}
+
 .profile-table td strong {
-  color: #ffffff;
-  font-weight: 900;
+  color: #fff;
 }
-
-/* Season year */
-
-.profile-table td:first-child strong {
-  color: #d6a84b;
-}
-
-/* Current season — newest row is first */
-
-.profile-table tbody tr:first-child {
-  background:
-    linear-gradient(
-      90deg,
-      rgba(214, 168, 75, 0.07),
-      transparent 55%
-    );
-}
-
-/* Champion label */
 
 .profile-champion-label {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 9px;
-  background:
-    rgba(214, 168, 75, 0.13);
-  border:
-    1px solid
-    rgba(214, 168, 75, 0.38);
-  border-radius: 6px;
+  padding: 5px 8px;
+  background: rgba(214, 168, 75, 0.12);
+  border: 1px solid rgba(214, 168, 75, 0.4);
+  border-radius: 5px;
   color: #d6a84b;
-  font-size: 0.62rem;
+  font-size: 0.65rem;
   font-weight: 900;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-
-/* =========================================================
-   ALL-FRANCHISE TEAM
-   ========================================================= */
-
-.all-franchise-grid {
+.h2h-grid {
   display: grid;
-  grid-template-columns:
-    repeat(
-      3,
-      minmax(0, 1fr)
-    );
-  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.all-franchise-card {
-  position: relative;
-  min-height: 190px;
+.h2h-card {
+  min-height: 150px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   background: #12161b;
-  border: 1px solid #252b33;
-  border-radius: 16px;
-  overflow: hidden;
+  border: 1px solid #222830;
+  border-radius: 14px;
   transition: 0.2s ease;
 }
 
-.all-franchise-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background: #d6a84b;
-  opacity: 0.8;
-}
-
-.all-franchise-card:hover {
+.h2h-card:hover {
   background: #161b21;
   border-color: #d6a84b;
   transform: translateY(-2px);
 }
 
-.all-franchise-slot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  min-width: 48px;
-  padding: 6px 10px;
-  margin-bottom: 15px;
-  background:
-    rgba(214, 168, 75, 0.12);
-  border:
-    1px solid
-    rgba(214, 168, 75, 0.35);
-  border-radius: 7px;
-  color: #d6a84b;
-  font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 0.09em;
-}
-
-.all-franchise-player {
-  margin-bottom: 8px;
-  color: #ffffff;
-  font-size: 1.2rem;
-  font-weight: 900;
-  line-height: 1.15;
-}
-
-.all-franchise-meta {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 10px;
-}
-
-.all-franchise-meta span {
-  color: #7f8995;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.all-franchise-meta span + span::before {
-  content: "·";
-  margin-right: 7px;
-  color: #444c56;
-}
-
-.all-franchise-team-name {
-  margin-top: auto;
-  padding-top: 16px;
-  color: #aeb6c1;
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
-.all-franchise-points {
-  margin-top: 7px;
-  color: #d6a84b;
-  font-size: 1.35rem;
-  font-weight: 900;
-  letter-spacing: -0.025em;
-}
-
-.all-franchise-points small {
-  color: #727b86;
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-}
-
-
-/* =========================================================
-   HEAD TO HEAD
-   ========================================================= */
-
-.h2h-grid {
-  display: grid;
-  grid-template-columns:
-    repeat(
-      3,
-      minmax(0, 1fr)
-    );
-  gap: 14px;
-}
-
-.h2h-card {
-  min-height: 165px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  background:
-    linear-gradient(
-      135deg,
-      #151a20,
-      #11151a
-    );
-  border: 1px solid #252b33;
-  border-radius: 16px;
-  transition: 0.2s ease;
-}
-
-.h2h-card:hover {
-  background: #171c22;
-  border-color: #d6a84b;
-  transform: translateY(-2px);
-}
-
 .h2h-card > span {
-  margin-bottom: 7px;
+  margin-bottom: 6px;
   color: #727b86;
   font-size: 0.62rem;
   font-weight: 900;
@@ -2683,69 +1128,53 @@ a {
 }
 
 .h2h-card > strong {
-  color: #ffffff;
+  color: #fff;
   font-size: 1rem;
-  font-weight: 900;
   line-height: 1.25;
 }
 
 .h2h-card > div {
   margin-top: auto;
-  padding-top: 20px;
+  padding-top: 18px;
   color: #d6a84b;
-  font-size: 1.8rem;
+  font-size: 1.7rem;
   font-weight: 900;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.03em;
 }
 
 .h2h-card > small {
-  margin-top: 4px;
+  margin-top: 3px;
   color: #727b86;
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: 0.7rem;
 }
-
-
-/* =========================================================
-   CAREER HIGHS & LOWS
-   ========================================================= */
 
 .career-record-grid {
   display: grid;
-  grid-template-columns:
-    repeat(
-      4,
-      minmax(0, 1fr)
-    );
-  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .career-record-card {
-  min-height: 175px;
+  min-height: 165px;
   padding: 20px;
   display: flex;
   flex-direction: column;
-  background:
-    linear-gradient(
-      135deg,
-      #151a20,
-      #11151a
-    );
-  border: 1px solid #252b33;
-  border-radius: 16px;
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 14px;
   transition: 0.2s ease;
 }
 
 .career-record-card:hover {
-  background: #171c22;
-  border-color: #d6a84b;
+  background: #161b21;
+  border-color: #3a414b;
   transform: translateY(-2px);
 }
 
 .career-record-card > span:first-child {
   margin-bottom: 18px;
   color: #d6a84b;
-  font-size: 0.62rem;
+  font-size: 0.65rem;
   font-weight: 900;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -2753,41 +1182,35 @@ a {
 
 .career-record-card > strong {
   margin-top: auto;
-  color: #ffffff;
-  font-size: 1.65rem;
+  color: #fff;
+  font-size: 1.55rem;
   font-weight: 900;
-  letter-spacing: -0.035em;
-  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
 
 .career-record-card > strong + span {
-  margin-top: 7px;
+  margin-top: 5px;
   color: #aeb6c1;
   font-size: 0.78rem;
 }
 
 .career-record-card small {
   display: block;
-  margin-top: 5px;
+  margin-top: 4px;
   color: #727b86;
   font-size: 0.68rem;
 }
 
-
-/* =========================================================
-   TEAM NAME HISTORY
-   ========================================================= */
-
 .team-history-list {
   overflow: hidden;
   background: #12161b;
-  border: 1px solid #252b33;
+  border: 1px solid #222830;
   border-radius: 16px;
 }
 
 .team-history-row {
-  min-height: 64px;
-  padding: 16px 20px;
+  min-height: 60px;
+  padding: 15px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2801,116 +1224,48 @@ a {
 }
 
 .team-history-row:hover {
-  background: #171c22;
+  background: #161b21;
 }
 
 .team-history-row strong {
-  color: #ffffff;
+  color: #fff;
   font-size: 0.95rem;
-  font-weight: 900;
 }
 
 .team-history-row span {
   color: #d6a84b;
-  font-size: 0.76rem;
-  font-weight: 900;
+  font-size: 0.8rem;
+  font-weight: 800;
   text-align: right;
-  letter-spacing: 0.03em;
 }
-
-
-/* =========================================================
-   MATCHUP HISTORY
-   ========================================================= */
 
 .matchup-history-table {
-  min-width: 760px;
+  min-width: 700px;
 }
-
-.matchup-history-table td:nth-child(3) {
-  color: #7f8995;
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-
-.matchup-history-table td:nth-child(4) {
-  color: #ffffff;
-  font-weight: 800;
-}
-
-.matchup-history-table td:last-child {
-  color: #ffffff;
-  font-weight: 800;
-}
-
-
-/* ---------------------------------------------------------
-   WIN / LOSS BADGES
-   --------------------------------------------------------- */
 
 .game-win,
 .game-loss {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   font-size: 0.72rem;
   font-weight: 900;
 }
 
 .game-win {
-  background:
-    rgba(214, 168, 75, 0.14);
+  background: rgba(214, 168, 75, 0.14);
   color: #d6a84b !important;
-  border:
-    1px solid
-    rgba(214, 168, 75, 0.3);
+  border: 1px solid rgba(214, 168, 75, 0.25);
 }
 
 .game-loss {
-  background: #1a1f25;
+  background: #181d23;
   color: #8f98a3 !important;
-  border: 1px solid #303741;
+  border: 1px solid #2a3038;
 }
-
-
-/* =========================================================
-   EMPTY STATES
-   ========================================================= */
-
-.current-panel {
-  overflow: hidden;
-  background: #12161b;
-  border: 1px solid #252b33;
-  border-radius: 16px;
-}
-
-.empty-current-state {
-  padding: 34px;
-  text-align: center;
-}
-
-.empty-current-state strong {
-  display: block;
-  margin-bottom: 8px;
-  color: #ffffff;
-  font-size: 1rem;
-}
-
-.empty-current-state p {
-  max-width: 520px;
-  margin: 0 auto;
-  color: #7f8995;
-  font-size: 0.82rem;
-  line-height: 1.55;
-}
-
-
-/* =========================================================
-   SCROLLBAR
-   ========================================================= */
 
 .profile-table-wrap::-webkit-scrollbar {
   height: 8px;
@@ -2929,52 +1284,19 @@ a {
   background: #d6a84b;
 }
 
-
-/* =========================================================
-   TABLET
-   ========================================================= */
-
-@media (
-  max-width: 900px
-) {
-
-  .all-franchise-grid {
-    grid-template-columns:
-      repeat(
-        2,
-        minmax(0, 1fr)
-      );
+@media (max-width: 900px) {
+  .career-record-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .h2h-grid {
-    grid-template-columns:
-      repeat(
-        2,
-        minmax(0, 1fr)
-      );
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .career-record-grid {
-    grid-template-columns:
-      repeat(
-        2,
-        minmax(0, 1fr)
-      );
-  }
-
 }
 
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (
-  max-width: 600px
-) {
-
+@media (max-width: 600px) {
   .owner-profile-hero {
-    padding: 28px 22px;
+    padding: 28px 24px;
     border-radius: 18px;
   }
 
@@ -2987,61 +1309,41 @@ a {
   }
 
   .owner-profile-section {
-    margin-top: 36px;
-  }
-
-  .owner-profile-section .section-heading {
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .all-franchise-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .all-franchise-card {
-    min-height: 165px;
-    padding: 18px;
-  }
-
-  .h2h-grid {
-    grid-template-columns:
-      repeat(
-        2,
-        minmax(0, 1fr)
-      );
-    gap: 9px;
-  }
-
-  .h2h-card {
-    min-height: 145px;
-    padding: 16px;
-  }
-
-  .h2h-card > strong {
-    font-size: 0.88rem;
-  }
-
-  .h2h-card > div {
-    font-size: 1.5rem;
+    margin-top: 34px;
   }
 
   .career-record-grid {
     grid-template-columns: 1fr;
-    gap: 10px;
   }
 
   .career-record-card {
-    min-height: 145px;
-    padding: 18px;
+    min-height: 140px;
+    padding: 17px;
+  }
+
+  .h2h-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .h2h-card {
+    min-height: 130px;
+    padding: 15px;
+  }
+
+  .h2h-card > strong {
+    font-size: 0.86rem;
+  }
+
+  .h2h-card > div {
+    font-size: 1.4rem;
   }
 
   .team-history-row {
     align-items: flex-start;
     flex-direction: column;
-    gap: 7px;
-    padding: 16px 18px;
+    gap: 6px;
+    padding: 15px 17px;
   }
 
   .team-history-row span {
@@ -3050,305 +1352,424 @@ a {
 
   .profile-table th {
     padding: 12px 13px;
-    font-size: 0.6rem;
+    font-size: 0.62rem;
   }
 
   .profile-table td {
     padding: 13px;
     font-size: 0.8rem;
   }
-
 }
-/* =========================================================
-   HEAD TO HEAD PAGE
-   ========================================================= */
-
-.h2h-search-card {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr auto;
-  gap: 14px;
-  align-items: end;
-  padding: 22px;
-  background: #12161b;
-  border: 1px solid #252b33;
-  border-radius: 16px;
-}
-
-.h2h-search-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.h2h-search-field label {
-  color: #7f8995;
-  font-size: 0.7rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.h2h-search-field select {
-  height: 48px;
-  padding: 0 14px;
-  background: #0f1317;
-  border: 1px solid #2a3038;
-  border-radius: 10px;
-  color: #ffffff;
-  font-size: 0.95rem;
-  outline: none;
-}
-
-.h2h-search-field select:focus {
-  border-color: #d6a84b;
-}
-
-.h2h-search-vs {
-  height: 48px;
-  padding: 0 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #d6a84b;
-  font-size: 0.95rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-}
-
-.h2h-search-button {
-  height: 48px;
-  padding: 0 18px;
-  border: none;
-  border-radius: 10px;
-  background: #d6a84b;
-  color: #0b0d10;
-  font-size: 0.82rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: 0.15s ease;
-}
-
-.h2h-search-button:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.03);
-}
-
-.h2h-error {
-  margin-top: 12px;
-  padding: 12px 14px;
-  background: rgba(180, 70, 70, 0.12);
-  border: 1px solid rgba(180, 70, 70, 0.28);
-  border-radius: 10px;
-  color: #d8a4a4;
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
 
 /* =========================================================
-   RIVALRY BANNER
+   ALL-FRANCHISE TEAM
    ========================================================= */
 
-.h2h-rivalry-banner {
-  margin-top: 16px;
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: linear-gradient(135deg, rgba(214,168,75,0.12), rgba(214,168,75,0.04));
-  border: 1px solid rgba(214,168,75,0.28);
-  border-radius: 14px;
-}
-
-.h2h-rivalry-banner span {
-  color: #d6a84b;
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.h2h-rivalry-banner strong {
-  color: #ffffff;
-  font-size: 0.9rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-
-/* =========================================================
-   FEATURED SERIES CARD
-   ========================================================= */
-
-.h2h-series-card {
-  margin-top: 16px;
-  padding: 24px;
-  background: linear-gradient(135deg, #151a20, #11151a);
-  border: 1px solid #252b33;
-  border-radius: 18px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
-}
-
-.h2h-featured-series {
-  border-color: rgba(214,168,75,0.3);
-}
-
-.h2h-series-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 22px;
-}
-
-.h2h-series-top span {
-  color: #d6a84b;
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.h2h-series-top strong {
-  color: #7f8995;
-  font-size: 0.78rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.h2h-series-matchup {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 18px;
-  align-items: stretch;
-}
-
-.h2h-series-owner {
-  padding: 22px 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  background: #12161b;
-  border: 1px solid #252b33;
-  border-radius: 16px;
-}
-
-.h2h-series-owner.right {
-  text-align: right;
-  align-items: flex-end;
-}
-
-.h2h-series-owner a {
-  color: #ffffff;
-  font-size: 1.1rem;
-  font-weight: 900;
-  text-decoration: none;
-}
-
-.h2h-series-owner a:hover {
-  color: #d6a84b;
-}
-
-.h2h-series-owner strong {
-  margin-top: 14px;
-  color: #d6a84b;
-  font-size: 2.7rem;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -0.04em;
-}
-
-.h2h-series-owner span {
-  margin-top: 6px;
-  color: #7f8995;
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.h2h-series-vs {
-  min-width: 180px;
-  padding: 20px 18px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #12161b;
-  border: 1px solid #252b33;
-  border-radius: 16px;
-  text-align: center;
-}
-
-.h2h-series-vs span {
-  color: #7f8995;
-  font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.h2h-series-vs strong {
-  margin-top: 8px;
-  color: #ffffff;
-  font-size: 2rem;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-}
-
-.h2h-series-vs small {
-  margin-top: 8px;
-  color: #aeb6c1;
-  font-size: 0.75rem;
-}
-
-.h2h-series-stats {
-  margin-top: 18px;
+.all-franchise-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
+  margin-top: 20px;
 }
 
-.h2h-series-stats > div {
-  padding: 18px;
+.all-franchise-card {
+  position: relative;
+  padding: 20px;
   background: #12161b;
-  border: 1px solid #252b33;
+  border: 1px solid rgba(214, 168, 75, 0.3);
   border-radius: 14px;
-  text-align: center;
+  overflow: hidden;
+  transition: 0.2s ease;
 }
 
-.h2h-series-stats span {
-  display: block;
-  color: #7f8995;
-  font-size: 0.68rem;
+.all-franchise-card:hover {
+  background: #161b21;
+  border-color: #d6a84b;
+  transform: translateY(-2px);
+}
+
+.all-franchise-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 6px 10px;
+  margin-bottom: 14px;
+  background: #d6a84b;
+  border-radius: 7px;
+  color: #0b0d10;
+  font-size: 0.75rem;
   font-weight: 900;
   letter-spacing: 0.08em;
+}
+
+.all-franchise-player {
+  margin-bottom: 9px;
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.all-franchise-meta {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.all-franchise-meta span {
+  color: #d6a84b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-.h2h-series-stats strong {
-  display: block;
-  margin-top: 10px;
-  color: #ffffff;
-  font-size: 1.55rem;
+.all-franchise-team-name {
+  min-height: 36px;
+  color: #8f98a3;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.all-franchise-points {
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid #222830;
+  color: #fff;
+  font-size: 1.45rem;
   font-weight: 900;
-  letter-spacing: -0.03em;
 }
 
-.h2h-series-stats small {
-  display: block;
-  margin-top: 8px;
-  color: #aeb6c1;
-  font-size: 0.72rem;
+.all-franchise-points small {
+  color: #d6a84b;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
 }
 
+@media (max-width: 900px) {
+  .all-franchise-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .all-franchise-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .all-franchise-card {
+    padding: 17px;
+  }
+}
 
 /* =========================================================
-   RECORD BOOK GRID
+   CHAMPIONS PAGE
+   ========================================================= */
+
+.champions-leader-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.champions-leader-card {
+  min-height: 105px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+  transition: 0.2s ease;
+}
+
+.champions-leader-card:hover {
+  background: #161b21;
+  border-color: #d6a84b;
+  transform: translateY(-2px);
+}
+
+.champions-rank {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #181d23;
+  border: 1px solid #2a3038;
+  border-radius: 10px;
+  color: #d6a84b;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.champions-leader-info {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.champions-leader-info strong {
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.champions-leader-info span {
+  color: #8f98a3;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.champions-title-count {
+  min-width: 68px;
+  height: 68px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: #d6a84b;
+  border-radius: 12px;
+  color: #0b0d10;
+}
+
+.champions-title-count strong {
+  font-size: 1.65rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.champions-title-count span {
+  margin-top: 5px;
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+/* =========================================================
+   CHAMPIONSHIP HISTORY
+   ========================================================= */
+
+.championship-history-list {
+  overflow: hidden;
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+}
+
+.championship-history-card {
+  min-height: 105px;
+  padding: 18px 22px;
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr) 160px minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  border-bottom: 1px solid #222830;
+  transition: 0.15s ease;
+}
+
+.championship-history-card:last-child {
+  border-bottom: none;
+}
+
+.championship-history-card:hover {
+  background: #161b21;
+}
+
+.championship-year {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.championship-year span,
+.championship-winner > span,
+.championship-score > span,
+.championship-runner-up > span {
+  color: #727b86;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.championship-year strong {
+  color: #d6a84b;
+  font-size: 1.65rem;
+  font-weight: 900;
+}
+
+.championship-winner,
+.championship-runner-up {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.championship-winner a,
+.championship-runner-up a {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 900;
+  transition: 0.15s ease;
+}
+
+.championship-winner a:hover,
+.championship-runner-up a:hover {
+  color: #d6a84b;
+}
+
+.championship-winner small,
+.championship-runner-up small {
+  overflow: hidden;
+  color: #8f98a3;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.championship-score {
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 7px;
+  background: #0e1115;
+  border: 1px solid #2a3038;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.championship-score strong {
+  color: #d6a84b;
+  font-size: 1.05rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.championship-winner {
+  position: relative;
+  padding-left: 15px;
+}
+
+.championship-winner::before {
+  width: 3px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  content: "";
+  background: #d6a84b;
+  border-radius: 999px;
+}
+
+/* =========================================================
+   CHAMPIONS RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .champions-leader-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .championship-history-card {
+    grid-template-columns: 80px minmax(0, 1fr) 135px minmax(0, 1fr);
+    gap: 16px;
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+
+@media (max-width: 700px) {
+  .championship-history-card {
+    grid-template-columns: 70px minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .championship-year {
+    grid-row: 1 / 3;
+    align-self: stretch;
+    justify-content: center;
+    border-right: 1px solid #222830;
+  }
+
+  .championship-score {
+    grid-column: 2;
+    align-items: flex-start;
+    padding: 10px 12px;
+    text-align: left;
+  }
+
+  .championship-runner-up {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 600px) {
+  .champions-leader-card {
+    min-height: 94px;
+    padding: 15px;
+    gap: 12px;
+  }
+
+  .champions-rank {
+    width: 38px;
+    height: 38px;
+    font-size: 0.78rem;
+  }
+
+  .champions-leader-info strong {
+    font-size: 0.95rem;
+  }
+
+  .champions-leader-info span {
+    font-size: 0.68rem;
+  }
+
+  .champions-title-count {
+    min-width: 58px;
+    height: 58px;
+  }
+
+  .champions-title-count strong {
+    font-size: 1.4rem;
+  }
+
+  .championship-history-card {
+    min-height: 0;
+    padding: 16px 14px;
+  }
+
+  .championship-year strong {
+    font-size: 1.35rem;
+  }
+
+  .championship-winner a,
+  .championship-runner-up a {
+    font-size: 0.9rem;
+  }
+
+  .championship-winner small,
+  .championship-runner-up small {
+    font-size: 0.68rem;
+  }
+
+  .championship-score strong {
+    font-size: 0.9rem;
+  }
+}
+
+/* =========================================================
+   RECORDS PAGE
    ========================================================= */
 
 .record-book-grid {
@@ -3358,152 +1779,473 @@ a {
 }
 
 .record-book-card {
-  min-height: 165px;
-  padding: 20px;
+  min-height: 215px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #151a20, #11151a);
-  border: 1px solid #252b33;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, #12161b, #101419);
+  border: 1px solid #222830;
   border-radius: 16px;
-  transition: 0.18s ease;
+  transition: 0.2s ease;
+}
+
+.record-book-card::before {
+  width: 100%;
+  height: 3px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  content: "";
+  background: #d6a84b;
+  opacity: 0.75;
 }
 
 .record-book-card:hover {
-  background: #171c22;
+  background: #161b21;
   border-color: #d6a84b;
   transform: translateY(-2px);
 }
 
 .record-book-label {
-  color: #d6a84b;
+  min-height: 34px;
+  margin-bottom: 18px;
+  color: #8f98a3;
   font-size: 0.66rem;
   font-weight: 900;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.1em;
+  line-height: 1.35;
   text-transform: uppercase;
 }
 
 .record-book-value {
-  margin-top: auto;
-  padding-top: 20px;
-  color: #ffffff;
-  font-size: 1.8rem;
+  margin-bottom: 15px;
+  color: #d6a84b;
+  font-size: clamp(1.8rem, 3vw, 2.45rem);
   font-weight: 900;
-  line-height: 1.05;
+  line-height: 1;
   letter-spacing: -0.04em;
 }
 
 .record-book-owner {
-  margin-top: 8px;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.record-book-team {
+  margin-top: 5px;
   color: #aeb6c1;
   font-size: 0.8rem;
-  font-weight: 700;
+  line-height: 1.35;
 }
 
 .record-book-detail {
-  margin-top: 5px;
+  margin-top: auto;
+  padding-top: 18px;
   color: #727b86;
-  font-size: 0.68rem;
-}
-
-
-/* =========================================================
-   TABLE TWEAKS
-   ========================================================= */
-
-.matchup-history-table td:nth-child(3) {
-  color: #7f8995;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
-.matchup-history-table td:nth-child(4),
-.matchup-history-table td:nth-child(6) {
-  color: #ffffff;
-  font-weight: 800;
+.record-book-opponent {
+  margin-top: 6px;
+  color: #8f98a3;
+  font-size: 0.72rem;
 }
 
+.record-book-card:first-child {
+  border-color: rgba(214, 168, 75, 0.45);
+  background:
+    linear-gradient(
+      145deg,
+      rgba(214, 168, 75, 0.07),
+      #12161b 45%,
+      #101419
+    );
+}
 
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
-
-@media (max-width: 1000px) {
+@media (max-width: 900px) {
   .record-book-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .record-book-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .record-book-card {
+    min-height: 185px;
+    padding: 18px;
+  }
+
+  .record-book-label {
+    min-height: 0;
+    margin-bottom: 14px;
+  }
+
+  .record-book-value {
+    margin-bottom: 12px;
+    font-size: 2rem;
+  }
+
+  .record-book-detail {
+    padding-top: 15px;
+  }
+}
+
+/* =========================================================
+   HEAD-TO-HEAD PAGE
+   ========================================================= */
+
+.h2h-page-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.h2h-series-card {
+  overflow: hidden;
+  background: linear-gradient(145deg, #12161b, #101419);
+  border: 1px solid #222830;
+  border-radius: 16px;
+  transition: 0.2s ease;
+}
+
+.h2h-series-card:hover {
+  border-color: #d6a84b;
+  transform: translateY(-2px);
+}
+
+.h2h-series-top {
+  min-height: 42px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #181d23;
+  border-bottom: 1px solid #2a3038;
+  color: #7f8995;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+}
+
+.h2h-series-top strong {
+  color: #d6a84b;
+  font-size: 0.62rem;
+}
+
+.h2h-series-matchup {
+  padding: 24px 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+}
+
+.h2h-series-owner {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.h2h-series-owner.right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.h2h-series-owner a {
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1.25;
+  transition: 0.15s ease;
+}
+
+.h2h-series-owner a:hover {
+  color: #d6a84b;
+}
+
+.h2h-series-owner > strong {
+  margin-top: 13px;
+  color: #d6a84b;
+  font-size: 2.1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.h2h-series-owner > span {
+  margin-top: 5px;
+  color: #727b86;
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.h2h-series-vs {
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #0e1115;
+  border: 1px solid #2a3038;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.h2h-series-vs > span {
+  color: #727b86;
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.h2h-series-vs > strong {
+  margin-top: 7px;
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.h2h-series-vs > small {
+  margin-top: 5px;
+  color: #727b86;
+  font-size: 0.62rem;
+}
+
+.h2h-series-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid #222830;
+  border-bottom: 1px solid #222830;
+}
+
+.h2h-series-stats > div {
+  min-width: 0;
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  border-right: 1px solid #222830;
+}
+
+.h2h-series-stats > div:last-child {
+  border-right: none;
+}
+
+.h2h-series-stats span {
+  max-width: 100%;
+  overflow: hidden;
+  color: #7f8995;
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.h2h-series-stats strong {
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.h2h-series-stats small {
+  color: #727b86;
+  font-size: 0.55rem;
+}
+
+.h2h-championship-note {
+  padding: 12px 18px;
+  background: rgba(214, 168, 75, 0.08);
+  border-bottom: 1px solid rgba(214, 168, 75, 0.15);
+  color: #d6a84b;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.h2h-consolation-note {
+  padding: 12px 18px;
+  color: #727b86;
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .h2h-page-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .h2h-series-matchup {
+    padding: 19px 14px;
+    grid-template-columns: minmax(0, 1fr) 92px minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .h2h-series-owner a {
+    font-size: 0.8rem;
+  }
+
+  .h2h-series-owner > strong {
+    font-size: 1.7rem;
+  }
+
+  .h2h-series-vs {
+    padding: 10px 5px;
+  }
+
+  .h2h-series-vs > strong {
+    font-size: 0.92rem;
   }
 
   .h2h-series-stats {
     grid-template-columns: 1fr;
   }
-}
-
-@media (max-width: 860px) {
-  .h2h-search-card {
-    grid-template-columns: 1fr;
-  }
-
-  .h2h-search-vs {
-    justify-content: flex-start;
-    height: auto;
-    padding: 0;
-  }
-
-  .h2h-series-matchup {
-    grid-template-columns: 1fr;
-  }
-
-  .h2h-series-owner.right {
-    text-align: left;
-    align-items: flex-start;
-  }
-
-  .h2h-series-vs {
-    min-width: 0;
-  }
-
-  .record-book-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .h2h-rivalry-banner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 600px) {
-  .h2h-series-card {
-    padding: 18px;
-  }
-
-  .h2h-series-owner {
-    padding: 18px;
-  }
-
-  .h2h-series-owner strong {
-    font-size: 2.25rem;
-  }
-
-  .h2h-series-vs strong {
-    font-size: 1.7rem;
-  }
 
   .h2h-series-stats > div {
-    padding: 15px;
+    border-right: none;
+    border-bottom: 1px solid #222830;
   }
 
-  .record-book-card {
-    min-height: 145px;
-    padding: 18px;
+  .h2h-series-stats > div:last-child {
+    border-bottom: none;
   }
 
-  .record-book-value {
-    font-size: 1.5rem;
+  .h2h-series-top {
+    padding: 0 14px;
+  }
+
+  .h2h-championship-note,
+  .h2h-consolation-note {
+    padding-left: 14px;
+    padding-right: 14px;
   }
 }
+
 /* =========================================================
-   DIRTY P HOMEPAGE
-   SAME DESIGN LANGUAGE AS OWNERS / RECORDS
+   HEAD-TO-HEAD — SEARCH / FEATURED SERIES
+   ========================================================= */
+
+.h2h-search-card {
+  padding: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+}
+
+.h2h-search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.h2h-search-field label {
+  color: #727b86;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.h2h-search-field select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  background: #0e1115;
+  border: 1px solid #2a3038;
+  border-radius: 9px;
+  color: #ffffff;
+  font: inherit;
+}
+
+.h2h-search-field select:focus {
+  outline: none;
+  border-color: #d6a84b;
+}
+
+.h2h-search-vs {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #727b86;
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.h2h-search-button {
+  min-height: 46px;
+  padding: 0 18px;
+  background: #d6a84b;
+  border: 1px solid #d6a84b;
+  border-radius: 9px;
+  color: #0b0d10;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.h2h-search-button:hover {
+  filter: brightness(1.06);
+}
+
+.h2h-error {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(150, 65, 65, 0.08);
+  border: 1px solid rgba(190, 90, 90, 0.25);
+  border-radius: 10px;
+  color: #d2a0a0;
+  font-size: 0.78rem;
+}
+
+.h2h-rivalry-banner {
+  margin-top: 14px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(214, 168, 75, 0.11),
+    rgba(214, 168, 75, 0.035)
+  );
+  border: 1px solid rgba(214, 168, 75, 0.34);
+  border-radius: 14px;
+}
+
+.h2h-rivalry-banner strong {
+  color: #d6a84b;
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+}
+
+.h2h-rivalry-banner span {
+  color: #aeb6c1;
+  font-size: 0.78rem;
+}
+
+.h2h-featured-series {
+  margin-top: 14px;
+}
+
+/* =========================================================
+   HOMEPAGE — SAME DESIGN LANGUAGE AS OWNERS / RECORDS
    ========================================================= */
 
 .home-page {
@@ -3517,11 +2259,6 @@ a {
   --dp-muted: #8f98a3;
   --dp-muted-2: #727b86;
 }
-
-
-/* =========================================================
-   EVERY HOMEPAGE SECTION
-   ========================================================= */
 
 .home-page .section-block {
   max-width: 1200px;
@@ -3542,39 +2279,27 @@ a {
   font-size: 0.75rem;
 }
 
-
-/* =========================================================
-   NAV
-   ========================================================= */
-
 .home-page .quick-links {
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
-
-
-/* =========================================================
-   WARNING
-   ========================================================= */
 
 .home-warning {
   max-width: 1200px;
   margin: 18px auto 0;
   padding: 14px 18px;
-
   background: #12161b;
   border: 1px solid #5d3535;
   border-radius: 14px;
-
   color: #cda4a4;
   font-size: 0.75rem;
 }
 
-
-/* =========================================================
-   STANDINGS
-   ========================================================= */
+/* =========================
+   HOME STANDINGS
+   ========================= */
 
 .home-page .profile-table-wrap {
   background: #12161b;
@@ -3587,11 +2312,7 @@ a {
 }
 
 .home-standings thead {
-  background: linear-gradient(
-    135deg,
-    #181d23,
-    #14181d
-  );
+  background: linear-gradient(135deg, #181d23, #14181d);
 }
 
 .home-standings th {
@@ -3618,14 +2339,10 @@ a {
   font-size: 1rem;
 }
 
-
-/* Team column */
-
 .standing-team-link {
   display: flex;
   flex-direction: column;
   gap: 4px;
-
   text-decoration: none;
 }
 
@@ -3647,14 +2364,12 @@ a {
   color: #59616b;
 }
 
-
-/* =========================================================
-   PLAYOFF PICTURE
-   ========================================================= */
+/* =========================
+   HOME PLAYOFF PICTURE
+   ========================= */
 
 .home-playoff-race {
   overflow: hidden;
-
   background: #12161b;
   border: 1px solid #222830;
   border-radius: 16px;
@@ -3663,17 +2378,13 @@ a {
 .home-playoff-row {
   min-height: 78px;
   padding: 0 20px;
-
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr) auto;
   align-items: center;
   gap: 18px;
-
   border-bottom: 1px solid #222830;
-
   color: inherit;
   text-decoration: none;
-
   transition: 0.15s ease;
 }
 
@@ -3688,15 +2399,12 @@ a {
 .home-playoff-seed {
   width: 44px;
   height: 44px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   background: rgba(214, 168, 75, 0.1);
   border: 1px solid rgba(214, 168, 75, 0.35);
   border-radius: 10px;
-
   color: #d6a84b;
   font-size: 1.1rem;
   font-weight: 900;
@@ -3708,7 +2416,6 @@ a {
 
 .home-playoff-name strong {
   display: block;
-
   color: #ffffff;
   font-size: 0.95rem;
 }
@@ -3716,7 +2423,6 @@ a {
 .home-playoff-name span {
   display: block;
   margin-top: 4px;
-
   color: #727b86;
   font-size: 0.72rem;
 }
@@ -3726,17 +2432,12 @@ a {
   font-size: 1.05rem;
 }
 
-
-/* First out */
-
 .home-first-out {
   min-height: 52px;
   padding: 0 20px;
-
   display: flex;
   align-items: center;
   gap: 18px;
-
   background: #0f1317;
   border-top: 1px solid #2a3038;
 }
@@ -3753,14 +2454,12 @@ a {
   font-size: 0.74rem;
 }
 
-
-/* =========================================================
+/* =========================
    AROUND THE LEAGUE
-   ========================================================= */
+   ========================= */
 
 .around-league {
   overflow: hidden;
-
   background: #12161b;
   border: 1px solid #222830;
   border-radius: 16px;
@@ -3768,34 +2467,32 @@ a {
 
 .around-league-story {
   position: relative;
-
   padding: 22px 24px 22px 28px;
-
   border-bottom: 1px solid #222830;
+  transition: 0.15s ease;
 }
 
 .around-league-story:last-child {
   border-bottom: none;
 }
 
+.around-league-story:hover {
+  background: #161b21;
+}
+
 .around-league-story::before {
   content: "";
-
   position: absolute;
   top: 22px;
   left: 0;
-
   width: 3px;
   height: 42px;
-
   background: #d6a84b;
-
   border-radius: 0 3px 3px 0;
 }
 
 .around-league-story h3 {
   margin: 0;
-
   color: #ffffff;
   font-size: 1.05rem;
   line-height: 1.3;
@@ -3803,40 +2500,33 @@ a {
 
 .around-league-story p {
   max-width: 900px;
-
   margin: 7px 0 0;
-
   color: #8f98a3;
   font-size: 0.84rem;
   line-height: 1.65;
 }
 
-
-/* =========================================================
-   ASSIGNED RIVALS BANNER
-   ========================================================= */
+/* =========================
+   ASSIGNED RIVALS
+   ========================= */
 
 .home-rival-note {
   margin-bottom: 14px;
   padding: 14px 18px;
-
   display: flex;
   align-items: center;
   gap: 16px;
-
   background: linear-gradient(
     135deg,
     rgba(214, 168, 75, 0.1),
     rgba(214, 168, 75, 0.035)
   );
-
   border: 1px solid rgba(214, 168, 75, 0.35);
   border-radius: 14px;
 }
 
 .home-rival-note strong {
   flex-shrink: 0;
-
   color: #d6a84b;
   font-size: 0.62rem;
   font-weight: 900;
@@ -3849,39 +2539,25 @@ a {
   font-weight: 700;
 }
 
-
-/* =========================================================
+/* =========================
    GAME OF THE WEEK
-   ========================================================= */
+   ========================= */
 
 .featured-matchup {
   overflow: hidden;
-
   background: #12161b;
-  border: 1px solid #d6a84b;
+  border: 1px solid rgba(214, 168, 75, 0.65);
   border-radius: 16px;
-
-  box-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.18);
 }
-
-
-/* Header */
 
 .featured-matchup-labels {
   min-height: 52px;
   padding: 0 20px;
-
   display: flex;
   align-items: center;
   gap: 10px;
-
-  background: linear-gradient(
-    135deg,
-    #181d23,
-    #14181d
-  );
-
+  background: linear-gradient(135deg, #181d23, #14181d);
   border-bottom: 1px solid #2a3038;
 }
 
@@ -3894,23 +2570,17 @@ a {
 
 .featured-matchup-labels > strong {
   padding: 5px 8px;
-
   background: rgba(214, 168, 75, 0.12);
   border: 1px solid rgba(214, 168, 75, 0.4);
   border-radius: 5px;
-
   color: #d6a84b;
   font-size: 0.56rem;
   font-weight: 900;
   letter-spacing: 0.07em;
 }
 
-
-/* Main matchup */
-
 .featured-matchup-title {
   padding: 28px 24px;
-
   display: grid;
   grid-template-columns: 1fr 60px 1fr;
   align-items: center;
@@ -3919,7 +2589,6 @@ a {
 
 .featured-matchup-title h3 {
   margin: 0;
-
   color: #ffffff;
   font-size: 1.45rem;
   line-height: 1.2;
@@ -3927,9 +2596,7 @@ a {
 
 .featured-matchup-title div > span {
   display: block;
-
   margin-top: 7px;
-
   color: #8f98a3;
   font-size: 0.74rem;
 }
@@ -3939,51 +2606,37 @@ a {
 }
 
 .featured-vs {
+  width: 48px;
+  height: 48px;
+  justify-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
-
-  width: 48px;
-  height: 48px;
-
-  justify-self: center;
-
   background: #0e1115;
   border: 1px solid #2a3038;
   border-radius: 50%;
-
   color: #727b86;
   font-size: 0.62rem;
   font-weight: 900;
 }
 
-
-/* Analysis */
-
 .featured-analysis {
   margin: 0;
   padding: 20px 24px;
-
   background: #151a20;
   border-top: 1px solid #222830;
-
   color: #aeb6c1;
   font-size: 0.86rem;
   line-height: 1.7;
 }
 
-
-/* Bottom details */
-
 .featured-meta {
   min-height: 54px;
   padding: 0 24px;
-
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 28px;
-
   border-top: 1px solid #222830;
 }
 
@@ -3994,23 +2647,19 @@ a {
 
 .featured-meta strong {
   margin-right: 6px;
-
   color: #d6a84b;
   font-size: 0.58rem;
   font-weight: 900;
   letter-spacing: 0.09em;
 }
 
-
-/* =========================================================
+/* =========================
    OTHER MATCHUPS
-   ========================================================= */
+   ========================= */
 
 .other-matchups {
   margin-top: 16px;
-
   overflow: hidden;
-
   background: #12161b;
   border: 1px solid #222830;
   border-radius: 16px;
@@ -4019,18 +2668,10 @@ a {
 .other-matchups-heading {
   min-height: 48px;
   padding: 0 20px;
-
   display: flex;
   align-items: center;
-
-  background: linear-gradient(
-    135deg,
-    #181d23,
-    #14181d
-  );
-
+  background: linear-gradient(135deg, #181d23, #14181d);
   border-bottom: 1px solid #2a3038;
-
   color: #7f8995;
   font-size: 0.62rem;
   font-weight: 900;
@@ -4039,10 +2680,9 @@ a {
 
 .other-matchup {
   position: relative;
-
   padding: 20px;
-
   border-bottom: 1px solid #222830;
+  transition: 0.15s ease;
 }
 
 .other-matchup:last-child {
@@ -4059,17 +2699,11 @@ a {
 
 .other-matchup.assigned-matchup::before {
   content: "";
-
   position: absolute;
   inset: 0 auto 0 0;
-
   width: 3px;
-
   background: #d6a84b;
 }
-
-
-/* Matchup title */
 
 .other-matchup-top {
   display: flex;
@@ -4080,7 +2714,6 @@ a {
 
 .other-matchup-top h3 {
   margin: 5px 0 0;
-
   color: #ffffff;
   font-size: 1rem;
   line-height: 1.3;
@@ -4088,66 +2721,50 @@ a {
 
 .other-matchup-top > strong {
   flex-shrink: 0;
-
   color: #ffffff;
   font-size: 0.85rem;
 }
 
 .other-matchup-top > strong span {
   padding: 0 5px;
-
   color: #727b86;
   font-size: 0.58rem;
 }
 
 .small-rival-badge {
   display: inline-block;
-
   color: #d6a84b;
   font-size: 0.55rem;
   font-weight: 900;
   letter-spacing: 0.08em;
 }
 
-
-/* Analysis */
-
 .other-matchup > p {
   max-width: 900px;
-
   margin: 10px 0 0;
-
   color: #8f98a3;
   font-size: 0.8rem;
   line-height: 1.65;
 }
 
-
-/* Bottom metadata */
-
 .other-matchup-bottom {
   margin-top: 14px;
   padding-top: 12px;
-
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-
   border-top: 1px solid #222830;
-
   color: #727b86;
   font-size: 0.66rem;
 }
 
-
-/* =========================================================
+/* =========================
    ROAD MAP
-   ========================================================= */
+   ========================= */
 
 .owner-map-card {
   overflow: hidden;
-
   background: #12161b;
   border: 1px solid #222830;
   border-radius: 16px;
@@ -4155,16 +2772,118 @@ a {
 
 .owner-map-image {
   display: block;
-
   width: 100%;
   height: auto;
 }
 
-
 /* =========================================================
-   SHARED HOVER FEEL
+   RESPONSIVE HOMEPAGE + H2H
    ========================================================= */
 
-.home-playoff-row,
-.other-matchup,
-.around-league
+@media (max-width: 900px) {
+  .home-page .quick-links {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .h2h-search-card {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .h2h-search-vs {
+    display: none;
+  }
+
+  .h2h-search-button {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .featured-matchup-title {
+    grid-template-columns: 1fr;
+    padding: 22px 18px;
+  }
+
+  .featured-matchup-title .right {
+    text-align: left;
+  }
+
+  .featured-vs {
+    width: 42px;
+    height: 42px;
+    justify-self: start;
+  }
+
+  .featured-analysis {
+    padding: 18px;
+  }
+
+  .featured-meta {
+    padding: 14px 18px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+  }
+
+  .other-matchup-top {
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .other-matchup-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .home-rival-note {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .home-first-out {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 5px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+}
+
+@media (max-width: 600px) {
+  .home-page .quick-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-playoff-row {
+    min-height: 72px;
+    padding: 0 14px;
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  .home-playoff-seed {
+    width: 38px;
+    height: 38px;
+    font-size: 0.95rem;
+  }
+
+  .around-league-story {
+    padding: 18px 17px 18px 21px;
+  }
+
+  .around-league-story::before {
+    top: 18px;
+  }
+
+  .h2h-search-card {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .h2h-search-button {
+    grid-column: auto;
+  }
+}
