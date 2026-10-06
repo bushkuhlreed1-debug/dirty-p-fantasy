@@ -1,53 +1,57 @@
+import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 
+export const dynamic = "force-dynamic";
+
+const CURRENT_SEASON = 2026;
+
 export default async function ChampionsPage() {
-  const currentSeason = 2026;
+  const [
+    {
+      data: seasons,
+      error: seasonsError,
+    },
+    {
+      data: teams,
+      error: teamsError,
+    },
+  ] = await Promise.all([
+    supabase
+      .from("seasons")
+      .select(`
+        year,
+        championship_score,
+        champion:champion_owner_id (
+          id,
+          name
+        ),
+        runner_up:runner_up_owner_id (
+          id,
+          name
+        )
+      `)
+      .lt("year", CURRENT_SEASON)
+      .order("year", {
+        ascending: false,
+      }),
 
-  // =========================================================
-  // CHAMPIONSHIP HISTORY
-  // =========================================================
-
-  const {
-    data: seasons,
-    error: seasonsError,
-  } = await supabase
-    .from("seasons")
-    .select(`
-      year,
-      championship_score,
-      champion:champion_owner_id (
-        id,
-        name
+    supabase
+      .from("teams")
+      .select(`
+        season_year,
+        owner_id,
+        team_name
+      `)
+      .lt(
+        "season_year",
+        CURRENT_SEASON
       ),
-      runner_up:runner_up_owner_id (
-        id,
-        name
-      )
-    `)
-    .lt("year", currentSeason)
-    .order("year", { ascending: false });
+  ]);
 
-  // =========================================================
-  // TEAM HISTORY
-  // =========================================================
-
-  const {
-    data: teams,
-    error: teamsError,
-  } = await supabase
-    .from("teams")
-    .select(`
-      season_year,
-      owner_id,
-      team_name
-    `)
-    .lt("season_year", currentSeason);
-
-  // =========================================================
-  // DATABASE ERROR
-  // =========================================================
-
-  if (seasonsError || teamsError) {
+  if (
+    seasonsError ||
+    teamsError
+  ) {
     return (
       <main className="page-shell">
         <h1>Champions</h1>
@@ -61,103 +65,154 @@ export default async function ChampionsPage() {
     );
   }
 
-  const history = seasons || [];
-  const teamHistory = teams || [];
+  const history =
+    seasons || [];
 
-  // =========================================================
-  // GET TEAM NAME FOR A SEASON
-  // =========================================================
+  const teamHistory =
+    teams || [];
 
   function getTeamName(
     year,
     ownerId
   ) {
+    if (!ownerId) {
+      return "—";
+    }
+
     return (
       teamHistory.find(
         (team) =>
-          team.season_year === year &&
-          team.owner_id === ownerId
+          Number(
+            team.season_year
+          ) ===
+            Number(year) &&
+          Number(
+            team.owner_id
+          ) ===
+            Number(ownerId)
       )?.team_name || "—"
     );
   }
 
   // =========================================================
-  // BUILD TITLE LEADERS
+  // BUILD CHAMPIONSHIP RESUMES
   // =========================================================
 
-  const titleMap = {};
+  const resumeMap =
+    new Map();
+
+  function ensureOwner(owner) {
+    if (!owner?.id) {
+      return null;
+    }
+
+    const id =
+      Number(owner.id);
+
+    if (!resumeMap.has(id)) {
+      resumeMap.set(id, {
+        id,
+        name: owner.name,
+        titles: 0,
+        finals: 0,
+        runnerUps: 0,
+        years: [],
+      });
+    }
+
+    return resumeMap.get(id);
+  }
 
   history.forEach(
     (season) => {
-      if (!season.champion) {
-        return;
+      if (season.champion) {
+        const champion =
+          ensureOwner(
+            season.champion
+          );
+
+        champion.titles += 1;
+        champion.finals += 1;
+        champion.years.push(
+          Number(
+            season.year
+          )
+        );
       }
 
-      const id =
-        season.champion.id;
+      if (season.runner_up) {
+        const runnerUp =
+          ensureOwner(
+            season.runner_up
+          );
 
-      if (!titleMap[id]) {
-        titleMap[id] = {
-          id,
-          name:
-            season.champion.name,
-          titles: 0,
-          years: [],
-        };
+        runnerUp.finals += 1;
+        runnerUp.runnerUps += 1;
       }
-
-      titleMap[id].titles += 1;
-
-      titleMap[id].years.push(
-        season.year
-      );
     }
   );
 
   const titleLeaders =
-    Object.values(
-      titleMap
-    ).sort(
-      (a, b) => {
-        if (
-          b.titles !==
-          a.titles
-        ) {
-          return (
-            b.titles -
+    [...resumeMap.values()]
+      .filter(
+        (owner) =>
+          owner.titles > 0
+      )
+      .sort(
+        (a, b) => {
+          if (
+            b.titles !==
             a.titles
+          ) {
+            return (
+              b.titles -
+              a.titles
+            );
+          }
+
+          if (
+            b.finals !==
+            a.finals
+          ) {
+            return (
+              b.finals -
+              a.finals
+            );
+          }
+
+          return a.name.localeCompare(
+            b.name
           );
         }
+      );
 
-        return a.name.localeCompare(
-          b.name
-        );
-      }
-    );
-
-  // =========================================================
-  // HISTORY RANGE
-  // =========================================================
-
-  const seasonYears =
-    history.map(
-      (season) =>
-        Number(season.year)
-    );
+  const completedYears =
+    history
+      .map(
+        (season) =>
+          Number(
+            season.year
+          )
+      )
+      .filter(
+        (year) =>
+          Number.isFinite(
+            year
+          )
+      )
+      .sort(
+        (a, b) =>
+          a - b
+      );
 
   const firstSeason =
-    seasonYears.length > 0
-      ? Math.min(
-          ...seasonYears
-        )
-      : 2014;
+    completedYears[0] ||
+    2014;
 
-  const latestCompletedSeason =
-    seasonYears.length > 0
-      ? Math.max(
-          ...seasonYears
-        )
-      : currentSeason - 1;
+  const latestSeason =
+    completedYears[
+      completedYears.length - 1
+    ] || 2025;
 
   // =========================================================
   // PAGE
@@ -166,32 +221,26 @@ export default async function ChampionsPage() {
   return (
     <main className="page-shell">
 
-      {/* =====================================================
-          HEADER
-          ===================================================== */}
+      {/* HEADER */}
 
       <header className="site-header">
-
         <div className="site-title">
 
-          <a href="/">
+          <Link href="/">
             <strong>
               DIRTY P FANTASY FOOTBALL
             </strong>
-          </a>
+          </Link>
 
           <span>
             THE LEAGUE ARCHIVE · EST. 2014
           </span>
 
         </div>
-
       </header>
 
 
-      {/* =====================================================
-          HERO
-          ===================================================== */}
+      {/* HERO */}
 
       <section className="owners-hero">
 
@@ -206,9 +255,10 @@ export default async function ChampionsPage() {
           </h1>
 
           <p>
-            Every Dirty P champion, every
-            championship matchup, and the owners
-            who have won the most league titles.
+            Every Dirty P champion and
+            the owners who have built
+            the strongest championship
+            résumés in league history.
           </p>
 
         </div>
@@ -229,21 +279,20 @@ export default async function ChampionsPage() {
       </section>
 
 
-      {/* =====================================================
-          PAGE NAV
-          ===================================================== */}
+      {/* NAV */}
 
-      <div className="page-nav">
+      <nav className="page-nav">
 
-        <a href="/">
+        <Link href="/">
           ← Home
-        </a>
+        </Link>
 
         <span>
-          {firstSeason}–{latestCompletedSeason}
+          {firstSeason}–
+          {latestSeason}
         </span>
 
-      </div>
+      </nav>
 
 
       {/* =====================================================
@@ -273,56 +322,196 @@ export default async function ChampionsPage() {
         </div>
 
 
-        <div className="champions-leader-grid">
+        <div className="owners-grid">
 
           {titleLeaders.map(
-            (owner, index) => (
+            (
+              owner,
+              index
+            ) => {
+              const titleWinPct =
+                owner.finals > 0
+                  ? (
+                      owner.titles /
+                      owner.finals
+                    ) *
+                    100
+                  : 0;
 
-              <a
-                href={`/owners/${owner.id}`}
-                className="champions-leader-card"
-                key={owner.id}
-              >
+              const sortedYears =
+                [...owner.years].sort(
+                  (a, b) =>
+                    a - b
+                );
 
-                <div className="champions-rank">
-                  #{index + 1}
-                </div>
+              return (
+                <article
+                  className="owner-card"
+                  key={owner.id}
+                >
+
+                  {/* TOP */}
+
+                  <div className="owner-card-top">
+
+                    <div>
+
+                      <span className="owner-status">
+                        #{index + 1} CHAMPIONSHIP RÉSUMÉ
+                      </span>
+
+                      <h3>
+                        {owner.name}
+                      </h3>
+
+                      <p className="owner-team-name">
+                        {sortedYears.join(
+                          " · "
+                        )}
+                      </p>
+
+                    </div>
 
 
-                <div className="champions-leader-info">
+                    <div className="owner-title-count">
 
-                  <strong>
-                    {owner.name}
-                  </strong>
+                      <strong>
+                        {owner.titles}
+                      </strong>
 
-                  <span>
-                    {owner.years
-                      .sort(
-                        (a, b) =>
-                          a - b
-                      )
-                      .join(" · ")}
-                  </span>
+                      <span>
+                        {owner.titles ===
+                        1
+                          ? "TITLE"
+                          : "TITLES"}
+                      </span>
 
-                </div>
+                    </div>
+
+                  </div>
 
 
-                <div className="champions-title-count">
+                  {/* RECORD */}
 
-                  <strong>
-                    {owner.titles}
-                  </strong>
+                  <div className="owner-record">
 
-                  <span>
-                    {owner.titles === 1
-                      ? "TITLE"
-                      : "TITLES"}
-                  </span>
+                    <div>
 
-                </div>
+                      <strong>
+                        {
+                          sortedYears[0]
+                        }
+                      </strong>
 
-              </a>
-            )
+                      <span>
+                        FIRST TITLE
+                      </span>
+
+                    </div>
+
+
+                    <div>
+
+                      <strong>
+                        {
+                          sortedYears[
+                            sortedYears.length -
+                              1
+                          ]
+                        }
+                      </strong>
+
+                      <span>
+                        LATEST TITLE
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* STATS */}
+
+                  <div className="owner-stats-grid">
+
+                    <div>
+
+                      <strong>
+                        {owner.titles}
+                      </strong>
+
+                      <span>
+                        Titles
+                      </span>
+
+                    </div>
+
+
+                    <div>
+
+                      <strong>
+                        {owner.finals}
+                      </strong>
+
+                      <span>
+                        Finals
+                      </span>
+
+                    </div>
+
+
+                    <div>
+
+                      <strong>
+                        {owner.runnerUps}
+                      </strong>
+
+                      <span>
+                        Runner-Up
+                      </span>
+
+                    </div>
+
+
+                    <div>
+
+                      <strong>
+                        {titleWinPct.toFixed(
+                          0
+                        )}
+                        %
+                      </strong>
+
+                      <span>
+                        Finals Win %
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* BOTTOM */}
+
+                  <div className="owner-card-bottom">
+
+                    <span>
+                      Dirty P Champion
+                    </span>
+
+                    <Link
+                      href={`/owners/${owner.id}`}
+                    >
+                      <strong>
+                        View Owner →
+                      </strong>
+                    </Link>
+
+                  </div>
+
+                </article>
+              );
+            }
           )}
 
         </div>
@@ -331,7 +520,7 @@ export default async function ChampionsPage() {
 
 
       {/* =====================================================
-          CHAMPIONSHIP HISTORY
+          YEAR-BY-YEAR
           ===================================================== */}
 
       <section className="owners-section">
@@ -357,7 +546,7 @@ export default async function ChampionsPage() {
         </div>
 
 
-        <div className="championship-history-list">
+        <div className="owners-grid">
 
           {history.map(
             (season) => {
@@ -374,97 +563,113 @@ export default async function ChampionsPage() {
                 );
 
               return (
-
-                <div
-                  className="championship-history-card"
+                <article
+                  className="owner-card"
                   key={season.year}
                 >
 
-                  {/* SEASON */}
+                  {/* TOP */}
 
-                  <div className="championship-year">
+                  <div className="owner-card-top">
 
-                    <span>
-                      SEASON
-                    </span>
+                    <div>
 
-                    <strong>
-                      {season.year}
-                    </strong>
+                      <span className="owner-status">
+                        {season.year} CHAMPION
+                      </span>
+
+                      <h3>
+                        {season.champion
+                          ?.name ||
+                          "—"}
+                      </h3>
+
+                      <p className="owner-team-name">
+                        {championTeam}
+                      </p>
+
+                    </div>
+
+
+                    <div className="owner-title-count">
+
+                      <strong>
+                        🏆
+                      </strong>
+
+                      <span>
+                        CHAMP
+                      </span>
+
+                    </div>
 
                   </div>
 
 
-                  {/* CHAMPION */}
+                  {/* FINAL */}
 
-                  <div className="championship-winner">
+                  <div className="owner-record">
+
+                    <div>
+
+                      <strong>
+                        {season.championship_score ||
+                          "—"}
+                      </strong>
+
+                      <span>
+                        FINAL SCORE
+                      </span>
+
+                    </div>
+
+
+                    <div>
+
+                      <strong>
+                        {season.runner_up
+                          ?.name ||
+                          "—"}
+                      </strong>
+
+                      <span>
+                        RUNNER-UP
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* BOTTOM */}
+
+                  <div className="owner-card-bottom">
 
                     <span>
-                      CHAMPION
+                      vs. {runnerUpTeam}
                     </span>
 
-                    {season.champion ? (
-                      <a
+                    {season.champion?.id ? (
+
+                      <Link
                         href={`/owners/${season.champion.id}`}
                       >
-                        {season.champion.name}
-                      </a>
+                        <strong>
+                          View Champion →
+                        </strong>
+                      </Link>
+
                     ) : (
+
                       <strong>
-                        —
+                        Championship
                       </strong>
+
                     )}
 
-                    <small>
-                      {championTeam}
-                    </small>
-
                   </div>
 
-
-                  {/* FINAL SCORE */}
-
-                  <div className="championship-score">
-
-                    <span>
-                      FINAL
-                    </span>
-
-                    <strong>
-                      {season.championship_score ||
-                        "—"}
-                    </strong>
-
-                  </div>
-
-
-                  {/* RUNNER-UP */}
-
-                  <div className="championship-runner-up">
-
-                    <span>
-                      RUNNER-UP
-                    </span>
-
-                    {season.runner_up ? (
-                      <a
-                        href={`/owners/${season.runner_up.id}`}
-                      >
-                        {season.runner_up.name}
-                      </a>
-                    ) : (
-                      <strong>
-                        —
-                      </strong>
-                    )}
-
-                    <small>
-                      {runnerUpTeam}
-                    </small>
-
-                  </div>
-
-                </div>
+                </article>
               );
             }
           )}
@@ -474,9 +679,7 @@ export default async function ChampionsPage() {
       </section>
 
 
-      {/* =====================================================
-          FOOTER
-          ===================================================== */}
+      {/* FOOTER */}
 
       <footer className="site-footer">
 
