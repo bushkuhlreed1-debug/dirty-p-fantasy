@@ -1,6 +1,4 @@
-import {
-  NextResponse,
-} from "next/server";
+import { NextResponse } from "next/server";
 
 import {
   supabaseAdmin,
@@ -37,8 +35,7 @@ export async function POST(request) {
 
 
     const {
-      data:
-        subscriptions,
+      data: subscriptions,
       error,
     } =
       await supabaseAdmin
@@ -70,7 +67,7 @@ export async function POST(request) {
       return NextResponse.json(
         {
           error:
-            "No active notification subscription found for this owner.",
+            "No active notification subscription found.",
         },
         {
           status: 404,
@@ -92,10 +89,10 @@ export async function POST(request) {
           subscription,
           {
             title:
-              "Dirty P Fantasy Football",
+              "🏈 DIRTY P FANTASY FOOTBALL",
 
             body:
-              "Push notifications are working. You're officially locked in.",
+              "Notifications are live. You’re locked in for matchup alerts.",
 
             tag:
               "dirty-p-test",
@@ -119,10 +116,8 @@ export async function POST(request) {
 
 
         if (
-          pushError?.statusCode ===
-            404 ||
-          pushError?.statusCode ===
-            410
+          pushError?.statusCode === 404 ||
+          pushError?.statusCode === 410
         ) {
           await supabaseAdmin
             .from(
