@@ -119,6 +119,12 @@ export default function NotificationButton({
     useState(false);
 
   const [
+    testLoading,
+    setTestLoading,
+  ] =
+    useState(false);
+
+  const [
     message,
     setMessage,
   ] =
@@ -178,10 +184,6 @@ export default function NotificationButton({
         }
 
 
-        // If we already know who this
-        // device belongs to, re-sync
-        // the existing browser
-        // subscription with Supabase.
         if (savedOwnerId) {
           try {
             await saveSubscription(
@@ -192,9 +194,6 @@ export default function NotificationButton({
 
             setEnabled(true);
 
-            setMessage(
-              "Notifications are enabled."
-            );
           } catch (error) {
             console.error(
               "Subscription sync error:",
@@ -215,9 +214,6 @@ export default function NotificationButton({
         }
 
 
-        // A browser subscription exists,
-        // but the failed first attempt
-        // may not have saved an owner.
         setEnabled(false);
 
         setChoosingOwner(true);
@@ -376,6 +372,80 @@ export default function NotificationButton({
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+
+  async function sendTestNotification() {
+    if (!ownerId) {
+      setMessage(
+        "No owner selected."
+      );
+
+      return;
+    }
+
+
+    setTestLoading(true);
+
+    setMessage(
+      "Sending test..."
+    );
+
+
+    try {
+      const response =
+        await fetch(
+          "/api/push/test",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                ownerId:
+                  Number(
+                    ownerId
+                  ),
+              }),
+          }
+        );
+
+
+      const result =
+        await response.json();
+
+
+      if (!response.ok) {
+        throw new Error(
+          result?.error ||
+            "Unable to send test notification."
+        );
+      }
+
+
+      setMessage(
+        "Test notification sent."
+      );
+
+    } catch (error) {
+      console.error(
+        "Test notification error:",
+        error
+      );
+
+
+      setMessage(
+        error?.message ||
+          "Unable to send test notification."
+      );
+    } finally {
+      setTestLoading(false);
     }
   }
 
@@ -550,6 +620,28 @@ export default function NotificationButton({
           </button>
 
         ) : null}
+
+
+        {enabled && (
+
+          <button
+            type="button"
+            className="notification-enable-button"
+            disabled={
+              testLoading
+            }
+            onClick={
+              sendTestNotification
+            }
+          >
+
+            {testLoading
+              ? "Sending..."
+              : "Send Test Notification"}
+
+          </button>
+
+        )}
 
 
         {message && (
