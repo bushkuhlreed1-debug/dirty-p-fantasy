@@ -2,9 +2,7 @@ self.addEventListener("push", (event) => {
   let data = {};
 
   try {
-    data = event.data
-      ? event.data.json()
-      : {};
+    data = event.data ? event.data.json() : {};
   } catch {
     data = {
       title: "Dirty P Fantasy Football",
@@ -13,65 +11,48 @@ self.addEventListener("push", (event) => {
   }
 
   const title =
-    data.title ||
-    "Dirty P Fantasy Football";
+    data.title || "Dirty P Fantasy Football";
 
   const options = {
     body: data.body || "",
-
-    tag:
-      data.tag ||
-      undefined,
-
+    tag: data.tag || undefined,
     renotify: true,
-
+    icon: "/dirty-p-logo.png",
+    badge: "/dirty-p-logo.png",
     data: {
-      url:
-        data.url ||
-        "/",
+      url: data.url || "/",
     },
   };
 
   event.waitUntil(
-    self.registration.showNotification(
-      title,
-      options
-    )
+    self.registration.showNotification(title, options)
   );
 });
 
-self.addEventListener(
-  "notificationclick",
-  (event) => {
-    event.notification.close();
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
 
-    const url =
-      event.notification?.data?.url ||
-      "/";
+  const url = event.notification?.data?.url || "/";
 
-    event.waitUntil(
-      clients
-        .matchAll({
-          type: "window",
-          includeUncontrolled: true,
-        })
-        .then((windowClients) => {
-          for (const client of windowClients) {
-            if ("focus" in client) {
-              client.navigate(url);
-
-              return client.focus();
-            }
+  event.waitUntil(
+    clients
+      .matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      })
+      .then((windowClients) => {
+        for (const client of windowClients) {
+          if ("focus" in client) {
+            client.navigate(url);
+            return client.focus();
           }
+        }
 
-          if (clients.openWindow) {
-            return clients.openWindow(
-              url
-            );
-          }
+        if (clients.openWindow) {
+          return clients.openWindow(url);
+        }
 
-          return null;
-        })
-    );
-  }
-);
+        return null;
+      })
+  );
+});
