@@ -169,8 +169,9 @@ export default async function GoatPage() {
   ) {
     return (
       <main className="page-shell">
+
         <h1>
-          Hall of Fame
+          GOAT Rankings
         </h1>
 
         <p>
@@ -178,6 +179,7 @@ export default async function GoatPage() {
           {ownersError?.message ||
             resultsError?.message}
         </p>
+
       </main>
     );
   }
@@ -269,8 +271,7 @@ export default async function GoatPage() {
           const finalsAppearances =
             ownerSeasons.filter(
               (season) =>
-                season
-                  .championship_appearance ===
+                season.championship_appearance ===
                 true
             ).length;
 
@@ -381,7 +382,18 @@ export default async function GoatPage() {
       );
 
   // =========================================================
-  // ALL-TIME ORDER
+  // GOAT ORDER
+  //
+  // 1. Championships
+  // 2. Finals
+  // 3. Playoffs
+  // 4. Wins
+  // 5. Seasons played
+  // 6. Win %
+  // 7. Career points
+  //
+  // Seasons comes before win % so a new owner with a tiny
+  // sample size does not get artificially boosted.
   // =========================================================
 
   rankings.sort(
@@ -427,6 +439,16 @@ export default async function GoatPage() {
       }
 
       if (
+        b.seasons !==
+        a.seasons
+      ) {
+        return (
+          b.seasons -
+          a.seasons
+        );
+      }
+
+      if (
         b.winPct !==
         a.winPct
       ) {
@@ -451,8 +473,6 @@ export default async function GoatPage() {
 
   // =========================================================
   // HALL OF FAME CARD
-  //
-  // Uses the SAME classes as the Owners page.
   // =========================================================
 
   function HallOfFameCard({
@@ -464,10 +484,6 @@ export default async function GoatPage() {
 
     return (
       <article className="owner-card">
-
-        {/* =========================
-            TOP
-            ========================= */}
 
         <div className="owner-card-top">
 
@@ -481,11 +497,9 @@ export default async function GoatPage() {
 
             </span>
 
-
             <h3>
               {owner.name}
             </h3>
-
 
             <p className="owner-team-name">
 
@@ -516,10 +530,6 @@ export default async function GoatPage() {
 
         </div>
 
-
-        {/* =========================
-            CAREER RECORD
-            ========================= */}
 
         <div className="owner-record">
 
@@ -557,10 +567,6 @@ export default async function GoatPage() {
 
         </div>
 
-
-        {/* =========================
-            CAREER ACCOMPLISHMENTS
-            ========================= */}
 
         <div className="owner-stats-grid">
 
@@ -618,21 +624,19 @@ export default async function GoatPage() {
         </div>
 
 
-        {/* =========================
-            CHAMPIONSHIP YEARS
-            ========================= */}
-
         <div className="owner-record">
 
           <div>
 
             <strong>
+
               {owner.championshipYears.length >
               0
                 ? owner.championshipYears.join(
                     " · "
                   )
                 : "—"}
+
             </strong>
 
             <span>
@@ -661,72 +665,11 @@ export default async function GoatPage() {
         </div>
 
 
-        {/* =========================
-            SIGNATURE SEASON DETAILS
-            ========================= */}
-
-        {signature && (
-
-          <div className="owner-record">
-
-            <div>
-
-              <strong>
-                {formatRecord(
-                  num(
-                    signature.wins
-                  ),
-                  num(
-                    signature.losses
-                  ),
-                  num(
-                    signature.ties
-                  )
-                )}
-              </strong>
-
-              <span>
-                SIGNATURE RECORD
-              </span>
-
-            </div>
-
-
-            <div>
-
-              <strong>
-                {num(
-                  signature.points_for
-                ).toFixed(
-                  2
-                )}
-              </strong>
-
-              <span>
-                SIGNATURE PF
-              </span>
-
-            </div>
-
-          </div>
-
-        )}
-
-
-        {/* =========================
-            BOTTOM
-            ========================= */}
-
         <div className="owner-card-bottom">
 
           <span>
-
-            {rank === 1
-              ? "Dirty P's #1 all-time résumé"
-              : `#${rank} all-time`}
-
+            #{rank} All-Time
           </span>
-
 
           <Link
             href={`/owners/${owner.id}`}
@@ -749,9 +692,7 @@ export default async function GoatPage() {
   return (
     <main className="page-shell">
 
-      {/* =========================
-          HEADER
-          ========================= */}
+      {/* HEADER */}
 
       <header className="site-header">
 
@@ -765,7 +706,6 @@ export default async function GoatPage() {
 
           </Link>
 
-
           <span>
             THE LEAGUE ARCHIVE · EST. 2014
           </span>
@@ -775,28 +715,24 @@ export default async function GoatPage() {
       </header>
 
 
-      {/* =========================
-          HERO
-          ========================= */}
+      {/* HERO */}
 
       <section className="owners-hero">
 
         <div>
 
           <p className="eyebrow">
-            ALL-TIME GREATS
+            ALL-TIME
           </p>
 
-
           <h1>
-            Hall of Fame
+            GOAT Rankings
           </h1>
 
-
           <p>
-            The three greatest résumés
-            in Dirty P Fantasy Football
-            history.
+            Every Dirty P owner ranked by
+            championship success, postseason
+            résumé, winning and longevity.
           </p>
 
         </div>
@@ -805,11 +741,11 @@ export default async function GoatPage() {
         <div className="owners-count">
 
           <strong>
-            3
+            {rankings.length}
           </strong>
 
           <span>
-            INDUCTEES
+            RANKED OWNERS
           </span>
 
         </div>
@@ -817,16 +753,13 @@ export default async function GoatPage() {
       </section>
 
 
-      {/* =========================
-          PAGE NAV
-          ========================= */}
+      {/* NAV */}
 
       <nav className="page-nav">
 
         <Link href="/">
           ← Home
         </Link>
-
 
         <span>
           Career records through 2025
@@ -835,9 +768,9 @@ export default async function GoatPage() {
       </nav>
 
 
-      {/* =========================
-          #1 ALL-TIME
-          ========================= */}
+      {/* =====================================================
+          #1
+          ===================================================== */}
 
       {hallOfFame[0] && (
 
@@ -851,13 +784,11 @@ export default async function GoatPage() {
                 #1 ALL-TIME
               </p>
 
-
               <h2>
                 The GOAT
               </h2>
 
             </div>
-
 
             <span>
               Dirty P Hall of Fame
@@ -878,9 +809,9 @@ export default async function GoatPage() {
       )}
 
 
-      {/* =========================
-          #2 AND #3
-          ========================= */}
+      {/* =====================================================
+          #2 / #3
+          ===================================================== */}
 
       {hallOfFame.length >
         1 && (
@@ -892,16 +823,14 @@ export default async function GoatPage() {
             <div>
 
               <p className="eyebrow">
-                THE ELITE
+                HALL OF FAME
               </p>
 
-
               <h2>
-                Hall of Famers
+                The Top Three
               </h2>
 
             </div>
-
 
             <span>
               #2 & #3 All-Time
@@ -945,9 +874,338 @@ export default async function GoatPage() {
       )}
 
 
-      {/* =========================
-          FOOTER
-          ========================= */}
+      {/* =====================================================
+          FULL GOAT RANKINGS
+          ===================================================== */}
+
+      <section className="owners-section">
+
+        <div className="section-heading">
+
+          <div>
+
+            <p className="eyebrow">
+              ALL-TIME ORDER
+            </p>
+
+            <h2>
+              Complete GOAT Rankings
+            </h2>
+
+          </div>
+
+          <span>
+            {rankings.length} Owners
+          </span>
+
+        </div>
+
+
+        <div className="owners-grid">
+
+          {rankings.map(
+            (
+              owner,
+              index
+            ) => {
+
+              const rank =
+                index + 1;
+
+              const limitedHistory =
+                owner.seasons <= 2;
+
+              return (
+                <article
+                  className="owner-card"
+                  key={owner.id}
+                >
+
+                  {/* TOP */}
+
+                  <div className="owner-card-top">
+
+                    <div>
+
+                      <span className="owner-status">
+
+                        {rank <= 3
+                          ? `HALL OF FAME · #${rank} ALL-TIME`
+                          : `#${rank} ALL-TIME`}
+
+                      </span>
+
+                      <h3>
+                        {owner.name}
+                      </h3>
+
+                      <p className="owner-team-name">
+
+                        {limitedHistory
+                          ? `${owner.seasons} season${
+                              owner.seasons ===
+                              1
+                                ? ""
+                                : "s"
+                            } · Limited league history`
+
+                          : `${owner.firstSeason}–${owner.lastSeason}`}
+
+                      </p>
+
+                    </div>
+
+
+                    <div className="owner-title-count">
+
+                      <strong>
+                        {owner.championships}
+                      </strong>
+
+                      <span>
+                        {owner.championships ===
+                        1
+                          ? "TITLE"
+                          : "TITLES"}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* RECORD */}
+
+                  <div className="owner-record">
+
+                    <div>
+
+                      <strong>
+                        {formatRecord(
+                          owner.wins,
+                          owner.losses,
+                          owner.ties
+                        )}
+                      </strong>
+
+                      <span>
+                        CAREER RECORD
+                      </span>
+
+                    </div>
+
+
+                    <div>
+
+                      <strong>
+                        {owner.winPct.toFixed(
+                          1
+                        )}
+                        %
+                      </strong>
+
+                      <span>
+                        WIN %
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* RESUME */}
+
+                  <div className="owner-stats-grid">
+
+                    <div>
+
+                      <strong>
+                        {owner.seasons}
+                      </strong>
+
+                      <span>
+                        Seasons
+                      </span>
+
+                    </div>
+
+
+                    <div>
+
+                      <strong>
+                        {owner.playoffAppearances}
+                      </strong>
+
+                      <span>
+                        Playoffs
+                      </span>
+
+                    </div>
+
+
+                    <div>
+
+                      <strong>
+                        {owner.finalsAppearances}
+                      </strong>
+
+                      <span>
+                        Finals
+                      </span>
+
+                    </div>
+
+
+                    <div>
+
+                      <strong>
+                        {owner.championships}
+                      </strong>
+
+                      <span>
+                        Titles
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* BOTTOM */}
+
+                  <div className="owner-card-bottom">
+
+                    <span>
+
+                      {limitedHistory
+                        ? "Limited Dirty P history"
+                        : `#${rank} all-time résumé`}
+
+                    </span>
+
+                    <Link
+                      href={`/owners/${owner.id}`}
+                    >
+                      <strong>
+                        View Owner →
+                      </strong>
+                    </Link>
+
+                  </div>
+
+                </article>
+              );
+            }
+          )}
+
+        </div>
+
+      </section>
+
+
+      {/* =====================================================
+          RANKING METHOD
+          ===================================================== */}
+
+      <section className="owners-section">
+
+        <article className="owner-card">
+
+          <div className="owner-card-top">
+
+            <div>
+
+              <span className="owner-status">
+                RANKING METHOD
+              </span>
+
+              <h3>
+                How the GOAT Rankings Work
+              </h3>
+
+              <p className="owner-team-name">
+                Résumé first. Sample size matters.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div className="owner-stats-grid">
+
+            <div>
+
+              <strong>
+                1
+              </strong>
+
+              <span>
+                Titles
+              </span>
+
+            </div>
+
+
+            <div>
+
+              <strong>
+                2
+              </strong>
+
+              <span>
+                Finals
+              </span>
+
+            </div>
+
+
+            <div>
+
+              <strong>
+                3
+              </strong>
+
+              <span>
+                Playoffs
+              </span>
+
+            </div>
+
+
+            <div>
+
+              <strong>
+                4
+              </strong>
+
+              <span>
+                Wins
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <div className="owner-card-bottom">
+
+            <span>
+              Then longevity, win percentage and career points
+            </span>
+
+            <strong>
+              ALL-TIME
+            </strong>
+
+          </div>
+
+        </article>
+
+      </section>
+
+
+      {/* FOOTER */}
 
       <footer className="site-footer">
 
@@ -955,11 +1213,9 @@ export default async function GoatPage() {
           Dirty P Fantasy Football
         </strong>
 
-
         <span>
           The League Archive · Est. 2014
         </span>
-
 
         <p>
           Independent fantasy league archive.
