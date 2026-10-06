@@ -3,41 +3,82 @@ import { supabase } from "../../lib/supabase";
 
 export const dynamic = "force-dynamic";
 
+const CURRENT_SEASON = 2026;
+
+// =========================================================
+// HELPERS
+// =========================================================
+
 function number(value) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  const parsed =
+    Number(value);
+
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
 }
 
 function formatScore(value) {
-  return number(value).toFixed(2);
+  return number(
+    value
+  ).toFixed(2);
 }
 
 function getGameType(game) {
-  const matchupType = String(game.matchup_type || "")
-    .trim()
-    .toLowerCase();
+  const matchupType =
+    String(
+      game.matchup_type ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
 
-  const playoffTier = String(game.playoff_tier || "")
-    .trim()
-    .toLowerCase();
+  const playoffTier =
+    String(
+      game.playoff_tier ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
 
   if (
-    matchupType === "consolation" ||
-    matchupType.includes("consolation") ||
-    playoffTier.includes("consolation") ||
-    playoffTier.includes("losers") ||
-    playoffTier.includes("loser")
+    matchupType ===
+      "consolation" ||
+    matchupType.includes(
+      "consolation"
+    ) ||
+    playoffTier.includes(
+      "consolation"
+    ) ||
+    playoffTier.includes(
+      "losers"
+    ) ||
+    playoffTier.includes(
+      "loser"
+    )
   ) {
     return "consolation";
   }
 
   if (
-    matchupType === "playoff" ||
-    matchupType.includes("championship") ||
-    playoffTier.includes("winners_bracket") ||
-    playoffTier.includes("winner") ||
-    playoffTier.includes("championship") ||
-    game.is_championship === true
+    matchupType ===
+      "playoff" ||
+    matchupType.includes(
+      "championship"
+    ) ||
+    playoffTier.includes(
+      "winners_bracket"
+    ) ||
+    playoffTier.includes(
+      "winner"
+    ) ||
+    playoffTier.includes(
+      "championship"
+    ) ||
+    game.is_championship ===
+      true
   ) {
     return "playoff";
   }
@@ -48,58 +89,167 @@ function getGameType(game) {
 function gameSides(game) {
   return [
     {
-      ownerId: Number(game.home_owner_id),
-      teamName: game.home_team_name || "Unknown Team",
-      score: number(game.home_score),
-      opponentOwnerId: Number(game.away_owner_id),
-      opponentTeamName: game.away_team_name || "Unknown Team",
-      opponentScore: number(game.away_score),
-      side: "HOME",
-      season_year: Number(game.season_year),
-      matchup_period: Number(game.matchup_period),
-      matchup_type: game.matchup_type,
-      playoff_tier: game.playoff_tier,
+      ownerId:
+        Number(
+          game.home_owner_id
+        ),
+
+      teamName:
+        game.home_team_name ||
+        "Unknown Team",
+
+      score:
+        number(
+          game.home_score
+        ),
+
+      opponentOwnerId:
+        Number(
+          game.away_owner_id
+        ),
+
+      opponentTeamName:
+        game.away_team_name ||
+        "Unknown Team",
+
+      opponentScore:
+        number(
+          game.away_score
+        ),
+
+      side:
+        "HOME",
+
+      season_year:
+        Number(
+          game.season_year
+        ),
+
+      matchup_period:
+        Number(
+          game.matchup_period
+        ),
     },
+
     {
-      ownerId: Number(game.away_owner_id),
-      teamName: game.away_team_name || "Unknown Team",
-      score: number(game.away_score),
-      opponentOwnerId: Number(game.home_owner_id),
-      opponentTeamName: game.home_team_name || "Unknown Team",
-      opponentScore: number(game.home_score),
-      side: "AWAY",
-      season_year: Number(game.season_year),
-      matchup_period: Number(game.matchup_period),
-      matchup_type: game.matchup_type,
-      playoff_tier: game.playoff_tier,
+      ownerId:
+        Number(
+          game.away_owner_id
+        ),
+
+      teamName:
+        game.away_team_name ||
+        "Unknown Team",
+
+      score:
+        number(
+          game.away_score
+        ),
+
+      opponentOwnerId:
+        Number(
+          game.home_owner_id
+        ),
+
+      opponentTeamName:
+        game.home_team_name ||
+        "Unknown Team",
+
+      opponentScore:
+        number(
+          game.home_score
+        ),
+
+      side:
+        "AWAY",
+
+      season_year:
+        Number(
+          game.season_year
+        ),
+
+      matchup_period:
+        Number(
+          game.matchup_period
+        ),
     },
   ];
 }
 
-function resultForSide(game, side) {
-  const winner = String(game.winner || "").toUpperCase();
+function resultForSide(
+  game,
+  side
+) {
+  const winner =
+    String(
+      game.winner || ""
+    ).toUpperCase();
 
-  if (winner === "TIE") return "T";
-  if (winner === side) return "W";
-  if (winner === "HOME" || winner === "AWAY") return "L";
-
-  const home = number(game.home_score);
-  const away = number(game.away_score);
-
-  if (home === away) return "T";
-
-  if (side === "HOME") {
-    return home > away ? "W" : "L";
+  if (
+    winner === "TIE"
+  ) {
+    return "T";
   }
 
-  return away > home ? "W" : "L";
+  if (
+    winner === side
+  ) {
+    return "W";
+  }
+
+  if (
+    winner === "HOME" ||
+    winner === "AWAY"
+  ) {
+    return "L";
+  }
+
+  const home =
+    number(
+      game.home_score
+    );
+
+  const away =
+    number(
+      game.away_score
+    );
+
+  if (
+    home === away
+  ) {
+    return "T";
+  }
+
+  if (
+    side === "HOME"
+  ) {
+    return home > away
+      ? "W"
+      : "L";
+  }
+
+  return away > home
+    ? "W"
+    : "L";
 }
 
-function getOwnerName(ownerMap, ownerId) {
-  return ownerMap.get(Number(ownerId)) || "Unknown Owner";
+function getOwnerName(
+  ownerMap,
+  ownerId
+) {
+  return (
+    ownerMap.get(
+      Number(ownerId)
+    ) ||
+    "Unknown Owner"
+  );
 }
 
-function recordCard({
+// =========================================================
+// OWNER-STYLE RECORD CARD
+// =========================================================
+
+function RecordCard({
   label,
   value,
   owner,
@@ -108,418 +258,915 @@ function recordCard({
   opponent,
 }) {
   return (
-    <div className="record-book-card">
-      <span className="record-book-label">{label}</span>
+    <article className="owner-card">
 
-      <strong className="record-book-value">{value}</strong>
+      <div className="owner-card-top">
 
-      <div className="record-book-owner">{owner}</div>
+        <div>
 
-      {team ? (
-        <div className="record-book-team">{team}</div>
-      ) : null}
+          <span className="owner-status">
+            {label}
+          </span>
 
-      {detail ? (
-        <div className="record-book-detail">{detail}</div>
-      ) : null}
+          <h3>
+            {value}
+          </h3>
 
-      {opponent ? (
-        <div className="record-book-opponent">{opponent}</div>
-      ) : null}
-    </div>
+          <p className="owner-team-name">
+            {owner}
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div className="owner-record">
+
+        <div>
+
+          <strong>
+            {team || "Career"}
+          </strong>
+
+          <span>
+            CONTEXT
+          </span>
+
+        </div>
+
+
+        <div>
+
+          <strong>
+            {detail || "—"}
+          </strong>
+
+          <span>
+            DETAIL
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <div className="owner-card-bottom">
+
+        <span>
+          {opponent ||
+            "Dirty P Fantasy Football"}
+        </span>
+
+        <strong>
+          RECORD BOOK
+        </strong>
+
+      </div>
+
+    </article>
   );
 }
 
+// =========================================================
+// PAGE
+// =========================================================
+
 export default async function RecordsPage() {
-  const [{ data: owners }, { data: matchupData }] =
+  const [
+    {
+      data: owners,
+      error: ownersError,
+    },
+    {
+      data: matchupData,
+      error: matchupError,
+    },
+  ] =
     await Promise.all([
-      supabase.from("owners").select("id, name"),
+      supabase
+        .from("owners")
+        .select(
+          "id, name"
+        ),
+
       supabase
         .from("matchups")
         .select("*")
-        .lt("season_year", 2026)
-        .order("season_year", { ascending: true })
-        .order("matchup_period", { ascending: true }),
+        .lt(
+          "season_year",
+          CURRENT_SEASON
+        )
+        .order(
+          "season_year",
+          {
+            ascending:
+              true,
+          }
+        )
+        .order(
+          "matchup_period",
+          {
+            ascending:
+              true,
+          }
+        ),
     ]);
 
-  const ownerMap = new Map(
-    (owners || []).map((owner) => [
-      Number(owner.id),
-      owner.name,
-    ])
-  );
-
-  const completedGames = (matchupData || []).filter((game) => {
-    const home = Number(game.home_score);
-    const away = Number(game.away_score);
-
+  if (
+    ownersError ||
+    matchupError
+  ) {
     return (
-      game.home_score !== null &&
-      game.away_score !== null &&
-      Number.isFinite(home) &&
-      Number.isFinite(away) &&
-      !(home === 0 && away === 0)
-    );
-  });
+      <main className="page-shell">
 
-  const completedSeasonYears = [
-    ...new Set(
-      completedGames.map((game) => Number(game.season_year))
-    ),
-  ]
-    .filter((year) => Number.isFinite(year))
-    .sort((a, b) => a - b);
+        <h1>
+          Records
+        </h1>
+
+        <p>
+          Database error:{" "}
+          {ownersError?.message ||
+            matchupError?.message}
+        </p>
+
+      </main>
+    );
+  }
+
+  const ownerMap =
+    new Map(
+      (owners || []).map(
+        (owner) => [
+          Number(owner.id),
+          owner.name,
+        ]
+      )
+    );
+
+  const completedGames =
+    (
+      matchupData ||
+      []
+    ).filter(
+      (game) => {
+        const home =
+          Number(
+            game.home_score
+          );
+
+        const away =
+          Number(
+            game.away_score
+          );
+
+        return (
+          game.home_score !==
+            null &&
+          game.away_score !==
+            null &&
+          Number.isFinite(
+            home
+          ) &&
+          Number.isFinite(
+            away
+          ) &&
+          !(
+            home === 0 &&
+            away === 0
+          )
+        );
+      }
+    );
+
+  const completedSeasonYears =
+    [
+      ...new Set(
+        completedGames.map(
+          (game) =>
+            Number(
+              game.season_year
+            )
+        )
+      ),
+    ]
+      .filter(
+        (year) =>
+          Number.isFinite(
+            year
+          )
+      )
+      .sort(
+        (a, b) =>
+          a - b
+      );
 
   const firstSeason =
-    completedSeasonYears[0] || 2014;
+    completedSeasonYears[0] ||
+    2014;
 
   const latestCompletedSeason =
     completedSeasonYears[
-      completedSeasonYears.length - 1
+      completedSeasonYears.length -
+        1
     ] || 2025;
 
-  const completedSeasonCount =
-    completedSeasonYears.length;
+  const regularGames =
+    completedGames.filter(
+      (game) =>
+        getGameType(
+          game
+        ) === "regular"
+    );
 
-  const regularGames = completedGames.filter(
-    (game) => getGameType(game) === "regular"
-  );
-
-  const playoffGames = completedGames.filter(
-    (game) => getGameType(game) === "playoff"
-  );
-
-  const consolationGames = completedGames.filter(
-    (game) => getGameType(game) === "consolation"
-  );
+  const playoffGames =
+    completedGames.filter(
+      (game) =>
+        getGameType(
+          game
+        ) === "playoff"
+    );
 
   const officialGames = [
     ...regularGames,
     ...playoffGames,
   ];
 
-  const championshipGames = playoffGames.filter(
-    (game) => game.is_championship === true
-  );
-
-  const officialSides = officialGames.flatMap(gameSides);
-  const regularSides = regularGames.flatMap(gameSides);
-  const playoffSides = playoffGames.flatMap(gameSides);
-
-  // ======================================================
-  // SINGLE GAME RECORDS
-  // ======================================================
-
-  const highestRegularScore = [...regularSides].sort(
-    (a, b) => b.score - a.score
-  )[0];
-
-  const lowestRegularScore = [...regularSides]
-    .filter((side) => side.score > 0)
-    .sort((a, b) => a.score - b.score)[0];
-
-  const highestOverallScore = [...officialSides].sort(
-    (a, b) => b.score - a.score
-  )[0];
-
-  const highestPlayoffScore = [...playoffSides].sort(
-    (a, b) => b.score - a.score
-  )[0];
-
-  const biggestRegularWin = [...regularGames]
-    .filter(
+  const championshipGames =
+    playoffGames.filter(
       (game) =>
-        number(game.home_score) > 0 ||
-        number(game.away_score) > 0
-    )
-    .map((game) => ({
-      game,
-      margin: Math.abs(
-        number(game.home_score) -
-          number(game.away_score)
-      ),
-    }))
-    .sort((a, b) => b.margin - a.margin)[0];
+        game.is_championship ===
+        true
+    );
 
-  const closestRegularGame = [...regularGames]
-    .filter(
-      (game) =>
-        number(game.home_score) !==
-        number(game.away_score)
-    )
-    .map((game) => ({
-      game,
-      margin: Math.abs(
-        number(game.home_score) -
-          number(game.away_score)
-      ),
-    }))
-    .sort((a, b) => a.margin - b.margin)[0];
+  const officialSides =
+    officialGames.flatMap(
+      gameSides
+    );
 
-  // ======================================================
-  // SEASON RECORDS
-  // ======================================================
+  const regularSides =
+    regularGames.flatMap(
+      gameSides
+    );
 
-  const seasonStats = new Map();
+  const playoffSides =
+    playoffGames.flatMap(
+      gameSides
+    );
 
-  for (const game of regularGames) {
-    for (const side of gameSides(game)) {
-      const key = `${game.season_year}-${side.ownerId}`;
+  // =========================================================
+  // SINGLE GAME
+  // =========================================================
 
-      if (!seasonStats.has(key)) {
-        seasonStats.set(key, {
-          season: Number(game.season_year),
-          ownerId: side.ownerId,
-          teamName: side.teamName,
-          wins: 0,
-          losses: 0,
-          ties: 0,
-          pointsFor: 0,
-          pointsAgainst: 0,
-          games: 0,
-        });
+  const highestRegularScore =
+    [...regularSides].sort(
+      (a, b) =>
+        b.score -
+        a.score
+    )[0];
+
+  const lowestRegularScore =
+    [...regularSides]
+      .filter(
+        (side) =>
+          side.score > 0
+      )
+      .sort(
+        (a, b) =>
+          a.score -
+          b.score
+      )[0];
+
+  const highestOverallScore =
+    [...officialSides].sort(
+      (a, b) =>
+        b.score -
+        a.score
+    )[0];
+
+  const highestPlayoffScore =
+    [...playoffSides].sort(
+      (a, b) =>
+        b.score -
+        a.score
+    )[0];
+
+  const biggestRegularWin =
+    [...regularGames]
+      .map(
+        (game) => ({
+          game,
+
+          margin:
+            Math.abs(
+              number(
+                game.home_score
+              ) -
+                number(
+                  game.away_score
+                )
+            ),
+        })
+      )
+      .sort(
+        (a, b) =>
+          b.margin -
+          a.margin
+      )[0];
+
+  const closestRegularGame =
+    [...regularGames]
+      .filter(
+        (game) =>
+          number(
+            game.home_score
+          ) !==
+          number(
+            game.away_score
+          )
+      )
+      .map(
+        (game) => ({
+          game,
+
+          margin:
+            Math.abs(
+              number(
+                game.home_score
+              ) -
+                number(
+                  game.away_score
+                )
+            ),
+        })
+      )
+      .sort(
+        (a, b) =>
+          a.margin -
+          b.margin
+      )[0];
+
+  // =========================================================
+  // SEASON STATS
+  // =========================================================
+
+  const seasonStats =
+    new Map();
+
+  for (
+    const game of
+    regularGames
+  ) {
+    for (
+      const side of
+      gameSides(game)
+    ) {
+      const key =
+        `${game.season_year}-${side.ownerId}`;
+
+      if (
+        !seasonStats.has(
+          key
+        )
+      ) {
+        seasonStats.set(
+          key,
+          {
+            season:
+              Number(
+                game.season_year
+              ),
+
+            ownerId:
+              side.ownerId,
+
+            teamName:
+              side.teamName,
+
+            wins: 0,
+            losses: 0,
+            ties: 0,
+
+            pointsFor: 0,
+            pointsAgainst: 0,
+
+            games: 0,
+          }
+        );
       }
 
-      const stat = seasonStats.get(key);
-      const result = resultForSide(game, side.side);
+      const stat =
+        seasonStats.get(
+          key
+        );
 
-      stat.games += 1;
-      stat.pointsFor += side.score;
-      stat.pointsAgainst += side.opponentScore;
-
-      if (result === "W") stat.wins += 1;
-      if (result === "L") stat.losses += 1;
-      if (result === "T") stat.ties += 1;
-    }
-  }
-
-  const seasonRows = [...seasonStats.values()].map(
-    (row) => ({
-      ...row,
-      winPct:
-        row.games > 0
-          ? (row.wins + row.ties * 0.5) / row.games
-          : 0,
-      average:
-        row.games > 0
-          ? row.pointsFor / row.games
-          : 0,
-    })
-  );
-
-  const mostWinsSeason = [...seasonRows].sort(
-    (a, b) => {
-      if (b.wins !== a.wins) {
-        return b.wins - a.wins;
-      }
-
-      return b.winPct - a.winPct;
-    }
-  )[0];
-
-  const bestSeasonRecord = [...seasonRows].sort(
-    (a, b) => {
-      if (b.winPct !== a.winPct) {
-        return b.winPct - a.winPct;
-      }
-
-      if (b.wins !== a.wins) {
-        return b.wins - a.wins;
-      }
-
-      return b.pointsFor - a.pointsFor;
-    }
-  )[0];
-
-  const mostPointsSeason = [...seasonRows].sort(
-    (a, b) => b.pointsFor - a.pointsFor
-  )[0];
-
-  const bestAverageSeason = [...seasonRows].sort(
-    (a, b) => b.average - a.average
-  )[0];
-
-  // ======================================================
-  // CAREER REGULAR SEASON RECORDS
-  // ======================================================
-
-  const careerStats = new Map();
-
-  for (const game of regularGames) {
-    for (const side of gameSides(game)) {
-      if (!careerStats.has(side.ownerId)) {
-        careerStats.set(side.ownerId, {
-          ownerId: side.ownerId,
-          wins: 0,
-          losses: 0,
-          ties: 0,
-          games: 0,
-          pointsFor: 0,
-          seasons: new Set(),
-        });
-      }
-
-      const stat = careerStats.get(side.ownerId);
-      const result = resultForSide(game, side.side);
-
-      stat.games += 1;
-      stat.pointsFor += side.score;
-      stat.seasons.add(Number(game.season_year));
-
-      if (result === "W") stat.wins += 1;
-      if (result === "L") stat.losses += 1;
-      if (result === "T") stat.ties += 1;
-    }
-  }
-
-  const careerRows = [...careerStats.values()].map(
-    (row) => ({
-      ...row,
-      winPct:
-        row.games > 0
-          ? (row.wins + row.ties * 0.5) / row.games
-          : 0,
-    })
-  );
-
-  const mostCareerWins = [...careerRows].sort(
-    (a, b) => b.wins - a.wins
-  )[0];
-
-  const mostCareerPoints = [...careerRows].sort(
-    (a, b) => b.pointsFor - a.pointsFor
-  )[0];
-
-  const bestCareerWinPct = [...careerRows]
-    .filter((row) => row.games >= 20)
-    .sort((a, b) => {
-      if (b.winPct !== a.winPct) {
-        return b.winPct - a.winPct;
-      }
-
-      return b.wins - a.wins;
-    })[0];
-
-  // ======================================================
-  // PLAYOFF CAREER RECORDS
-  // ======================================================
-
-  const playoffStats = new Map();
-
-  for (const game of playoffGames) {
-    for (const side of gameSides(game)) {
-      if (!playoffStats.has(side.ownerId)) {
-        playoffStats.set(side.ownerId, {
-          ownerId: side.ownerId,
-          wins: 0,
-          losses: 0,
-          ties: 0,
-          games: 0,
-        });
-      }
-
-      const stat = playoffStats.get(side.ownerId);
-      const result = resultForSide(game, side.side);
+      const result =
+        resultForSide(
+          game,
+          side.side
+        );
 
       stat.games += 1;
 
-      if (result === "W") stat.wins += 1;
-      if (result === "L") stat.losses += 1;
-      if (result === "T") stat.ties += 1;
+      stat.pointsFor +=
+        side.score;
+
+      stat.pointsAgainst +=
+        side.opponentScore;
+
+      if (
+        result === "W"
+      ) {
+        stat.wins += 1;
+      }
+
+      if (
+        result === "L"
+      ) {
+        stat.losses += 1;
+      }
+
+      if (
+        result === "T"
+      ) {
+        stat.ties += 1;
+      }
     }
   }
 
-  const playoffRows = [...playoffStats.values()];
+  const seasonRows =
+    [...seasonStats.values()].map(
+      (row) => ({
+        ...row,
 
-  const mostPlayoffWins = [...playoffRows].sort(
-    (a, b) => b.wins - a.wins
-  )[0];
+        winPct:
+          row.games > 0
+            ? (
+                row.wins +
+                row.ties *
+                  0.5
+              ) /
+              row.games
+            : 0,
 
-  // ======================================================
-  // CHAMPIONSHIP RECORDS
-  // ======================================================
+        average:
+          row.games > 0
+            ? row.pointsFor /
+              row.games
+            : 0,
+      })
+    );
 
-  const championshipDetails = championshipGames.map(
-    (game) => {
-      const sides = gameSides(game);
-      const homeScore = number(game.home_score);
-      const awayScore = number(game.away_score);
+  const mostWinsSeason =
+    [...seasonRows].sort(
+      (a, b) => {
+        if (
+          b.wins !== a.wins
+        ) {
+          return (
+            b.wins -
+            a.wins
+          );
+        }
 
-      let winnerSide;
+        return (
+          b.winPct -
+          a.winPct
+        );
+      }
+    )[0];
 
-      const officialWinner = String(
-        game.winner || ""
-      ).toUpperCase();
+  const bestSeasonRecord =
+    [...seasonRows].sort(
+      (a, b) => {
+        if (
+          b.winPct !==
+          a.winPct
+        ) {
+          return (
+            b.winPct -
+            a.winPct
+          );
+        }
 
-      if (officialWinner === "HOME") {
-        winnerSide = sides[0];
-      } else if (officialWinner === "AWAY") {
-        winnerSide = sides[1];
-      } else {
-        winnerSide =
-          homeScore >= awayScore
-            ? sides[0]
-            : sides[1];
+        if (
+          b.wins !==
+          a.wins
+        ) {
+          return (
+            b.wins -
+            a.wins
+          );
+        }
+
+        return (
+          b.pointsFor -
+          a.pointsFor
+        );
+      }
+    )[0];
+
+  const mostPointsSeason =
+    [...seasonRows].sort(
+      (a, b) =>
+        b.pointsFor -
+        a.pointsFor
+    )[0];
+
+  const bestAverageSeason =
+    [...seasonRows].sort(
+      (a, b) =>
+        b.average -
+        a.average
+    )[0];
+
+  // =========================================================
+  // CAREER STATS
+  // =========================================================
+
+  const careerStats =
+    new Map();
+
+  for (
+    const game of
+    regularGames
+  ) {
+    for (
+      const side of
+      gameSides(game)
+    ) {
+      if (
+        !careerStats.has(
+          side.ownerId
+        )
+      ) {
+        careerStats.set(
+          side.ownerId,
+          {
+            ownerId:
+              side.ownerId,
+
+            wins: 0,
+            losses: 0,
+            ties: 0,
+
+            games: 0,
+
+            pointsFor: 0,
+
+            seasons:
+              new Set(),
+          }
+        );
       }
 
-      return {
-        game,
-        winnerSide,
-        margin: Math.abs(homeScore - awayScore),
-        combined: homeScore + awayScore,
-        highScore: Math.max(homeScore, awayScore),
-      };
-    }
-  );
+      const stat =
+        careerStats.get(
+          side.ownerId
+        );
 
-  const closestChampionship = [
-    ...championshipDetails,
-  ].sort((a, b) => a.margin - b.margin)[0];
+      const result =
+        resultForSide(
+          game,
+          side.side
+        );
 
-  const biggestChampionship = [
-    ...championshipDetails,
-  ].sort((a, b) => b.margin - a.margin)[0];
+      stat.games += 1;
 
-  const highestChampionshipScore = [
-    ...championshipDetails,
-  ].sort((a, b) => b.highScore - a.highScore)[0];
+      stat.pointsFor +=
+        side.score;
 
-  const highestCombinedChampionship = [
-    ...championshipDetails,
-  ].sort((a, b) => b.combined - a.combined)[0];
+      stat.seasons.add(
+        Number(
+          game.season_year
+        )
+      );
 
-  // ======================================================
-  // WINNING / LOSING STREAKS
-  // ======================================================
-
-  const gamesByOwner = new Map();
-
-  for (const game of regularGames) {
-    for (const side of gameSides(game)) {
-      if (!gamesByOwner.has(side.ownerId)) {
-        gamesByOwner.set(side.ownerId, []);
+      if (
+        result === "W"
+      ) {
+        stat.wins += 1;
       }
 
-      gamesByOwner.get(side.ownerId).push({
-        season: Number(game.season_year),
-        week: Number(game.matchup_period),
-        result: resultForSide(game, side.side),
-        teamName: side.teamName,
-      });
+      if (
+        result === "L"
+      ) {
+        stat.losses += 1;
+      }
+
+      if (
+        result === "T"
+      ) {
+        stat.ties += 1;
+      }
     }
   }
 
-  let longestWinStreak = null;
-  let longestLossStreak = null;
+  const careerRows =
+    [...careerStats.values()].map(
+      (row) => ({
+        ...row,
 
-  for (const [ownerId, games] of gamesByOwner.entries()) {
-    games.sort((a, b) => {
-      if (a.season !== b.season) {
-        return a.season - b.season;
+        winPct:
+          row.games > 0
+            ? (
+                row.wins +
+                row.ties *
+                  0.5
+              ) /
+              row.games
+            : 0,
+      })
+    );
+
+  const mostCareerWins =
+    [...careerRows].sort(
+      (a, b) =>
+        b.wins -
+        a.wins
+    )[0];
+
+  const mostCareerPoints =
+    [...careerRows].sort(
+      (a, b) =>
+        b.pointsFor -
+        a.pointsFor
+    )[0];
+
+  const bestCareerWinPct =
+    [...careerRows]
+      .filter(
+        (row) =>
+          row.games >= 20
+      )
+      .sort(
+        (a, b) => {
+          if (
+            b.winPct !==
+            a.winPct
+          ) {
+            return (
+              b.winPct -
+              a.winPct
+            );
+          }
+
+          return (
+            b.wins -
+            a.wins
+          );
+        }
+      )[0];
+
+  // =========================================================
+  // PLAYOFF CAREER
+  // =========================================================
+
+  const playoffStats =
+    new Map();
+
+  for (
+    const game of
+    playoffGames
+  ) {
+    for (
+      const side of
+      gameSides(game)
+    ) {
+      if (
+        !playoffStats.has(
+          side.ownerId
+        )
+      ) {
+        playoffStats.set(
+          side.ownerId,
+          {
+            ownerId:
+              side.ownerId,
+
+            wins: 0,
+            losses: 0,
+            ties: 0,
+          }
+        );
       }
 
-      return a.week - b.week;
-    });
+      const stat =
+        playoffStats.get(
+          side.ownerId
+        );
+
+      const result =
+        resultForSide(
+          game,
+          side.side
+        );
+
+      if (
+        result === "W"
+      ) {
+        stat.wins += 1;
+      }
+
+      if (
+        result === "L"
+      ) {
+        stat.losses += 1;
+      }
+
+      if (
+        result === "T"
+      ) {
+        stat.ties += 1;
+      }
+    }
+  }
+
+  const mostPlayoffWins =
+    [
+      ...playoffStats.values(),
+    ].sort(
+      (a, b) =>
+        b.wins -
+        a.wins
+    )[0];
+
+  // =========================================================
+  // CHAMPIONSHIP GAMES
+  // =========================================================
+
+  const championshipDetails =
+    championshipGames.map(
+      (game) => {
+        const sides =
+          gameSides(game);
+
+        const homeScore =
+          number(
+            game.home_score
+          );
+
+        const awayScore =
+          number(
+            game.away_score
+          );
+
+        let winnerSide;
+
+        const officialWinner =
+          String(
+            game.winner || ""
+          ).toUpperCase();
+
+        if (
+          officialWinner ===
+          "HOME"
+        ) {
+          winnerSide =
+            sides[0];
+        } else if (
+          officialWinner ===
+          "AWAY"
+        ) {
+          winnerSide =
+            sides[1];
+        } else {
+          winnerSide =
+            homeScore >=
+            awayScore
+              ? sides[0]
+              : sides[1];
+        }
+
+        return {
+          game,
+          winnerSide,
+
+          margin:
+            Math.abs(
+              homeScore -
+                awayScore
+            ),
+
+          combined:
+            homeScore +
+            awayScore,
+
+          highScore:
+            Math.max(
+              homeScore,
+              awayScore
+            ),
+        };
+      }
+    );
+
+  const closestChampionship =
+    [
+      ...championshipDetails,
+    ].sort(
+      (a, b) =>
+        a.margin -
+        b.margin
+    )[0];
+
+  const biggestChampionship =
+    [
+      ...championshipDetails,
+    ].sort(
+      (a, b) =>
+        b.margin -
+        a.margin
+    )[0];
+
+  const highestChampionshipScore =
+    [
+      ...championshipDetails,
+    ].sort(
+      (a, b) =>
+        b.highScore -
+        a.highScore
+    )[0];
+
+  const highestCombinedChampionship =
+    [
+      ...championshipDetails,
+    ].sort(
+      (a, b) =>
+        b.combined -
+        a.combined
+    )[0];
+
+  // =========================================================
+  // STREAKS
+  // =========================================================
+
+  const gamesByOwner =
+    new Map();
+
+  for (
+    const game of
+    regularGames
+  ) {
+    for (
+      const side of
+      gameSides(game)
+    ) {
+      if (
+        !gamesByOwner.has(
+          side.ownerId
+        )
+      ) {
+        gamesByOwner.set(
+          side.ownerId,
+          []
+        );
+      }
+
+      gamesByOwner
+        .get(
+          side.ownerId
+        )
+        .push({
+          season:
+            Number(
+              game.season_year
+            ),
+
+          week:
+            Number(
+              game.matchup_period
+            ),
+
+          result:
+            resultForSide(
+              game,
+              side.side
+            ),
+        });
+    }
+  }
+
+  let longestWinStreak =
+    null;
+
+  let longestLossStreak =
+    null;
+
+  for (
+    const [
+      ownerId,
+      games,
+    ] of
+    gamesByOwner.entries()
+  ) {
+    games.sort(
+      (a, b) =>
+        a.season -
+          b.season ||
+        a.week -
+          b.week
+    );
 
     let currentWins = 0;
     let currentLosses = 0;
@@ -527,12 +1174,24 @@ export default async function RecordsPage() {
     let winStart = null;
     let lossStart = null;
 
-    for (const game of games) {
-      if (game.result === "W") {
-        if (currentWins === 0) {
+    for (
+      const game of
+      games
+    ) {
+      if (
+        game.result ===
+        "W"
+      ) {
+        if (
+          currentWins ===
+          0
+        ) {
           winStart = {
-            season: game.season,
-            week: game.week,
+            season:
+              game.season,
+
+            week:
+              game.week,
           };
         }
 
@@ -542,24 +1201,40 @@ export default async function RecordsPage() {
 
         if (
           !longestWinStreak ||
-          currentWins > longestWinStreak.count
+          currentWins >
+            longestWinStreak.count
         ) {
           longestWinStreak = {
             ownerId,
-            count: currentWins,
-            start: winStart,
+            count:
+              currentWins,
+
+            start:
+              winStart,
+
             end: {
-              season: game.season,
-              week: game.week,
+              season:
+                game.season,
+
+              week:
+                game.week,
             },
-            teamName: game.teamName,
           };
         }
-      } else if (game.result === "L") {
-        if (currentLosses === 0) {
+      } else if (
+        game.result ===
+        "L"
+      ) {
+        if (
+          currentLosses ===
+          0
+        ) {
           lossStart = {
-            season: game.season,
-            week: game.week,
+            season:
+              game.season,
+
+            week:
+              game.week,
           };
         }
 
@@ -569,76 +1244,142 @@ export default async function RecordsPage() {
 
         if (
           !longestLossStreak ||
-          currentLosses > longestLossStreak.count
+          currentLosses >
+            longestLossStreak.count
         ) {
           longestLossStreak = {
             ownerId,
-            count: currentLosses,
-            start: lossStart,
+            count:
+              currentLosses,
+
+            start:
+              lossStart,
+
             end: {
-              season: game.season,
-              week: game.week,
+              season:
+                game.season,
+
+              week:
+                game.week,
             },
-            teamName: game.teamName,
           };
         }
       } else {
         currentWins = 0;
         currentLosses = 0;
+
         winStart = null;
         lossStart = null;
       }
     }
   }
 
-  function winnerFromGame(game) {
-    if (!game) return null;
+  // =========================================================
+  // WINNER HELPERS
+  // =========================================================
 
-    const sides = gameSides(game);
-    const winner = String(
-      game.winner || ""
-    ).toUpperCase();
+  function winnerFromGame(
+    game
+  ) {
+    if (!game) {
+      return null;
+    }
 
-    if (winner === "HOME") return sides[0];
-    if (winner === "AWAY") return sides[1];
+    const sides =
+      gameSides(game);
+
+    const winner =
+      String(
+        game.winner || ""
+      ).toUpperCase();
+
+    if (
+      winner === "HOME"
+    ) {
+      return sides[0];
+    }
+
+    if (
+      winner === "AWAY"
+    ) {
+      return sides[1];
+    }
 
     return [...sides].sort(
-      (a, b) => b.score - a.score
+      (a, b) =>
+        b.score -
+        a.score
     )[0];
   }
 
-  function loserFromGame(game) {
-    if (!game) return null;
+  function loserFromGame(
+    game
+  ) {
+    if (!game) {
+      return null;
+    }
 
-    const sides = gameSides(game);
-    const winner = String(
-      game.winner || ""
-    ).toUpperCase();
+    const sides =
+      gameSides(game);
 
-    if (winner === "HOME") return sides[1];
-    if (winner === "AWAY") return sides[0];
+    const winner =
+      String(
+        game.winner || ""
+      ).toUpperCase();
+
+    if (
+      winner === "HOME"
+    ) {
+      return sides[1];
+    }
+
+    if (
+      winner === "AWAY"
+    ) {
+      return sides[0];
+    }
 
     return [...sides].sort(
-      (a, b) => a.score - b.score
+      (a, b) =>
+        a.score -
+        b.score
     )[0];
   }
 
-  const biggestWinWinner = biggestRegularWin
-    ? winnerFromGame(biggestRegularWin.game)
-    : null;
+  const biggestWinWinner =
+    biggestRegularWin
+      ? winnerFromGame(
+          biggestRegularWin.game
+        )
+      : null;
 
-  const closestWinner = closestRegularGame
-    ? winnerFromGame(closestRegularGame.game)
-    : null;
+  const closestWinner =
+    closestRegularGame
+      ? winnerFromGame(
+          closestRegularGame.game
+        )
+      : null;
 
-  const closestLoser = closestRegularGame
-    ? loserFromGame(closestRegularGame.game)
-    : null;
+  const closestLoser =
+    closestRegularGame
+      ? loserFromGame(
+          closestRegularGame.game
+        )
+      : null;
+
+  // =========================================================
+  // PAGE
+  // =========================================================
 
   return (
     <main className="page-shell">
+
+      {/* HEADER */}
+
       <header className="site-header">
+
         <div className="site-title">
+
           <Link href="/">
             <strong>
               DIRTY P FANTASY FOOTBALL
@@ -648,411 +1389,702 @@ export default async function RecordsPage() {
           <span>
             THE LEAGUE ARCHIVE · EST. 2014
           </span>
+
         </div>
+
       </header>
 
+
+      {/* HERO */}
+
       <section className="owners-hero">
+
         <div>
+
           <p className="eyebrow">
             LEAGUE RECORD BOOK
           </p>
 
-          <h1>Records</h1>
+          <h1>
+            Records
+          </h1>
 
           <p>
-            The biggest scores, best seasons, career
-            leaders, playoff performances and historic
-            streaks in Dirty P history.
+            The biggest scores, strongest
+            seasons, career leaders,
+            postseason performances and
+            longest streaks in Dirty P
+            history.
           </p>
+
         </div>
+
 
         <div className="owners-count">
-          <strong>{completedSeasonCount}</strong>
-          <span>SEASONS</span>
+
+          <strong>
+            {
+              completedSeasonYears.length
+            }
+          </strong>
+
+          <span>
+            SEASONS
+          </span>
+
         </div>
+
       </section>
 
+
+      {/* NAV */}
+
       <nav className="page-nav">
-        <Link href="/">← Home</Link>
+
+        <Link href="/">
+          ← Home
+        </Link>
+
         <span>
-          {firstSeason}–{latestCompletedSeason}
+          {firstSeason}–
+          {latestCompletedSeason}
         </span>
+
       </nav>
 
+
+      {/* =====================================================
+          WEEKLY
+          ===================================================== */}
+
       <section className="owners-section">
+
         <div className="section-heading">
+
           <div>
+
             <p className="eyebrow">
               SINGLE GAME
             </p>
 
-            <h2>Weekly Records</h2>
+            <h2>
+              Weekly Records
+            </h2>
+
           </div>
+
         </div>
 
-        <div className="record-book-grid">
-          {highestRegularScore &&
-            recordCard({
-              label:
-                "Highest Regular-Season Score",
-              value: formatScore(
+
+        <div className="owners-grid">
+
+          {highestRegularScore && (
+
+            <RecordCard
+              label="HIGHEST REGULAR-SEASON SCORE"
+
+              value={formatScore(
                 highestRegularScore.score
-              ),
-              owner: getOwnerName(
+              )}
+
+              owner={getOwnerName(
                 ownerMap,
                 highestRegularScore.ownerId
-              ),
-              team: highestRegularScore.teamName,
-              detail: `${highestRegularScore.season_year} • Week ${highestRegularScore.matchup_period}`,
-            })}
+              )}
 
-          {lowestRegularScore &&
-            recordCard({
-              label:
-                "Lowest Regular-Season Score",
-              value: formatScore(
+              team={
+                highestRegularScore.teamName
+              }
+
+              detail={`${highestRegularScore.season_year} · Week ${highestRegularScore.matchup_period}`}
+            />
+
+          )}
+
+
+          {lowestRegularScore && (
+
+            <RecordCard
+              label="LOWEST REGULAR-SEASON SCORE"
+
+              value={formatScore(
                 lowestRegularScore.score
-              ),
-              owner: getOwnerName(
+              )}
+
+              owner={getOwnerName(
                 ownerMap,
                 lowestRegularScore.ownerId
-              ),
-              team: lowestRegularScore.teamName,
-              detail: `${lowestRegularScore.season_year} • Week ${lowestRegularScore.matchup_period}`,
-            })}
+              )}
 
-          {highestOverallScore &&
-            recordCard({
-              label:
-                "Highest Score — Regular Season or Playoffs",
-              value: formatScore(
+              team={
+                lowestRegularScore.teamName
+              }
+
+              detail={`${lowestRegularScore.season_year} · Week ${lowestRegularScore.matchup_period}`}
+            />
+
+          )}
+
+
+          {highestOverallScore && (
+
+            <RecordCard
+              label="HIGHEST SCORE · ANY OFFICIAL GAME"
+
+              value={formatScore(
                 highestOverallScore.score
-              ),
-              owner: getOwnerName(
+              )}
+
+              owner={getOwnerName(
                 ownerMap,
                 highestOverallScore.ownerId
-              ),
-              team: highestOverallScore.teamName,
-              detail: `${highestOverallScore.season_year} • Week ${highestOverallScore.matchup_period}`,
-            })}
+              )}
+
+              team={
+                highestOverallScore.teamName
+              }
+
+              detail={`${highestOverallScore.season_year} · Week ${highestOverallScore.matchup_period}`}
+            />
+
+          )}
+
 
           {biggestRegularWin &&
-            biggestWinWinner &&
-            recordCard({
-              label:
-                "Biggest Regular-Season Win",
-              value: `+${formatScore(
+            biggestWinWinner && (
+
+            <RecordCard
+              label="BIGGEST REGULAR-SEASON WIN"
+
+              value={`+${formatScore(
                 biggestRegularWin.margin
-              )}`,
-              owner: getOwnerName(
+              )}`}
+
+              owner={getOwnerName(
                 ownerMap,
                 biggestWinWinner.ownerId
-              ),
-              team: biggestWinWinner.teamName,
-              detail: `${biggestRegularWin.game.season_year} • Week ${biggestRegularWin.game.matchup_period}`,
-              opponent: `vs. ${biggestWinWinner.opponentTeamName}`,
-            })}
+              )}
+
+              team={
+                biggestWinWinner.teamName
+              }
+
+              detail={`${biggestRegularWin.game.season_year} · Week ${biggestRegularWin.game.matchup_period}`}
+
+              opponent={`vs. ${biggestWinWinner.opponentTeamName}`}
+            />
+
+          )}
+
 
           {closestRegularGame &&
             closestWinner &&
-            closestLoser &&
-            recordCard({
-              label:
-                "Closest Regular-Season Game",
-              value: formatScore(
+            closestLoser && (
+
+            <RecordCard
+              label="CLOSEST REGULAR-SEASON GAME"
+
+              value={formatScore(
                 closestRegularGame.margin
-              ),
-              owner: getOwnerName(
+              )}
+
+              owner={getOwnerName(
                 ownerMap,
                 closestWinner.ownerId
-              ),
-              team: closestWinner.teamName,
-              detail: `${closestRegularGame.game.season_year} • Week ${closestRegularGame.game.matchup_period}`,
-              opponent: `over ${closestLoser.teamName}`,
-            })}
+              )}
+
+              team={
+                closestWinner.teamName
+              }
+
+              detail={`${closestRegularGame.game.season_year} · Week ${closestRegularGame.game.matchup_period}`}
+
+              opponent={`over ${closestLoser.teamName}`}
+            />
+
+          )}
+
         </div>
+
       </section>
 
+
+      {/* =====================================================
+          SEASON RECORDS
+          ===================================================== */}
+
       <section className="owners-section">
+
         <div className="section-heading">
+
           <div>
+
             <p className="eyebrow">
               SINGLE SEASON
             </p>
 
-            <h2>Season Records</h2>
+            <h2>
+              Season Records
+            </h2>
+
           </div>
+
         </div>
 
-        <div className="record-book-grid">
-          {bestSeasonRecord &&
-            recordCard({
-              label:
-                "Best Regular-Season Record",
-              value: `${bestSeasonRecord.wins}-${bestSeasonRecord.losses}${
+
+        <div className="owners-grid">
+
+          {bestSeasonRecord && (
+
+            <RecordCard
+              label="BEST REGULAR-SEASON RECORD"
+
+              value={formatRecord(
+                bestSeasonRecord.wins,
+                bestSeasonRecord.losses,
                 bestSeasonRecord.ties
-                  ? `-${bestSeasonRecord.ties}`
-                  : ""
-              }`,
-              owner: getOwnerName(
+              )}
+
+              owner={getOwnerName(
                 ownerMap,
                 bestSeasonRecord.ownerId
-              ),
-              team: bestSeasonRecord.teamName,
-              detail: `${bestSeasonRecord.season}`,
-            })}
+              )}
 
-          {mostWinsSeason &&
-            recordCard({
-              label:
-                "Most Regular-Season Wins",
-              value: `${mostWinsSeason.wins}`,
-              owner: getOwnerName(
+              team={
+                bestSeasonRecord.teamName
+              }
+
+              detail={`${bestSeasonRecord.season}`}
+            />
+
+          )}
+
+
+          {mostWinsSeason && (
+
+            <RecordCard
+              label="MOST REGULAR-SEASON WINS"
+
+              value={`${mostWinsSeason.wins}`}
+
+              owner={getOwnerName(
                 ownerMap,
                 mostWinsSeason.ownerId
-              ),
-              team: mostWinsSeason.teamName,
-              detail: `${mostWinsSeason.season}`,
-            })}
+              )}
 
-          {mostPointsSeason &&
-            recordCard({
-              label:
-                "Most Regular-Season Points",
-              value: formatScore(
+              team={
+                mostWinsSeason.teamName
+              }
+
+              detail={`${mostWinsSeason.season}`}
+            />
+
+          )}
+
+
+          {mostPointsSeason && (
+
+            <RecordCard
+              label="MOST REGULAR-SEASON POINTS"
+
+              value={formatScore(
                 mostPointsSeason.pointsFor
-              ),
-              owner: getOwnerName(
+              )}
+
+              owner={getOwnerName(
                 ownerMap,
                 mostPointsSeason.ownerId
-              ),
-              team: mostPointsSeason.teamName,
-              detail: `${mostPointsSeason.season}`,
-            })}
+              )}
 
-          {bestAverageSeason &&
-            recordCard({
-              label:
-                "Highest Points Per Game",
-              value: formatScore(
+              team={
+                mostPointsSeason.teamName
+              }
+
+              detail={`${mostPointsSeason.season}`}
+            />
+
+          )}
+
+
+          {bestAverageSeason && (
+
+            <RecordCard
+              label="HIGHEST POINTS PER GAME"
+
+              value={formatScore(
                 bestAverageSeason.average
-              ),
-              owner: getOwnerName(
+              )}
+
+              owner={getOwnerName(
                 ownerMap,
                 bestAverageSeason.ownerId
-              ),
-              team: bestAverageSeason.teamName,
-              detail: `${bestAverageSeason.season}`,
-            })}
+              )}
+
+              team={
+                bestAverageSeason.teamName
+              }
+
+              detail={`${bestAverageSeason.season}`}
+            />
+
+          )}
+
         </div>
+
       </section>
 
+
+      {/* =====================================================
+          CAREER
+          ===================================================== */}
+
       <section className="owners-section">
+
         <div className="section-heading">
+
           <div>
+
             <p className="eyebrow">
               ALL-TIME
             </p>
 
-            <h2>Career Records</h2>
+            <h2>
+              Career Records
+            </h2>
+
           </div>
+
         </div>
 
-        <div className="record-book-grid">
-          {mostCareerWins &&
-            recordCard({
-              label:
-                "Most Regular-Season Wins",
-              value: `${mostCareerWins.wins}`,
-              owner: getOwnerName(
+
+        <div className="owners-grid">
+
+          {mostCareerWins && (
+
+            <RecordCard
+              label="MOST REGULAR-SEASON WINS"
+
+              value={`${mostCareerWins.wins}`}
+
+              owner={getOwnerName(
                 ownerMap,
                 mostCareerWins.ownerId
-              ),
-              detail: `${mostCareerWins.wins}-${mostCareerWins.losses}${
+              )}
+
+              team="Career"
+
+              detail={`${mostCareerWins.wins}-${mostCareerWins.losses}${
                 mostCareerWins.ties
                   ? `-${mostCareerWins.ties}`
                   : ""
-              } career record`,
-            })}
+              } record`}
+            />
 
-          {bestCareerWinPct &&
-            recordCard({
-              label: "Best Career Win %",
-              value: `${(
-                bestCareerWinPct.winPct * 100
-              ).toFixed(1)}%`,
-              owner: getOwnerName(
+          )}
+
+
+          {bestCareerWinPct && (
+
+            <RecordCard
+              label="BEST CAREER WIN %"
+
+              value={`${(
+                bestCareerWinPct.winPct *
+                100
+              ).toFixed(1)}%`}
+
+              owner={getOwnerName(
                 ownerMap,
                 bestCareerWinPct.ownerId
-              ),
-              detail: `${bestCareerWinPct.wins}-${bestCareerWinPct.losses}${
+              )}
+
+              team="Minimum 20 games"
+
+              detail={`${bestCareerWinPct.wins}-${bestCareerWinPct.losses}${
                 bestCareerWinPct.ties
                   ? `-${bestCareerWinPct.ties}`
                   : ""
-              } regular season`,
-            })}
+              } record`}
+            />
 
-          {mostCareerPoints &&
-            recordCard({
-              label:
-                "Most Career Regular-Season Points",
-              value: formatScore(
+          )}
+
+
+          {mostCareerPoints && (
+
+            <RecordCard
+              label="MOST CAREER REGULAR-SEASON POINTS"
+
+              value={formatScore(
                 mostCareerPoints.pointsFor
-              ),
-              owner: getOwnerName(
+              )}
+
+              owner={getOwnerName(
                 ownerMap,
                 mostCareerPoints.ownerId
-              ),
-              detail: `${mostCareerPoints.seasons.size} seasons`,
-            })}
+              )}
 
-          {mostPlayoffWins &&
-            recordCard({
-              label:
-                "Most Championship-Bracket Wins",
-              value: `${mostPlayoffWins.wins}`,
-              owner: getOwnerName(
+              team={`${mostCareerPoints.seasons.size} seasons`}
+
+              detail="Career regular season"
+            />
+
+          )}
+
+
+          {mostPlayoffWins && (
+
+            <RecordCard
+              label="MOST CHAMPIONSHIP-BRACKET WINS"
+
+              value={`${mostPlayoffWins.wins}`}
+
+              owner={getOwnerName(
                 ownerMap,
                 mostPlayoffWins.ownerId
-              ),
-              detail: `${mostPlayoffWins.wins}-${mostPlayoffWins.losses} playoff record`,
-            })}
+              )}
+
+              team="Playoffs"
+
+              detail={`${mostPlayoffWins.wins}-${mostPlayoffWins.losses} playoff record`}
+            />
+
+          )}
+
         </div>
+
       </section>
 
+
+      {/* =====================================================
+          PLAYOFFS
+          ===================================================== */}
+
       <section className="owners-section">
+
         <div className="section-heading">
+
           <div>
+
             <p className="eyebrow">
               POSTSEASON
             </p>
 
-            <h2>Playoff Records</h2>
+            <h2>
+              Playoff Records
+            </h2>
+
           </div>
+
         </div>
 
-        <div className="record-book-grid">
-          {highestPlayoffScore &&
-            recordCard({
-              label:
-                "Highest Playoff Score",
-              value: formatScore(
+
+        <div className="owners-grid">
+
+          {highestPlayoffScore && (
+
+            <RecordCard
+              label="HIGHEST PLAYOFF SCORE"
+
+              value={formatScore(
                 highestPlayoffScore.score
-              ),
-              owner: getOwnerName(
+              )}
+
+              owner={getOwnerName(
                 ownerMap,
                 highestPlayoffScore.ownerId
-              ),
-              team: highestPlayoffScore.teamName,
-              detail: `${highestPlayoffScore.season_year} • Week ${highestPlayoffScore.matchup_period}`,
-            })}
+              )}
 
-          {highestChampionshipScore &&
-            recordCard({
-              label:
-                "Highest Championship Score",
-              value: formatScore(
+              team={
+                highestPlayoffScore.teamName
+              }
+
+              detail={`${highestPlayoffScore.season_year} · Week ${highestPlayoffScore.matchup_period}`}
+            />
+
+          )}
+
+
+          {highestChampionshipScore && (
+
+            <RecordCard
+              label="HIGHEST CHAMPIONSHIP SCORE"
+
+              value={formatScore(
                 highestChampionshipScore.highScore
-              ),
-              owner: getOwnerName(
+              )}
+
+              owner={getOwnerName(
                 ownerMap,
                 highestChampionshipScore
-                  .winnerSide.ownerId
-              ),
-              team:
-                highestChampionshipScore
-                  .winnerSide.teamName,
-              detail: `${highestChampionshipScore.game.season_year} Championship`,
-            })}
+                  .winnerSide
+                  .ownerId
+              )}
 
-          {closestChampionship &&
-            recordCard({
-              label:
-                "Closest Championship",
-              value: formatScore(
+              team={
+                highestChampionshipScore
+                  .winnerSide
+                  .teamName
+              }
+
+              detail={`${highestChampionshipScore.game.season_year} Championship`}
+            />
+
+          )}
+
+
+          {closestChampionship && (
+
+            <RecordCard
+              label="CLOSEST CHAMPIONSHIP"
+
+              value={formatScore(
                 closestChampionship.margin
-              ),
-              owner: getOwnerName(
-                ownerMap,
-                closestChampionship.winnerSide
-                  .ownerId
-              ),
-              team:
-                closestChampionship.winnerSide
-                  .teamName,
-              detail: `${closestChampionship.game.season_year} Championship`,
-            })}
+              )}
 
-          {biggestChampionship &&
-            recordCard({
-              label:
-                "Biggest Championship Win",
-              value: `+${formatScore(
+              owner={getOwnerName(
+                ownerMap,
+                closestChampionship
+                  .winnerSide
+                  .ownerId
+              )}
+
+              team={
+                closestChampionship
+                  .winnerSide
+                  .teamName
+              }
+
+              detail={`${closestChampionship.game.season_year} Championship`}
+            />
+
+          )}
+
+
+          {biggestChampionship && (
+
+            <RecordCard
+              label="BIGGEST CHAMPIONSHIP WIN"
+
+              value={`+${formatScore(
                 biggestChampionship.margin
-              )}`,
-              owner: getOwnerName(
-                ownerMap,
-                biggestChampionship.winnerSide
-                  .ownerId
-              ),
-              team:
-                biggestChampionship.winnerSide
-                  .teamName,
-              detail: `${biggestChampionship.game.season_year} Championship`,
-            })}
+              )}`}
 
-          {highestCombinedChampionship &&
-            recordCard({
-              label:
-                "Highest-Scoring Championship",
-              value: formatScore(
+              owner={getOwnerName(
+                ownerMap,
+                biggestChampionship
+                  .winnerSide
+                  .ownerId
+              )}
+
+              team={
+                biggestChampionship
+                  .winnerSide
+                  .teamName
+              }
+
+              detail={`${biggestChampionship.game.season_year} Championship`}
+            />
+
+          )}
+
+
+          {highestCombinedChampionship && (
+
+            <RecordCard
+              label="HIGHEST-SCORING CHAMPIONSHIP"
+
+              value={formatScore(
                 highestCombinedChampionship.combined
-              ),
-              owner: `${highestCombinedChampionship.game.home_team_name} vs. ${highestCombinedChampionship.game.away_team_name}`,
-              detail: `${highestCombinedChampionship.game.season_year} Championship`,
-            })}
+              )}
+
+              owner={`${highestCombinedChampionship.game.home_team_name} vs. ${highestCombinedChampionship.game.away_team_name}`}
+
+              team="Combined Points"
+
+              detail={`${highestCombinedChampionship.game.season_year} Championship`}
+            />
+
+          )}
+
         </div>
+
       </section>
 
+
+      {/* =====================================================
+          STREAKS
+          ===================================================== */}
+
       <section className="owners-section">
+
         <div className="section-heading">
+
           <div>
+
             <p className="eyebrow">
               STREAKS
             </p>
 
-            <h2>Historic Streaks</h2>
+            <h2>
+              Historic Streaks
+            </h2>
+
           </div>
+
         </div>
 
-        <div className="record-book-grid">
-          {longestWinStreak &&
-            recordCard({
-              label:
-                "Longest Regular-Season Win Streak",
-              value: `${longestWinStreak.count} Games`,
-              owner: getOwnerName(
+
+        <div className="owners-grid">
+
+          {longestWinStreak && (
+
+            <RecordCard
+              label="LONGEST REGULAR-SEASON WIN STREAK"
+
+              value={`${longestWinStreak.count} Games`}
+
+              owner={getOwnerName(
                 ownerMap,
                 longestWinStreak.ownerId
-              ),
-              detail: `${longestWinStreak.start.season} W${longestWinStreak.start.week} → ${longestWinStreak.end.season} W${longestWinStreak.end.week}`,
-            })}
+              )}
 
-          {longestLossStreak &&
-            recordCard({
-              label:
-                "Longest Regular-Season Losing Streak",
-              value: `${longestLossStreak.count} Games`,
-              owner: getOwnerName(
+              team="Winning Streak"
+
+              detail={`${longestWinStreak.start.season} W${longestWinStreak.start.week} → ${longestWinStreak.end.season} W${longestWinStreak.end.week}`}
+            />
+
+          )}
+
+
+          {longestLossStreak && (
+
+            <RecordCard
+              label="LONGEST REGULAR-SEASON LOSING STREAK"
+
+              value={`${longestLossStreak.count} Games`}
+
+              owner={getOwnerName(
                 ownerMap,
                 longestLossStreak.ownerId
-              ),
-              detail: `${longestLossStreak.start.season} W${longestLossStreak.start.week} → ${longestLossStreak.end.season} W${longestLossStreak.end.week}`,
-            })}
+              )}
+
+              team="Losing Streak"
+
+              detail={`${longestLossStreak.start.season} W${longestLossStreak.start.week} → ${longestLossStreak.end.season} W${longestLossStreak.end.week}`}
+            />
+
+          )}
+
         </div>
+
       </section>
 
+
+      {/* FOOTER */}
+
       <footer className="site-footer">
+
         <strong>
           Dirty P Fantasy Football
         </strong>
@@ -1065,7 +2097,9 @@ export default async function RecordsPage() {
           Independent fantasy league archive.
           Not affiliated with or endorsed by ESPN.
         </p>
+
       </footer>
+
     </main>
   );
 }
