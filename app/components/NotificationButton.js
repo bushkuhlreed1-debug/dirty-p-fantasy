@@ -27,16 +27,12 @@ function urlBase64ToUint8Array(
       .replace(/_/g, "/");
 
   const rawData =
-    window.atob(
-      base64
-    );
+    window.atob(base64);
 
   return Uint8Array.from(
     [...rawData].map(
       (character) =>
-        character.charCodeAt(
-          0
-        )
+        character.charCodeAt(0)
     )
   );
 }
@@ -91,44 +87,37 @@ export default function NotificationButton({
   const [
     supported,
     setSupported,
-  ] =
-    useState(true);
+  ] = useState(true);
 
   const [
     enabled,
     setEnabled,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     choosingOwner,
     setChoosingOwner,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     ownerId,
     setOwnerId,
-  ] =
-    useState("");
+  ] = useState("");
 
   const [
     loading,
     setLoading,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     testLoading,
     setTestLoading,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     message,
     setMessage,
-  ] =
-    useState("");
+  ] = useState("");
 
 
   useEffect(() => {
@@ -163,22 +152,87 @@ export default function NotificationButton({
 
 
       try {
+        await navigator
+          .serviceWorker
+          .register("/sw.js");
+
+
+        await navigator
+          .serviceWorker
+          .ready;
+
+
         const registration =
           await navigator
             .serviceWorker
-            .register(
-              "/sw.js"
-            );
+            .ready;
 
 
-        const subscription =
+        let subscription =
           await registration
             .pushManager
             .getSubscription();
 
 
-        if (!subscription) {
+        const currentPublicKey =
+          process.env
+            .NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+
+        if (
+          subscription &&
+          currentPublicKey
+        ) {
+          const existingKey =
+            subscription
+              .options
+              ?.applicationServerKey;
+
+
+          if (existingKey) {
+            const existingArray =
+              new Uint8Array(
+                existingKey
+              );
+
+
+            const currentArray =
+              urlBase64ToUint8Array(
+                currentPublicKey
+              );
+
+
+            const sameKey =
+              existingArray.length ===
+                currentArray.length &&
+              existingArray.every(
+                (value, index) =>
+                  value ===
+                  currentArray[index]
+              );
+
+
+            if (!sameKey) {
+              await subscription
+                .unsubscribe();
+
+              subscription =
+                null;
+            }
+          }
+        }
+
+
+        if (
+          !subscription
+        ) {
           setEnabled(false);
+
+          if (savedOwnerId) {
+            setMessage(
+              "Tap Enable Notifications to reconnect this device."
+            );
+          }
 
           return;
         }
@@ -282,17 +336,27 @@ export default function NotificationButton({
       }
 
 
+      await navigator
+        .serviceWorker
+        .register("/sw.js");
+
+
       const registration =
         await navigator
           .serviceWorker
-          .register(
-            "/sw.js"
-          );
+          .ready;
 
 
-      await navigator
-        .serviceWorker
-        .ready;
+      const publicKey =
+        process.env
+          .NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+
+      if (!publicKey) {
+        throw new Error(
+          "Missing public VAPID key."
+        );
+      }
 
 
       let subscription =
@@ -301,19 +365,47 @@ export default function NotificationButton({
           .getSubscription();
 
 
-      if (!subscription) {
-        const publicKey =
-          process.env
-            .NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (subscription) {
+        const existingKey =
+          subscription
+            .options
+            ?.applicationServerKey;
 
 
-        if (!publicKey) {
-          throw new Error(
-            "Missing public VAPID key."
-          );
+        if (existingKey) {
+          const existingArray =
+            new Uint8Array(
+              existingKey
+            );
+
+          const currentArray =
+            urlBase64ToUint8Array(
+              publicKey
+            );
+
+
+          const sameKey =
+            existingArray.length ===
+              currentArray.length &&
+            existingArray.every(
+              (value, index) =>
+                value ===
+                currentArray[index]
+            );
+
+
+          if (!sameKey) {
+            await subscription
+              .unsubscribe();
+
+            subscription =
+              null;
+          }
         }
+      }
 
 
+      if (!subscription) {
         subscription =
           await registration
             .pushManager
@@ -398,8 +490,7 @@ export default function NotificationButton({
         await fetch(
           "/api/push/test",
           {
-            method:
-              "POST",
+            method: "POST",
 
             headers: {
               "Content-Type":
@@ -409,9 +500,7 @@ export default function NotificationButton({
             body:
               JSON.stringify({
                 ownerId:
-                  Number(
-                    ownerId
-                  ),
+                  Number(ownerId),
               }),
           }
         );
@@ -507,14 +596,8 @@ export default function NotificationButton({
         {!supported && (
 
           <span className="notification-status">
-
             Push notifications are not
             supported in this browser.
-
-            On iPhone, add the site to
-            your Home Screen and open it
-            from there.
-
           </span>
 
         )}
