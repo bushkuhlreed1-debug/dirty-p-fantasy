@@ -1,14 +1,24 @@
 import { supabase } from "../lib/supabase";
+import { getEspnLeague } from "../lib/espn";
 import DirtyPMap from "./DirtyPMap";
 
+export const revalidate = 300;
+
 export default async function Home() {
-  const currentSeason = 2026;
+  const currentSeason =
+    Number(
+      process.env.ESPN_SEASON ||
+        2026
+    );
 
   // =========================================================
-  // CURRENT CHAMPION
+  // CURRENT / DEFENDING CHAMPION
   // =========================================================
 
-  const { data: seasons, error: seasonsError } = await supabase
+  const {
+    data: seasons,
+    error: seasonsError,
+  } = await supabase
     .from("seasons")
     .select(`
       year,
@@ -16,144 +26,83 @@ export default async function Home() {
       champion:champion_owner_id(name),
       runner_up:runner_up_owner_id(name)
     `)
-    .lt("year", currentSeason)
-    .order("year", { ascending: false });
-
-  // =========================================================
-  // CURRENT STANDINGS
-  // =========================================================
-
-  const { data: standings, error: standingsError } =
-    await supabase
-      .from("season_results")
-      .select(`
-        owner_id,
-        wins,
-        losses,
-        ties,
-        points_for,
-        points_against,
-        owner:owner_id(name)
-      `)
-      .eq("season_year", currentSeason);
-
-  // =========================================================
-  // CURRENT TEAMS
-  // =========================================================
-
-  const { data: teams, error: teamsError } = await supabase
-    .from("teams")
-    .select(`
-      owner_id,
-      team_name,
-      division
-    `)
-    .eq("season_year", currentSeason);
-
-  // =========================================================
-  // DATABASE ERROR
-  // =========================================================
-
-  if (
-    seasonsError ||
-    standingsError ||
-    teamsError
-  ) {
-    return (
-      <main className="page-shell">
-        <h1>Dirty P Fantasy Football</h1>
-
-        <p>
-          Database error:{" "}
-          {seasonsError?.message ||
-            standingsError?.message ||
-            teamsError?.message}
-        </p>
-      </main>
+    .lt(
+      "year",
+      currentSeason
+    )
+    .order(
+      "year",
+      {
+        ascending: false,
+      }
     );
+
+  const latestSeason =
+    seasons?.[0] || null;
+
+  // =========================================================
+  // LIVE ESPN LEAGUE DATA
+  // =========================================================
+
+  let espnLeague = null;
+  let espnError = null;
+
+  try {
+    espnLeague =
+      await getEspnLeague();
+  } catch (error) {
+    console.error(
+      "ESPN standings error:",
+      error
+    );
+
+    espnError =
+      error.message;
   }
 
-  const latestSeason = seasons?.[0];
+  const currentWeek =
+    espnLeague
+      ?.currentWeek || 1;
 
-  // =========================================================
-  // COMBINE STANDINGS + TEAM DATA
-  // =========================================================
+  const standings =
+    espnLeague
+      ?.teams || [];
 
-  const standingsWithTeams = (standings || []).map(
-    (standing) => {
-      const team = (teams || []).find(
-        (team) =>
-          team.owner_id === standing.owner_id
-      );
-
-      return {
-        ...standing,
-
-        team_name:
-          team?.team_name ||
-          standing.owner?.name ||
-          "Unknown Team",
-
-        division:
-          team?.division || "",
-      };
-    }
-  );
-
-  // =========================================================
-  // SORT OVERALL STANDINGS
-  //
-  // WINS
-  // THEN TIES
-  // THEN POINTS FOR
-  // =========================================================
-
-  const overallStandings = [
-    ...standingsWithTeams,
-  ].sort((a, b) => {
-    if (Number(b.wins) !== Number(a.wins)) {
-      return Number(b.wins) - Number(a.wins);
-    }
-
-    if (Number(b.ties) !== Number(a.ties)) {
-      return Number(b.ties) - Number(a.ties);
-    }
-
-    return (
-      Number(b.points_for) -
-      Number(a.points_for)
-    );
-  });
-
-  // =========================================================
-  // CURRENT PLAYOFF PICTURE
-  //
-  // CURRENTLY SET TO TOP 4 OVERALL
-  // =========================================================
+  const playoffTeamCount =
+    espnLeague
+      ?.playoffTeamCount || 4;
 
   const playoffTeams =
-    overallStandings.slice(0, 4);
+    standings.slice(
+      0,
+      playoffTeamCount
+    );
 
   const firstTeamOut =
-    overallStandings[4] || null;
+    standings[
+      playoffTeamCount
+    ] || null;
 
-  const playoffOwnerIds = new Set(
-    playoffTeams.map(
-      (team) => team.owner_id
-    )
-  );
+  const playoffTeamIds =
+    new Set(
+      playoffTeams.map(
+        (team) => team.id
+      )
+    );
 
   // =========================================================
-  // FORMAT RECORD
+  // RECORD FORMAT
   // =========================================================
 
-  function formatRecord(team) {
-    if (!team) return "0-0";
+  function formatRecord(
+    team
+  ) {
+    if (!team) {
+      return "0-0";
+    }
 
-    const ties = Number(team.ties || 0);
-
-    if (ties > 0) {
-      return `${team.wins}-${team.losses}-${ties}`;
+    if (team.ties > 0) {
+      return `${team.wins}-${team.losses}-${team.ties}`;
     }
 
     return `${team.wins}-${team.losses}`;
@@ -175,9 +124,11 @@ export default async function Home() {
         <div className="site-title">
 
           <a href="/">
+
             <strong>
               DIRTY P FANTASY FOOTBALL
             </strong>
+
           </a>
 
           <span>
@@ -268,7 +219,11 @@ export default async function Home() {
             </p>
 
             <h2>
-              {latestSeason.champion?.name}
+              {
+                latestSeason
+                  .champion
+                  ?.name
+              }
             </h2>
 
           </div>
@@ -277,16 +232,26 @@ export default async function Home() {
           <div className="home-champion-details">
 
             <span>
-              {latestSeason.year} CHAMPION
+              {
+                latestSeason.year
+              }{" "}
+              CHAMPION
             </span>
 
             <strong>
-              {latestSeason.championship_score}
+              {
+                latestSeason
+                  .championship_score
+              }
             </strong>
 
             <small>
               Defeated{" "}
-              {latestSeason.runner_up?.name}
+              {
+                latestSeason
+                  .runner_up
+                  ?.name
+              }
             </small>
 
           </div>
@@ -296,7 +261,7 @@ export default async function Home() {
 
 
       {/* =====================================================
-          CURRENT STANDINGS
+          LIVE STANDINGS
           ===================================================== */}
 
       <section className="section-block">
@@ -306,7 +271,7 @@ export default async function Home() {
           <div>
 
             <p className="eyebrow">
-              {currentSeason} SEASON
+              LIVE FROM ESPN
             </p>
 
             <h2>
@@ -316,59 +281,227 @@ export default async function Home() {
           </div>
 
           <span>
-            Overall League Standings
+            Week {currentWeek} · Updates automatically
           </span>
 
         </div>
 
 
-        <div className="division-card">
+        {espnError ? (
 
-          <div className="division-title">
+          <div className="current-panel">
 
-            <h3>
-              Dirty P Fantasy Football
-            </h3>
+            <div className="empty-current-state">
 
-          </div>
+              <strong>
+                ESPN standings are unavailable.
+              </strong>
 
+              <p>
+                {espnError}
+              </p>
 
-          <div className="division-header">
-
-            <span>
-              RK
-            </span>
-
-            <span>
-              TEAM
-            </span>
-
-            <span>
-              W-L
-            </span>
-
-            <span>
-              PF
-            </span>
+            </div>
 
           </div>
 
+        ) : (
 
-          {overallStandings.map(
-            (standing, index) => {
-              const inPlayoffPosition =
-                playoffOwnerIds.has(
-                  standing.owner_id
+          <div className="division-card">
+
+            <div className="division-title">
+
+              <h3>
+                {currentSeason} League Standings
+              </h3>
+
+            </div>
+
+
+            <div className="division-header">
+
+              <span>
+                RK
+              </span>
+
+              <span>
+                TEAM
+              </span>
+
+              <span>
+                W-L
+              </span>
+
+              <span>
+                PF
+              </span>
+
+            </div>
+
+
+            {standings.map(
+              (
+                team,
+                index
+              ) => {
+
+                const inPlayoffs =
+                  playoffTeamIds.has(
+                    team.id
+                  );
+
+                return (
+                  <div
+                    key={
+                      team.id
+                    }
+                    className={`division-row ${
+                      inPlayoffs
+                        ? "playoff-position"
+                        : ""
+                    }`}
+                  >
+
+                    <span className="standings-rank">
+                      {index + 1}
+                    </span>
+
+
+                    <div className="standings-team">
+
+                      <div className="team-name-line">
+
+                        <strong>
+                          {
+                            team.teamName
+                          }
+                        </strong>
+
+
+                        {inPlayoffs && (
+                          <span className="playoff-badge">
+                            PLAYOFF
+                          </span>
+                        )}
+
+                      </div>
+
+
+                      <span>
+                        {
+                          team.ownerName
+                        }
+                      </span>
+
+                    </div>
+
+
+                    <strong className="standings-record">
+                      {
+                        formatRecord(
+                          team
+                        )
+                      }
+                    </strong>
+
+
+                    <strong className="standings-pf">
+                      {
+                        team.pointsFor.toFixed(
+                          2
+                        )
+                      }
+                    </strong>
+
+                  </div>
                 );
+              }
+            )}
 
-              return (
+          </div>
+
+        )}
+
+      </section>
+
+
+      {/* =====================================================
+          PLAYOFF PICTURE
+          ===================================================== */}
+
+      {!espnError &&
+        standings.length >
+          0 && (
+
+        <section className="section-block">
+
+          <div className="section-heading">
+
+            <div>
+
+              <p className="eyebrow">
+                IF THE SEASON ENDED TODAY
+              </p>
+
+              <h2>
+                Current Playoff Picture
+              </h2>
+
+            </div>
+
+            <span>
+              {
+                playoffTeamCount
+              }{" "}
+              Teams Make the Playoffs
+            </span>
+
+          </div>
+
+
+          <div className="division-card">
+
+            <div className="division-title">
+
+              <h3>
+                Current Playoff Field
+              </h3>
+
+            </div>
+
+
+            <div className="division-header">
+
+              <span>
+                SEED
+              </span>
+
+              <span>
+                TEAM
+              </span>
+
+              <span>
+                W-L
+              </span>
+
+              <span>
+                PF
+              </span>
+
+            </div>
+
+
+            {playoffTeams.map(
+              (
+                team,
+                index
+              ) => (
+
                 <div
-                  key={standing.owner_id}
-                  className={`division-row ${
-                    inPlayoffPosition
-                      ? "playoff-position"
-                      : ""
-                  }`}
+                  key={
+                    team.id
+                  }
+                  className="division-row playoff-position"
                 >
 
                   <span className="standings-rank">
@@ -381,216 +514,121 @@ export default async function Home() {
                     <div className="team-name-line">
 
                       <strong>
-                        {standing.team_name}
+                        {
+                          team.teamName
+                        }
                       </strong>
 
-                      {inPlayoffPosition && (
-                        <span className="playoff-badge">
-                          PLAYOFF
-                        </span>
-                      )}
+                      <span className="playoff-badge">
+                        PLAYOFF
+                      </span>
 
                     </div>
 
                     <span>
-                      {standing.owner?.name}
+                      {
+                        team.ownerName
+                      }
                     </span>
 
                   </div>
 
 
                   <strong className="standings-record">
-                    {formatRecord(standing)}
+                    {
+                      formatRecord(
+                        team
+                      )
+                    }
                   </strong>
 
 
                   <strong className="standings-pf">
-
-                    {Number(
-                      standing.points_for || 0
-                    ).toFixed(2)}
-
+                    {
+                      team.pointsFor.toFixed(
+                        2
+                      )
+                    }
                   </strong>
 
                 </div>
-              );
-            }
-          )}
-
-        </div>
-
-      </section>
+              )
+            )}
 
 
-      {/* =====================================================
-          CURRENT PLAYOFF PICTURE
-          ===================================================== */}
+            {firstTeamOut && (
+              <>
 
-      <section className="section-block">
+                <div className="division-title">
 
-        <div className="section-heading">
+                  <h3>
+                    First Team Out
+                  </h3>
 
-          <div>
-
-            <p className="eyebrow">
-              IF THE SEASON ENDED TODAY
-            </p>
-
-            <h2>
-              Current Playoff Picture
-            </h2>
-
-          </div>
-
-          <span>
-            Top 4 Overall
-          </span>
-
-        </div>
+                </div>
 
 
-        <div className="division-card">
+                <div className="division-row">
 
-          <div className="division-title">
-
-            <h3>
-              Playoff Field
-            </h3>
-
-          </div>
-
-
-          <div className="division-header">
-
-            <span>
-              SEED
-            </span>
-
-            <span>
-              TEAM
-            </span>
-
-            <span>
-              W-L
-            </span>
-
-            <span>
-              PF
-            </span>
-
-          </div>
+                  <span className="standings-rank">
+                    {
+                      playoffTeamCount +
+                      1
+                    }
+                  </span>
 
 
-          {playoffTeams.map(
-            (standing, index) => (
-              <div
-                key={standing.owner_id}
-                className="division-row playoff-position"
-              >
+                  <div className="standings-team">
 
-                <span className="standings-rank">
-                  {index + 1}
-                </span>
+                    <div className="team-name-line">
 
+                      <strong>
+                        {
+                          firstTeamOut.teamName
+                        }
+                      </strong>
 
-                <div className="standings-team">
+                    </div>
 
-                  <div className="team-name-line">
-
-                    <strong>
-                      {standing.team_name}
-                    </strong>
-
-                    <span className="playoff-badge">
-                      PLAYOFF
+                    <span>
+                      {
+                        firstTeamOut.ownerName
+                      }
                     </span>
 
                   </div>
 
-                  <span>
-                    {standing.owner?.name}
-                  </span>
+
+                  <strong className="standings-record">
+                    {
+                      formatRecord(
+                        firstTeamOut
+                      )
+                    }
+                  </strong>
+
+
+                  <strong className="standings-pf">
+                    {
+                      firstTeamOut.pointsFor.toFixed(
+                        2
+                      )
+                    }
+                  </strong>
 
                 </div>
 
+              </>
+            )}
 
-                <strong className="standings-record">
-                  {formatRecord(standing)}
-                </strong>
+          </div>
 
-
-                <strong className="standings-pf">
-
-                  {Number(
-                    standing.points_for || 0
-                  ).toFixed(2)}
-
-                </strong>
-
-              </div>
-            )
-          )}
-
-
-          {firstTeamOut && (
-            <>
-              <div className="division-title">
-
-                <h3>
-                  First Team Out
-                </h3>
-
-              </div>
-
-
-              <div className="division-row">
-
-                <span className="standings-rank">
-                  5
-                </span>
-
-
-                <div className="standings-team">
-
-                  <div className="team-name-line">
-
-                    <strong>
-                      {firstTeamOut.team_name}
-                    </strong>
-
-                  </div>
-
-                  <span>
-                    {firstTeamOut.owner?.name}
-                  </span>
-
-                </div>
-
-
-                <strong className="standings-record">
-                  {formatRecord(firstTeamOut)}
-                </strong>
-
-
-                <strong className="standings-pf">
-
-                  {Number(
-                    firstTeamOut.points_for || 0
-                  ).toFixed(2)}
-
-                </strong>
-
-              </div>
-            </>
-          )}
-
-        </div>
-
-      </section>
+        </section>
+      )}
 
 
       {/* =====================================================
-          WHERE THE LEAGUE LIVES
+          CURRENT OWNER MAP
           ===================================================== */}
 
       <DirtyPMap />
