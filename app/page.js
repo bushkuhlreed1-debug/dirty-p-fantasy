@@ -2,8 +2,10 @@ import { supabase } from "../lib/supabase";
 import DirtyPMap from "./DirtyPMap";
 
 export default async function Home() {
+  const currentSeason = 2026;
+
   // =========================================================
-  // DEFENDING CHAMPION
+  // CURRENT CHAMPION
   // =========================================================
 
   const { data: seasons, error: seasonsError } = await supabase
@@ -14,19 +16,152 @@ export default async function Home() {
       champion:champion_owner_id(name),
       runner_up:runner_up_owner_id(name)
     `)
-    .lt("year", 2026)
+    .lt("year", currentSeason)
     .order("year", { ascending: false });
 
-  if (seasonsError) {
+  // =========================================================
+  // CURRENT STANDINGS
+  // =========================================================
+
+  const { data: standings, error: standingsError } =
+    await supabase
+      .from("season_results")
+      .select(`
+        owner_id,
+        wins,
+        losses,
+        ties,
+        points_for,
+        points_against,
+        owner:owner_id(name)
+      `)
+      .eq("season_year", currentSeason);
+
+  // =========================================================
+  // CURRENT TEAMS
+  // =========================================================
+
+  const { data: teams, error: teamsError } = await supabase
+    .from("teams")
+    .select(`
+      owner_id,
+      team_name,
+      division
+    `)
+    .eq("season_year", currentSeason);
+
+  // =========================================================
+  // DATABASE ERROR
+  // =========================================================
+
+  if (
+    seasonsError ||
+    standingsError ||
+    teamsError
+  ) {
     return (
       <main className="page-shell">
         <h1>Dirty P Fantasy Football</h1>
-        <p>Database error: {seasonsError.message}</p>
+
+        <p>
+          Database error:{" "}
+          {seasonsError?.message ||
+            standingsError?.message ||
+            teamsError?.message}
+        </p>
       </main>
     );
   }
 
   const latestSeason = seasons?.[0];
+
+  // =========================================================
+  // COMBINE STANDINGS + TEAM DATA
+  // =========================================================
+
+  const standingsWithTeams = (standings || []).map(
+    (standing) => {
+      const team = (teams || []).find(
+        (team) =>
+          team.owner_id === standing.owner_id
+      );
+
+      return {
+        ...standing,
+
+        team_name:
+          team?.team_name ||
+          standing.owner?.name ||
+          "Unknown Team",
+
+        division:
+          team?.division || "",
+      };
+    }
+  );
+
+  // =========================================================
+  // SORT OVERALL STANDINGS
+  //
+  // WINS
+  // THEN TIES
+  // THEN POINTS FOR
+  // =========================================================
+
+  const overallStandings = [
+    ...standingsWithTeams,
+  ].sort((a, b) => {
+    if (Number(b.wins) !== Number(a.wins)) {
+      return Number(b.wins) - Number(a.wins);
+    }
+
+    if (Number(b.ties) !== Number(a.ties)) {
+      return Number(b.ties) - Number(a.ties);
+    }
+
+    return (
+      Number(b.points_for) -
+      Number(a.points_for)
+    );
+  });
+
+  // =========================================================
+  // CURRENT PLAYOFF PICTURE
+  //
+  // CURRENTLY SET TO TOP 4 OVERALL
+  // =========================================================
+
+  const playoffTeams =
+    overallStandings.slice(0, 4);
+
+  const firstTeamOut =
+    overallStandings[4] || null;
+
+  const playoffOwnerIds = new Set(
+    playoffTeams.map(
+      (team) => team.owner_id
+    )
+  );
+
+  // =========================================================
+  // FORMAT RECORD
+  // =========================================================
+
+  function formatRecord(team) {
+    if (!team) return "0-0";
+
+    const ties = Number(team.ties || 0);
+
+    if (ties > 0) {
+      return `${team.wins}-${team.losses}-${ties}`;
+    }
+
+    return `${team.wins}-${team.losses}`;
+  }
+
+  // =========================================================
+  // PAGE
+  // =========================================================
 
   return (
     <main className="page-shell">
@@ -36,6 +171,7 @@ export default async function Home() {
           ===================================================== */}
 
       <header className="site-header">
+
         <div className="site-title">
 
           <a href="/">
@@ -49,6 +185,7 @@ export default async function Home() {
           </span>
 
         </div>
+
       </header>
 
 
@@ -61,7 +198,7 @@ export default async function Home() {
         <div className="home-hero-content">
 
           <p className="eyebrow">
-            WELCOME TO DIRTY P
+            {currentSeason} SEASON
           </p>
 
           <h1>
@@ -69,8 +206,7 @@ export default async function Home() {
           </h1>
 
           <p className="home-hero-copy">
-            Championships, rivalries, heartbreak, dominance,
-            questionable decisions, and a whole lot of history.
+            Current season hub and league archive.
           </p>
 
         </div>
@@ -119,7 +255,7 @@ export default async function Home() {
 
 
       {/* =====================================================
-          DEFENDING CHAMPION
+          CURRENT CHAMPION
           ===================================================== */}
 
       {latestSeason && (
@@ -128,7 +264,7 @@ export default async function Home() {
           <div className="home-champion-label">
 
             <p className="eyebrow">
-              DEFENDING CHAMPION
+              CURRENT CHAMPION
             </p>
 
             <h2>
@@ -136,6 +272,7 @@ export default async function Home() {
             </h2>
 
           </div>
+
 
           <div className="home-champion-details">
 
@@ -148,7 +285,8 @@ export default async function Home() {
             </strong>
 
             <small>
-              Defeated {latestSeason.runner_up?.name}
+              Defeated{" "}
+              {latestSeason.runner_up?.name}
             </small>
 
           </div>
@@ -158,108 +296,126 @@ export default async function Home() {
 
 
       {/* =====================================================
-          LEAGUE STATS
+          CURRENT STANDINGS
           ===================================================== */}
 
-      <section className="home-stats">
-
-        <div className="home-stat-card">
-
-          <strong>
-            12
-          </strong>
-
-          <span>
-            SEASONS
-          </span>
-
-        </div>
-
-
-        <div className="home-stat-card">
-
-          <strong>
-            8
-          </strong>
-
-          <span>
-            CHAMPIONS
-          </span>
-
-        </div>
-
-
-        <div className="home-stat-card">
-
-          <strong>
-            15
-          </strong>
-
-          <span>
-            TEAM OWNERS
-          </span>
-
-        </div>
-
-      </section>
-
-
-      {/* =====================================================
-          WHAT IS DIRTY P?
-          ===================================================== */}
-
-      <section className="home-story">
+      <section className="section-block">
 
         <div className="section-heading">
 
           <div>
 
             <p className="eyebrow">
-              THE STORY
+              {currentSeason} SEASON
             </p>
 
             <h2>
-              What Is Dirty P?
+              Current Standings
             </h2>
 
           </div>
 
+          <span>
+            Overall League Standings
+          </span>
+
         </div>
 
 
-        <div className="home-story-card">
+        <div className="division-card">
 
-          <p className="story-lead">
-            It started with a church youth group, a mentor,
-            and a fantasy football league. It turned into
-            Dirty P.
-          </p>
+          <div className="division-title">
 
-          <p>
-            The original league was made up of our church
-            youth group plus our mentor, Ryan. Since then,
-            we've cycled through owners, moved all over the
-            country, and somehow kept the league going.
-          </p>
+            <h3>
+              Dirty P Fantasy Football
+            </h3>
 
-          <p>
-            The current version of Dirty P has been running
-            since <strong>2014</strong>.
-          </p>
+          </div>
 
-          <p>
-            Along the way, Dirty P has seen{" "}
-            <strong>
-              shadow government, entire teams being traded,
-              collusion, dynasties, championships, heartbreak,
-            </strong>{" "}
-            and plenty of questionable decisions.
-          </p>
 
-          <p className="story-final">
-            Twelve seasons. Eight champions. Fifteen team
-            owners. One Dirty P.
-          </p>
+          <div className="division-header">
+
+            <span>
+              RK
+            </span>
+
+            <span>
+              TEAM
+            </span>
+
+            <span>
+              W-L
+            </span>
+
+            <span>
+              PF
+            </span>
+
+          </div>
+
+
+          {overallStandings.map(
+            (standing, index) => {
+              const inPlayoffPosition =
+                playoffOwnerIds.has(
+                  standing.owner_id
+                );
+
+              return (
+                <div
+                  key={standing.owner_id}
+                  className={`division-row ${
+                    inPlayoffPosition
+                      ? "playoff-position"
+                      : ""
+                  }`}
+                >
+
+                  <span className="standings-rank">
+                    {index + 1}
+                  </span>
+
+
+                  <div className="standings-team">
+
+                    <div className="team-name-line">
+
+                      <strong>
+                        {standing.team_name}
+                      </strong>
+
+                      {inPlayoffPosition && (
+                        <span className="playoff-badge">
+                          PLAYOFF
+                        </span>
+                      )}
+
+                    </div>
+
+                    <span>
+                      {standing.owner?.name}
+                    </span>
+
+                  </div>
+
+
+                  <strong className="standings-record">
+                    {formatRecord(standing)}
+                  </strong>
+
+
+                  <strong className="standings-pf">
+
+                    {Number(
+                      standing.points_for || 0
+                    ).toFixed(2)}
+
+                  </strong>
+
+                </div>
+              );
+            }
+          )}
 
         </div>
 
@@ -267,42 +423,166 @@ export default async function Home() {
 
 
       {/* =====================================================
-          DID YOU KNOW?
+          CURRENT PLAYOFF PICTURE
           ===================================================== */}
 
-      <section className="home-did-you-know">
+      <section className="section-block">
 
-        <div className="did-you-know-card">
-
-          <div className="did-you-know-icon">
-            💡
-          </div>
+        <div className="section-heading">
 
           <div>
 
             <p className="eyebrow">
-              DID YOU KNOW?
+              IF THE SEASON ENDED TODAY
             </p>
 
             <h2>
-              Dirty P started before 2014.
+              Current Playoff Picture
             </h2>
 
-            <p>
-              The league's roots go back even further, when
-              the original group from our church youth group
-              played together with Ryan as their mentor.
-            </p>
+          </div>
 
-            <p>
-              <strong>
-                2014 marks the beginning of the current version
-                of Dirty P
-              </strong>{" "}
-              — the era that has continued through today.
-            </p>
+          <span>
+            Top 4 Overall
+          </span>
+
+        </div>
+
+
+        <div className="division-card">
+
+          <div className="division-title">
+
+            <h3>
+              Playoff Field
+            </h3>
 
           </div>
+
+
+          <div className="division-header">
+
+            <span>
+              SEED
+            </span>
+
+            <span>
+              TEAM
+            </span>
+
+            <span>
+              W-L
+            </span>
+
+            <span>
+              PF
+            </span>
+
+          </div>
+
+
+          {playoffTeams.map(
+            (standing, index) => (
+              <div
+                key={standing.owner_id}
+                className="division-row playoff-position"
+              >
+
+                <span className="standings-rank">
+                  {index + 1}
+                </span>
+
+
+                <div className="standings-team">
+
+                  <div className="team-name-line">
+
+                    <strong>
+                      {standing.team_name}
+                    </strong>
+
+                    <span className="playoff-badge">
+                      PLAYOFF
+                    </span>
+
+                  </div>
+
+                  <span>
+                    {standing.owner?.name}
+                  </span>
+
+                </div>
+
+
+                <strong className="standings-record">
+                  {formatRecord(standing)}
+                </strong>
+
+
+                <strong className="standings-pf">
+
+                  {Number(
+                    standing.points_for || 0
+                  ).toFixed(2)}
+
+                </strong>
+
+              </div>
+            )
+          )}
+
+
+          {firstTeamOut && (
+            <>
+              <div className="division-title">
+
+                <h3>
+                  First Team Out
+                </h3>
+
+              </div>
+
+
+              <div className="division-row">
+
+                <span className="standings-rank">
+                  5
+                </span>
+
+
+                <div className="standings-team">
+
+                  <div className="team-name-line">
+
+                    <strong>
+                      {firstTeamOut.team_name}
+                    </strong>
+
+                  </div>
+
+                  <span>
+                    {firstTeamOut.owner?.name}
+                  </span>
+
+                </div>
+
+
+                <strong className="standings-record">
+                  {formatRecord(firstTeamOut)}
+                </strong>
+
+
+                <strong className="standings-pf">
+
+                  {Number(
+                    firstTeamOut.points_for || 0
+                  ).toFixed(2)}
+
+                </strong>
+
+              </div>
+            </>
+          )}
 
         </div>
 
@@ -310,7 +590,7 @@ export default async function Home() {
 
 
       {/* =====================================================
-          DIRTY P ROAD MAP
+          WHERE THE LEAGUE LIVES
           ===================================================== */}
 
       <DirtyPMap />
