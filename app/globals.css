@@ -2887,3 +2887,66 @@ a {
     grid-column: auto;
   }
 }
+/* =========================================================
+   LIVE SCOREBOARD
+   ========================================================= */
+
+.scoreboard-card-labels {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.scoreboard-market-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid #222830;
+  border-bottom: 1px solid #222830;
+  background: #0f1317;
+}
+
+.scoreboard-market-strip > div {
+  min-width: 0;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  border-right: 1px solid #222830;
+}
+
+.scoreboard-market-strip > div:last-child {
+  border-right: none;
+}
+
+.scoreboard-market-strip span {
+  color: #727b86;
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.scoreboard-market-strip strong {
+  color: #d6a84b;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+@media (max-width: 600px) {
+  .scoreboard-market-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreboard-market-strip > div {
+    align-items: flex-start;
+    text-align: left;
+    border-right: none;
+    border-bottom: 1px solid #222830;
+  }
+
+  .scoreboard-market-strip > div:last-child {
+    border-bottom: none;
+  }
+}
