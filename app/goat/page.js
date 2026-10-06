@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 const GOAT_POINTS = {
   REGULAR_WIN: 1,
   PLAYOFF_APPEARANCE: 3,
-  PLAYOFF_WIN: 2,
-  CHAMPIONSHIP_APPEARANCE: 5,
-  CHAMPIONSHIP: 12,
+  PLAYOFF_WIN: 4,
+  CHAMPIONSHIP_APPEARANCE: 8,
+  CHAMPIONSHIP: 20,
 };
 
 // =========================================================
@@ -20,12 +20,9 @@ const GOAT_POINTS = {
 // =========================================================
 
 function num(value) {
-  const parsed =
-    Number(value);
+  const parsed = Number(value);
 
-  return Number.isFinite(
-    parsed
-  )
+  return Number.isFinite(parsed)
     ? parsed
     : 0;
 }
@@ -97,6 +94,10 @@ function getGameType(game) {
       .trim()
       .toLowerCase();
 
+  // =======================================================
+  // CONSOLATION FIRST
+  // =======================================================
+
   if (
     matchupType.includes(
       "consolation"
@@ -115,6 +116,10 @@ function getGameType(game) {
   ) {
     return "consolation";
   }
+
+  // =======================================================
+  // PLAYOFF
+  // =======================================================
 
   if (
     matchupType ===
@@ -218,9 +223,11 @@ export default async function GoatPage() {
           <div className="site-title">
 
             <Link href="/">
+
               <strong>
                 DIRTY P FANTASY FOOTBALL
               </strong>
+
             </Link>
 
             <span>
@@ -267,7 +274,6 @@ export default async function GoatPage() {
 
   const {
     currentSeason,
-    currentWeek,
     owners,
     matchups,
     seasonResults,
@@ -277,7 +283,7 @@ export default async function GoatPage() {
     leagueData;
 
   // =========================================================
-  // LATEST COMPLETED WEEK
+  // LATEST COMPLETED CURRENT WEEK
   // =========================================================
 
   const currentCompletedWeeks =
@@ -343,7 +349,7 @@ export default async function GoatPage() {
   }
 
   // =========================================================
-  // BUILD EVERY OWNER'S RESUME
+  // BUILD OWNER RESUMES
   // =========================================================
 
   const rankings =
@@ -466,7 +472,7 @@ export default async function GoatPage() {
           ) || 0;
 
         // =====================================================
-        // TITLE YEARS
+        // CHAMPIONSHIP YEARS
         // =====================================================
 
         const championshipYears =
@@ -489,7 +495,7 @@ export default async function GoatPage() {
             );
 
         // =====================================================
-        // SEASONS / LONGEVITY
+        // SEASON HISTORY
         // =====================================================
 
         const seasonYears =
@@ -506,15 +512,6 @@ export default async function GoatPage() {
 
         const seasons =
           ownerSeasons.length;
-
-        const historicalSeasonCount =
-          ownerSeasons.filter(
-            (season) =>
-              Number(
-                season.season_year
-              ) <
-              currentSeason
-          ).length;
 
         const hasCurrentSeason =
           ownerSeasons.some(
@@ -549,7 +546,7 @@ export default async function GoatPage() {
           );
 
         // =====================================================
-        // GOAT SCORE BREAKDOWN
+        // GOAT SCORE
         // =====================================================
 
         const regularWinPoints =
@@ -587,8 +584,6 @@ export default async function GoatPage() {
             owner.name,
 
           seasons,
-
-          historicalSeasonCount,
 
           hasCurrentSeason,
 
@@ -634,19 +629,16 @@ export default async function GoatPage() {
     );
 
   // =========================================================
-  // SORT RANKINGS
+  // SORT GOAT RANKINGS
   //
-  // PRIMARY:
-  // GOAT SCORE
-  //
-  // TIEBREAKERS:
-  // 1 Championships
-  // 2 Finals
-  // 3 Regular-season wins
-  // 4 Playoff wins
-  // 5 Playoff appearances
-  // 6 Win percentage
-  // 7 Career points
+  // 1. GOAT SCORE
+  // 2. CHAMPIONSHIPS
+  // 3. FINALS
+  // 4. PLAYOFF WINS
+  // 5. REGULAR-SEASON WINS
+  // 6. PLAYOFF APPEARANCES
+  // 7. WIN %
+  // 8. CAREER POINTS
   // =========================================================
 
   rankings.sort(
@@ -682,22 +674,22 @@ export default async function GoatPage() {
       }
 
       if (
-        b.wins !==
-        a.wins
-      ) {
-        return (
-          b.wins -
-          a.wins
-        );
-      }
-
-      if (
         b.playoffGameWins !==
         a.playoffGameWins
       ) {
         return (
           b.playoffGameWins -
           a.playoffGameWins
+        );
+      }
+
+      if (
+        b.wins !==
+        a.wins
+      ) {
+        return (
+          b.wins -
+          a.wins
         );
       }
 
@@ -744,7 +736,7 @@ export default async function GoatPage() {
     );
 
   // =========================================================
-  // TOP 3 CARD
+  // TOP THREE CARD
   // =========================================================
 
   function HallOfFameCard({
@@ -777,7 +769,7 @@ export default async function GoatPage() {
 
               {owner.seasons ===
               0
-                ? "No completed league history"
+                ? "No league history"
 
                 : limitedHistory
                   ? `${owner.seasons} season${
@@ -814,11 +806,13 @@ export default async function GoatPage() {
           <div>
 
             <strong>
+
               {formatRecord(
                 owner.wins,
                 owner.losses,
                 owner.ties
               )}
+
             </strong>
 
             <span>
@@ -831,10 +825,12 @@ export default async function GoatPage() {
           <div>
 
             <strong>
+
               {owner.winPct.toFixed(
                 1
               )}
               %
+
             </strong>
 
             <span>
@@ -920,9 +916,11 @@ export default async function GoatPage() {
           <div>
 
             <strong>
+
               {formatNumber(
                 owner.pointsFor
               )}
+
             </strong>
 
             <span>
@@ -1277,7 +1275,7 @@ export default async function GoatPage() {
 
                         {owner.seasons ===
                         0
-                          ? "No completed league history"
+                          ? "No league history"
 
                           : limitedHistory
                             ? `${owner.seasons} season${
@@ -1316,11 +1314,13 @@ export default async function GoatPage() {
                     <div>
 
                       <strong>
+
                         {formatRecord(
                           owner.wins,
                           owner.losses,
                           owner.ties
                         )}
+
                       </strong>
 
                       <span>
@@ -1333,10 +1333,12 @@ export default async function GoatPage() {
                     <div>
 
                       <strong>
+
                         {owner.winPct.toFixed(
                           1
                         )}
                         %
+
                       </strong>
 
                       <span>
@@ -1426,9 +1428,11 @@ export default async function GoatPage() {
                     <div>
 
                       <strong>
+
                         {formatNumber(
                           owner.pointsFor
                         )}
+
                       </strong>
 
                       <span>
@@ -1518,11 +1522,11 @@ export default async function GoatPage() {
 
               <p className="owner-team-name">
                 GOAT status is subjective.
-                This formula gives Dirty P
-                a transparent résumé-based
-                ranking that rewards both
-                sustained winning and
-                postseason success.
+                This formula rewards sustained
+                regular-season success while
+                placing greater value on winning
+                in the postseason and competing
+                for championships.
               </p>
 
             </div>
@@ -1561,7 +1565,7 @@ export default async function GoatPage() {
             <div>
 
               <strong>
-                +2
+                +4
               </strong>
 
               <span>
@@ -1574,7 +1578,7 @@ export default async function GoatPage() {
             <div>
 
               <strong>
-                +5
+                +8
               </strong>
 
               <span>
@@ -1591,7 +1595,7 @@ export default async function GoatPage() {
             <div>
 
               <strong>
-                +12
+                +20
               </strong>
 
               <span>
@@ -1619,7 +1623,7 @@ export default async function GoatPage() {
           <div className="owner-card-bottom">
 
             <span>
-              GOAT status is subjective. The score is not.
+              Championships and postseason success carry premium weight.
             </span>
 
             <strong>
