@@ -1,255 +1,456 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import {
+  useEffect,
+  useRef,
+} from "react";
+
+
+// =========================================================
+// CURRENT DIRTY P OWNER LOCATIONS
+//
+// CITY-LEVEL ONLY
+// NO EXACT ADDRESSES
+// =========================================================
 
 const locations = [
-  // TEXAS
-  { name: "New Braunfels", state: "TX", lat: 29.703, lng: -98.125 },
-  { name: "San Marcos", state: "TX", lat: 29.883, lng: -97.941 },
-  { name: "Kyle", state: "TX", lat: 29.989, lng: -97.877 },
-  { name: "Iowa Colony", state: "TX", lat: 29.382, lng: -95.956 },
-  { name: "Rosharon", state: "TX", lat: 29.354, lng: -95.461 },
-  { name: "Houston", state: "TX", lat: 29.760, lng: -95.370 },
-  { name: "Pearland", state: "TX", lat: 29.563, lng: -95.286 },
-  { name: "West Columbia", state: "TX", lat: 29.144, lng: -95.646 },
-  { name: "College Station", state: "TX", lat: 30.628, lng: -96.334 },
-  { name: "Huntsville", state: "TX", lat: 30.723, lng: -95.550 },
-  { name: "Greenville", state: "TX", lat: 33.138, lng: -96.111 },
-  { name: "Rockdale", state: "TX", lat: 30.655, lng: -97.001 },
-  { name: "Richardson", state: "TX", lat: 32.948, lng: -96.729 },
-  { name: "Fort Worth", state: "TX", lat: 32.755, lng: -97.330 },
 
-  // ARKANSAS
-  { name: "Fayetteville", state: "AR", lat: 36.063, lng: -94.160 },
-  { name: "Fort Smith", state: "AR", lat: 35.385, lng: -94.398 },
-
-  // NORTH CAROLINA
-  { name: "Charlotte", state: "NC", lat: 35.227, lng: -80.843 },
-
-  // VIRGINIA
   {
-    name: "Somewhere in Virginia",
-    state: "VA",
-    lat: 37.540,
-    lng: -78.500,
+    name: "New Braunfels",
+    state: "TX",
+    lat: 29.703,
+    lng: -98.125,
   },
 
-  // KENTUCKY
-  { name: "Louisville", state: "KY", lat: 38.253, lng: -85.759 },
+  {
+    name: "Fort Worth",
+    state: "TX",
+    lat: 32.755,
+    lng: -97.330,
+  },
 
-  // ARIZONA
-  { name: "Tucson", state: "AZ", lat: 32.222, lng: -110.926 },
+  {
+    name: "Keller",
+    state: "TX",
+    lat: 32.934,
+    lng: -97.229,
+  },
 
-  // CALIFORNIA
-  { name: "Palmdale", state: "CA", lat: 34.580, lng: -118.117 },
+  {
+    name: "Frisco",
+    state: "TX",
+    lat: 33.151,
+    lng: -96.824,
+  },
 
-  // DELAWARE
-  { name: "Delaware", state: "DE", lat: 39.158, lng: -75.524 },
+  {
+    name: "Rockdale",
+    state: "TX",
+    lat: 30.655,
+    lng: -97.001,
+  },
+
+  {
+    name: "Houston",
+    state: "TX",
+    lat: 29.760,
+    lng: -95.370,
+  },
+
+  {
+    name: "Iowa Colony",
+    state: "TX",
+    lat: 29.482,
+    lng: -95.415,
+  },
+
+  {
+    name: "Charlotte",
+    state: "NC",
+    lat: 35.227,
+    lng: -80.843,
+  },
+
+  {
+    name: "Milton",
+    state: "DE",
+    lat: 38.777,
+    lng: -75.310,
+  },
+
 ];
 
+
+// =========================================================
+// COUNTS
+// =========================================================
+
+const stateCount =
+  new Set(
+    locations.map(
+      (location) => location.state
+    )
+  ).size;
+
+
 export default function DirtyPMap() {
-  const mapRef = useRef(null);
-  const mapInstance = useRef(null);
+
+  const mapRef =
+    useRef(null);
+
+  const mapInstance =
+    useRef(null);
+
 
   useEffect(() => {
+
     let cancelled = false;
 
+
     async function loadMap() {
+
       // =====================================================
       // LOAD LEAFLET CSS
       // =====================================================
 
-      if (!document.getElementById("leaflet-css")) {
-        const link = document.createElement("link");
+      if (
+        !document.getElementById(
+          "leaflet-css"
+        )
+      ) {
 
-        link.id = "leaflet-css";
-        link.rel = "stylesheet";
+        const link =
+          document.createElement(
+            "link"
+          );
+
+        link.id =
+          "leaflet-css";
+
+        link.rel =
+          "stylesheet";
+
         link.href =
           "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 
-        document.head.appendChild(link);
+        document.head.appendChild(
+          link
+        );
+
       }
+
 
       // =====================================================
       // LOAD LEAFLET
       // =====================================================
 
       if (!window.L) {
-        await new Promise((resolve, reject) => {
-          const existing = document.querySelector(
-            'script[data-leaflet="true"]'
-          );
 
-          if (existing) {
-            existing.addEventListener("load", resolve);
-            existing.addEventListener("error", reject);
-            return;
+        await new Promise(
+          (
+            resolve,
+            reject
+          ) => {
+
+            const existing =
+              document.querySelector(
+                'script[data-leaflet="true"]'
+              );
+
+
+            if (existing) {
+
+              existing.addEventListener(
+                "load",
+                resolve
+              );
+
+              existing.addEventListener(
+                "error",
+                reject
+              );
+
+              return;
+
+            }
+
+
+            const script =
+              document.createElement(
+                "script"
+              );
+
+
+            script.src =
+              "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+
+
+            script.async =
+              true;
+
+
+            script.dataset.leaflet =
+              "true";
+
+
+            script.onload =
+              resolve;
+
+
+            script.onerror =
+              reject;
+
+
+            document.body.appendChild(
+              script
+            );
+
           }
+        );
 
-          const script = document.createElement("script");
-
-          script.src =
-            "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-
-          script.async = true;
-          script.dataset.leaflet = "true";
-
-          script.onload = resolve;
-          script.onerror = reject;
-
-          document.body.appendChild(script);
-        });
       }
+
 
       if (
         cancelled ||
         !mapRef.current ||
         !window.L
       ) {
+
         return;
+
       }
 
-      const L = window.L;
 
-      // Prevent duplicate initialization
-      if (mapInstance.current) {
+      const L =
+        window.L;
+
+
+      // =====================================================
+      // PREVENT DUPLICATE MAP
+      // =====================================================
+
+      if (
+        mapInstance.current
+      ) {
+
         return;
+
       }
+
 
       // =====================================================
       // CREATE MAP
       // =====================================================
 
-      const map = L.map(mapRef.current, {
-        zoomControl: true,
-        scrollWheelZoom: false,
-        attributionControl: true,
-      });
+      const map =
+        L.map(
+          mapRef.current,
+          {
 
-      mapInstance.current = map;
+            zoomControl:
+              true,
+
+            scrollWheelZoom:
+              false,
+
+            attributionControl:
+              true,
+
+          }
+        );
+
+
+      mapInstance.current =
+        map;
+
 
       // =====================================================
-      // OPENSTREETMAP TILES
-      //
-      // NO API KEY REQUIRED
+      // MAP TILES
       // =====================================================
 
       L.tileLayer(
         "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
         {
-          maxZoom: 19,
+
+          maxZoom:
+            19,
+
           attribution:
             '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+
         }
-      ).addTo(map);
-
-      // =====================================================
-      // CENTER MAP
-      // =====================================================
-
-      map.setView(
-        [38.5, -96],
-        4
+      ).addTo(
+        map
       );
+
 
       // =====================================================
       // DIRTY P MARKER
       // =====================================================
 
-      const markerIcon = L.divIcon({
-        className:
-          "dirty-p-marker-wrapper",
+      const markerIcon =
+        L.divIcon({
 
-        html: `
-          <div class="dirty-p-marker">
-            <div class="dirty-p-marker-pulse"></div>
-            <div class="dirty-p-marker-dot"></div>
-          </div>
-        `,
+          className:
+            "dirty-p-marker-wrapper",
 
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-        popupAnchor: [0, -12],
-      });
+          html: `
+            <div class="dirty-p-marker">
 
-      // =====================================================
-      // ADD LOCATIONS
-      // =====================================================
+              <div
+                class="dirty-p-marker-pulse"
+              ></div>
 
-      locations.forEach((location) => {
-        const marker = L.marker(
-          [
-            location.lat,
-            location.lng,
-          ],
-          {
-            icon: markerIcon,
-          }
-        ).addTo(map);
+              <div
+                class="dirty-p-marker-dot"
+              ></div>
 
-        marker.bindPopup(`
-          <div class="dirty-p-popup">
-            <strong>
-              ${location.name}
-            </strong>
+            </div>
+          `,
 
-            <span>
-              ${location.state}
-            </span>
-          </div>
-        `);
-      });
+          iconSize:
+            [22, 22],
+
+          iconAnchor:
+            [11, 11],
+
+          popupAnchor:
+            [0, -12],
+
+        });
+
 
       // =====================================================
-      // FIT MAP TO LOCATIONS
+      // ADD CURRENT OWNER LOCATIONS
+      // =====================================================
+
+      locations.forEach(
+        (location) => {
+
+          const marker =
+            L.marker(
+              [
+                location.lat,
+                location.lng,
+              ],
+              {
+                icon:
+                  markerIcon,
+              }
+            ).addTo(
+              map
+            );
+
+
+          marker.bindPopup(`
+            <div class="dirty-p-popup">
+
+              <strong>
+                ${location.name}
+              </strong>
+
+              <span>
+                ${location.state}
+              </span>
+
+            </div>
+          `);
+
+        }
+      );
+
+
+      // =====================================================
+      // FIT MAP TO CURRENT OWNERS
       // =====================================================
 
       const bounds =
         L.latLngBounds(
+
           locations.map(
             (location) => [
+
               location.lat,
+
               location.lng,
+
             ]
           )
+
         );
+
 
       map.fitBounds(
         bounds,
         {
-          padding: [
-            45,
-            45,
-          ],
-          maxZoom: 5,
+
+          padding:
+            [45, 45],
+
+          maxZoom:
+            5,
+
         }
       );
+
 
       // =====================================================
       // FIX MAP SIZE
       // =====================================================
 
-      setTimeout(() => {
-        if (mapInstance.current) {
-          mapInstance.current.invalidateSize();
-        }
-      }, 300);
+      setTimeout(
+        () => {
+
+          if (
+            mapInstance.current
+          ) {
+
+            mapInstance.current
+              .invalidateSize();
+
+          }
+
+        },
+        300
+      );
+
     }
+
 
     loadMap();
 
-    return () => {
-      cancelled = true;
 
-      if (mapInstance.current) {
+    return () => {
+
+      cancelled =
+        true;
+
+
+      if (
+        mapInstance.current
+      ) {
+
         mapInstance.current.remove();
-        mapInstance.current = null;
+
+        mapInstance.current =
+          null;
+
       }
+
     };
+
   }, []);
 
+
+  // =========================================================
+  // PAGE
+  // =========================================================
+
   return (
+
     <section className="dirty-p-map">
+
 
       {/* ===================================================
           HEADER
@@ -260,15 +461,15 @@ export default function DirtyPMap() {
         <div>
 
           <p className="eyebrow">
-            THE LEAGUE HAS MOVED
+            CURRENT OWNERS
           </p>
 
           <h2>
-            The Dirty P Road Map
+            Where the League Lives
           </h2>
 
           <p className="dirty-p-map-subtitle">
-            One league. A ridiculous number of addresses.
+            The current Dirty P owners across the country.
           </p>
 
         </div>
@@ -277,23 +478,28 @@ export default function DirtyPMap() {
         <div className="dirty-p-map-count">
 
           <div>
+
             <strong>
-              8
+              {stateCount}
             </strong>
 
             <span>
               STATES
             </span>
+
           </div>
 
+
           <div>
+
             <strong>
-              21
+              {locations.length}
             </strong>
 
             <span>
-              LOCATIONS
+              OWNERS
             </span>
+
           </div>
 
         </div>
@@ -322,11 +528,11 @@ export default function DirtyPMap() {
       <div className="dirty-p-map-footer">
 
         <span>
-          Different cities.
+          9 current owners.
         </span>
 
         <strong>
-          Same degenerates.
+          3 states.
         </strong>
 
       </div>
