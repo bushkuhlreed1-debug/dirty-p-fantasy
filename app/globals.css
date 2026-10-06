@@ -3501,3 +3501,670 @@ a {
     font-size: 1.5rem;
   }
 }
+/* =========================================================
+   DIRTY P HOMEPAGE
+   SAME DESIGN LANGUAGE AS OWNERS / RECORDS
+   ========================================================= */
+
+.home-page {
+  --dp-card: #12161b;
+  --dp-card-top: #181d23;
+  --dp-card-alt: #14181d;
+  --dp-border: #222830;
+  --dp-border-light: #2a3038;
+  --dp-gold: #d6a84b;
+  --dp-text: #ffffff;
+  --dp-muted: #8f98a3;
+  --dp-muted-2: #727b86;
+}
+
+
+/* =========================================================
+   EVERY HOMEPAGE SECTION
+   ========================================================= */
+
+.home-page .section-block {
+  max-width: 1200px;
+  margin: 42px auto 0;
+}
+
+.home-page .section-heading {
+  margin-bottom: 16px;
+}
+
+.home-page .section-heading h2 {
+  margin: 0;
+  color: #ffffff;
+}
+
+.home-page .section-heading > span {
+  color: #727b86;
+  font-size: 0.75rem;
+}
+
+
+/* =========================================================
+   NAV
+   ========================================================= */
+
+.home-page .quick-links {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+
+/* =========================================================
+   WARNING
+   ========================================================= */
+
+.home-warning {
+  max-width: 1200px;
+  margin: 18px auto 0;
+  padding: 14px 18px;
+
+  background: #12161b;
+  border: 1px solid #5d3535;
+  border-radius: 14px;
+
+  color: #cda4a4;
+  font-size: 0.75rem;
+}
+
+
+/* =========================================================
+   STANDINGS
+   ========================================================= */
+
+.home-page .profile-table-wrap {
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+}
+
+.home-standings {
+  min-width: 720px;
+}
+
+.home-standings thead {
+  background: linear-gradient(
+    135deg,
+    #181d23,
+    #14181d
+  );
+}
+
+.home-standings th {
+  color: #7f8995;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+}
+
+.home-standings td {
+  vertical-align: middle;
+}
+
+.home-standings tbody tr {
+  transition: 0.15s ease;
+}
+
+.home-standings tbody tr:hover {
+  background: #161b21;
+}
+
+.home-standings td:first-child strong {
+  color: #d6a84b;
+  font-size: 1rem;
+}
+
+
+/* Team column */
+
+.standing-team-link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  text-decoration: none;
+}
+
+.standing-team-link strong {
+  color: #ffffff;
+  font-size: 0.88rem;
+}
+
+.standing-team-link span {
+  color: #727b86;
+  font-size: 0.72rem;
+}
+
+.standing-team-link:hover strong {
+  color: #d6a84b;
+}
+
+.home-out {
+  color: #59616b;
+}
+
+
+/* =========================================================
+   PLAYOFF PICTURE
+   ========================================================= */
+
+.home-playoff-race {
+  overflow: hidden;
+
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+}
+
+.home-playoff-row {
+  min-height: 78px;
+  padding: 0 20px;
+
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+
+  border-bottom: 1px solid #222830;
+
+  color: inherit;
+  text-decoration: none;
+
+  transition: 0.15s ease;
+}
+
+.home-playoff-row:hover {
+  background: #161b21;
+}
+
+.home-playoff-row:last-of-type {
+  border-bottom: none;
+}
+
+.home-playoff-seed {
+  width: 44px;
+  height: 44px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(214, 168, 75, 0.1);
+  border: 1px solid rgba(214, 168, 75, 0.35);
+  border-radius: 10px;
+
+  color: #d6a84b;
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.home-playoff-name {
+  min-width: 0;
+}
+
+.home-playoff-name strong {
+  display: block;
+
+  color: #ffffff;
+  font-size: 0.95rem;
+}
+
+.home-playoff-name span {
+  display: block;
+  margin-top: 4px;
+
+  color: #727b86;
+  font-size: 0.72rem;
+}
+
+.home-playoff-record {
+  color: #ffffff;
+  font-size: 1.05rem;
+}
+
+
+/* First out */
+
+.home-first-out {
+  min-height: 52px;
+  padding: 0 20px;
+
+  display: flex;
+  align-items: center;
+  gap: 18px;
+
+  background: #0f1317;
+  border-top: 1px solid #2a3038;
+}
+
+.home-first-out strong {
+  color: #d6a84b;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.home-first-out span {
+  color: #8f98a3;
+  font-size: 0.74rem;
+}
+
+
+/* =========================================================
+   AROUND THE LEAGUE
+   ========================================================= */
+
+.around-league {
+  overflow: hidden;
+
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+}
+
+.around-league-story {
+  position: relative;
+
+  padding: 22px 24px 22px 28px;
+
+  border-bottom: 1px solid #222830;
+}
+
+.around-league-story:last-child {
+  border-bottom: none;
+}
+
+.around-league-story::before {
+  content: "";
+
+  position: absolute;
+  top: 22px;
+  left: 0;
+
+  width: 3px;
+  height: 42px;
+
+  background: #d6a84b;
+
+  border-radius: 0 3px 3px 0;
+}
+
+.around-league-story h3 {
+  margin: 0;
+
+  color: #ffffff;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.around-league-story p {
+  max-width: 900px;
+
+  margin: 7px 0 0;
+
+  color: #8f98a3;
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+
+/* =========================================================
+   ASSIGNED RIVALS BANNER
+   ========================================================= */
+
+.home-rival-note {
+  margin-bottom: 14px;
+  padding: 14px 18px;
+
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  background: linear-gradient(
+    135deg,
+    rgba(214, 168, 75, 0.1),
+    rgba(214, 168, 75, 0.035)
+  );
+
+  border: 1px solid rgba(214, 168, 75, 0.35);
+  border-radius: 14px;
+}
+
+.home-rival-note strong {
+  flex-shrink: 0;
+
+  color: #d6a84b;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.home-rival-note span {
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   GAME OF THE WEEK
+   ========================================================= */
+
+.featured-matchup {
+  overflow: hidden;
+
+  background: #12161b;
+  border: 1px solid #d6a84b;
+  border-radius: 16px;
+
+  box-shadow:
+    0 10px 35px rgba(0, 0, 0, 0.18);
+}
+
+
+/* Header */
+
+.featured-matchup-labels {
+  min-height: 52px;
+  padding: 0 20px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  background: linear-gradient(
+    135deg,
+    #181d23,
+    #14181d
+  );
+
+  border-bottom: 1px solid #2a3038;
+}
+
+.featured-matchup-labels > span {
+  color: #d6a84b;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+}
+
+.featured-matchup-labels > strong {
+  padding: 5px 8px;
+
+  background: rgba(214, 168, 75, 0.12);
+  border: 1px solid rgba(214, 168, 75, 0.4);
+  border-radius: 5px;
+
+  color: #d6a84b;
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+}
+
+
+/* Main matchup */
+
+.featured-matchup-title {
+  padding: 28px 24px;
+
+  display: grid;
+  grid-template-columns: 1fr 60px 1fr;
+  align-items: center;
+  gap: 18px;
+}
+
+.featured-matchup-title h3 {
+  margin: 0;
+
+  color: #ffffff;
+  font-size: 1.45rem;
+  line-height: 1.2;
+}
+
+.featured-matchup-title div > span {
+  display: block;
+
+  margin-top: 7px;
+
+  color: #8f98a3;
+  font-size: 0.74rem;
+}
+
+.featured-matchup-title .right {
+  text-align: right;
+}
+
+.featured-vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 48px;
+  height: 48px;
+
+  justify-self: center;
+
+  background: #0e1115;
+  border: 1px solid #2a3038;
+  border-radius: 50%;
+
+  color: #727b86;
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+
+/* Analysis */
+
+.featured-analysis {
+  margin: 0;
+  padding: 20px 24px;
+
+  background: #151a20;
+  border-top: 1px solid #222830;
+
+  color: #aeb6c1;
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+
+
+/* Bottom details */
+
+.featured-meta {
+  min-height: 54px;
+  padding: 0 24px;
+
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 28px;
+
+  border-top: 1px solid #222830;
+}
+
+.featured-meta span {
+  color: #8f98a3;
+  font-size: 0.7rem;
+}
+
+.featured-meta strong {
+  margin-right: 6px;
+
+  color: #d6a84b;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+}
+
+
+/* =========================================================
+   OTHER MATCHUPS
+   ========================================================= */
+
+.other-matchups {
+  margin-top: 16px;
+
+  overflow: hidden;
+
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+}
+
+.other-matchups-heading {
+  min-height: 48px;
+  padding: 0 20px;
+
+  display: flex;
+  align-items: center;
+
+  background: linear-gradient(
+    135deg,
+    #181d23,
+    #14181d
+  );
+
+  border-bottom: 1px solid #2a3038;
+
+  color: #7f8995;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.other-matchup {
+  position: relative;
+
+  padding: 20px;
+
+  border-bottom: 1px solid #222830;
+}
+
+.other-matchup:last-child {
+  border-bottom: none;
+}
+
+.other-matchup:hover {
+  background: #161b21;
+}
+
+.other-matchup.assigned-matchup {
+  padding-left: 23px;
+}
+
+.other-matchup.assigned-matchup::before {
+  content: "";
+
+  position: absolute;
+  inset: 0 auto 0 0;
+
+  width: 3px;
+
+  background: #d6a84b;
+}
+
+
+/* Matchup title */
+
+.other-matchup-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.other-matchup-top h3 {
+  margin: 5px 0 0;
+
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.other-matchup-top > strong {
+  flex-shrink: 0;
+
+  color: #ffffff;
+  font-size: 0.85rem;
+}
+
+.other-matchup-top > strong span {
+  padding: 0 5px;
+
+  color: #727b86;
+  font-size: 0.58rem;
+}
+
+.small-rival-badge {
+  display: inline-block;
+
+  color: #d6a84b;
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+
+/* Analysis */
+
+.other-matchup > p {
+  max-width: 900px;
+
+  margin: 10px 0 0;
+
+  color: #8f98a3;
+  font-size: 0.8rem;
+  line-height: 1.65;
+}
+
+
+/* Bottom metadata */
+
+.other-matchup-bottom {
+  margin-top: 14px;
+  padding-top: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  border-top: 1px solid #222830;
+
+  color: #727b86;
+  font-size: 0.66rem;
+}
+
+
+/* =========================================================
+   ROAD MAP
+   ========================================================= */
+
+.owner-map-card {
+  overflow: hidden;
+
+  background: #12161b;
+  border: 1px solid #222830;
+  border-radius: 16px;
+}
+
+.owner-map-image {
+  display: block;
+
+  width: 100%;
+  height: auto;
+}
+
+
+/* =========================================================
+   SHARED HOVER FEEL
+   ========================================================= */
+
+.home-playoff-row,
+.other-matchup,
+.around-league
