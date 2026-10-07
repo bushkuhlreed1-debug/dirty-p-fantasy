@@ -18,10 +18,6 @@ import AutoRefresh from "../components/AutoRefresh";
 export const dynamic =
   "force-dynamic";
 
-// =========================================================
-// BASIC HELPERS
-// =========================================================
-
 function num(value) {
   const parsed =
     Number(value);
@@ -38,40 +34,22 @@ function formatRecord(
   losses,
   ties = 0
 ) {
-  if (
-    num(ties) > 0
-  ) {
-    return `${num(
-      wins
-    )}-${num(
-      losses
-    )}-${num(
-      ties
-    )}`;
+  if (num(ties) > 0) {
+    return `${num(wins)}-${num(losses)}-${num(ties)}`;
   }
 
-  return `${num(
-    wins
-  )}-${num(
-    losses
-  )}`;
+  return `${num(wins)}-${num(losses)}`;
 }
 
-function formatPoints(
-  value
-) {
-  return num(
-    value
-  ).toFixed(2);
+function formatPoints(value) {
+  return num(value).toFixed(2);
 }
 
 function percent(
   value,
   total
 ) {
-  if (
-    !total
-  ) {
+  if (!total) {
     return "—";
   }
 
@@ -92,15 +70,10 @@ function normalizeName(
   )
     .trim()
     .toLowerCase()
-    .replace(
-      /\s+/g,
-      " "
-    );
+    .replace(/\s+/g, " ");
 }
 
-function gameKey(
-  game
-) {
+function gameKey(game) {
   return [
     Number(
       game.matchup_period
@@ -114,109 +87,6 @@ function gameKey(
   ].join("-");
 }
 
-// =========================================================
-// CURRENT ESPN ORDER
-// =========================================================
-
-function currentSeedSort(
-  teams
-) {
-  return [
-    ...teams,
-  ].sort(
-    (a, b) => {
-      const seedA =
-        a.currentSeed >
-        0
-          ? a.currentSeed
-          : 999;
-
-      const seedB =
-        b.currentSeed >
-        0
-          ? b.currentSeed
-          : 999;
-
-      if (
-        seedA !==
-        seedB
-      ) {
-        return (
-          seedA -
-          seedB
-        );
-      }
-
-      const recordA =
-        a.wins * 2 +
-        a.ties;
-
-      const recordB =
-        b.wins * 2 +
-        b.ties;
-
-      if (
-        recordA !==
-        recordB
-      ) {
-        return (
-          recordB -
-          recordA
-        );
-      }
-
-      return (
-        b.pointsFor -
-        a.pointsFor
-      );
-    }
-  );
-}
-
-// =========================================================
-// PF REQUIREMENT TEXT
-// =========================================================
-
-function pfRequirementText(
-  team,
-  competitor
-) {
-  const gap =
-    competitor.pointsFor -
-    team.pointsFor;
-
-  if (
-    gap >
-    0.0001
-  ) {
-    return (
-      `Must outscore ${competitor.ownerName} by more than ` +
-      `${formatPoints(gap)} points over the remaining season to finish ahead on PF.`
-    );
-  }
-
-  if (
-    gap <
-    -0.0001
-  ) {
-    return (
-      `Currently leads ${competitor.ownerName} by ` +
-      `${formatPoints(
-        Math.abs(gap)
-      )} PF. Protect that advantage if the tiebreak reaches Points For.`
-    );
-  }
-
-  return (
-    `Currently tied with ${competitor.ownerName} in PF. ` +
-    `Must finish the regular season with more Points For to win that tiebreak.`
-  );
-}
-
-// =========================================================
-// PATTERN RESULT LABEL
-// =========================================================
-
 function resultPatternText(
   pattern
 ) {
@@ -229,9 +99,197 @@ function resultPatternText(
   return pattern.results
     .map(
       (game) =>
-        `W${game.week} ${game.result} vs ${game.opponentName}`
+        `W${game.week}: ${game.result} vs ${game.opponentName}`
     )
     .join(" · ");
+}
+
+function pfRequirementText(
+  team,
+  competitor
+) {
+  const gap =
+    competitor.pointsFor -
+    team.pointsFor;
+
+  if (gap > 0.0001) {
+    return (
+      `Must outscore ${competitor.ownerName} by more than ` +
+      `${formatPoints(gap)} points from now through the end of the regular season.`
+    );
+  }
+
+  if (gap < -0.0001) {
+    return (
+      `Currently leads ${competitor.ownerName} by ` +
+      `${formatPoints(Math.abs(gap))} PF. ` +
+      `Must preserve that advantage.`
+    );
+  }
+
+  return (
+    `Currently tied with ${competitor.ownerName} in PF. ` +
+    `Must finish with more Points For.`
+  );
+}
+
+// =========================================================
+// GROUP PLAYOFF PATHS BY OWNER FINAL RECORD
+// =========================================================
+
+function buildRecordGroups(patterns) {
+  const groups =
+    new Map();
+
+  for (
+    const pattern of
+    patterns || []
+  ) {
+    const key =
+      `${pattern.ownWins}-${pattern.ownLosses}`;
+
+    if (!groups.has(key)) {
+      groups.set(
+        key,
+        {
+          ownWins:
+            pattern.ownWins,
+
+          ownLosses:
+            pattern.ownLosses,
+
+          total: 0,
+          alive: 0,
+
+          guaranteedIn: 0,
+          guaranteedOut: 0,
+
+          seeds:
+            new Set(),
+        }
+      );
+    }
+
+    const group =
+      groups.get(key);
+
+    group.total +=
+      pattern.total;
+
+    group.alive +=
+      pattern.alive;
+
+    group.guaranteedIn +=
+      pattern.guaranteedIn;
+
+    group.guaranteedOut +=
+      pattern.guaranteedOut;
+
+    for (
+      const seed of
+      pattern.possibleSeeds
+    ) {
+      group.seeds.add(seed);
+    }
+  }
+
+  return [
+    ...groups.values(),
+  ]
+    .map(
+      (group) => {
+        let status =
+          "NEEDS HELP";
+
+        if (
+          group.guaranteedIn ===
+          group.total
+        ) {
+          status =
+            "CLINCHES";
+        } else if (
+          group.guaranteedOut ===
+          group.total
+        ) {
+          status =
+            "ELIMINATED";
+        } else if (
+          group.alive ===
+          group.total
+        ) {
+          status =
+            "ALIVE";
+        }
+
+        return {
+          ...group,
+
+          status,
+
+          seeds: [
+            ...group.seeds,
+          ].sort(
+            (a, b) =>
+              a - b
+          ),
+        };
+      }
+    )
+    .sort(
+      (a, b) =>
+        b.ownWins -
+        a.ownWins
+    );
+}
+
+// =========================================================
+// SEED PATHS FOR A CLINCHED OWNER
+// =========================================================
+
+function getSeedPaths(
+  stats,
+  seed
+) {
+  const paths = [];
+
+  for (
+    const pattern of
+    stats?.patterns || []
+  ) {
+    const seedScenario =
+      pattern.seedScenarios?.find(
+        (item) =>
+          item.seed === seed
+      );
+
+    if (!seedScenario) {
+      continue;
+    }
+
+    paths.push({
+      ...seedScenario,
+
+      code:
+        pattern.code,
+
+      ownWins:
+        pattern.ownWins,
+
+      ownLosses:
+        pattern.ownLosses,
+
+      results:
+        pattern.results,
+
+      finalRecord:
+        pattern.finalRecord,
+
+      patternTotal:
+        pattern.total,
+    });
+  }
+
+  return paths;
 }
 
 // =========================================================
@@ -248,16 +306,13 @@ export default async function PlayoffScenariosPage() {
 
     espnSettings =
       await getEspnPlayoffSettings(
-        leagueData
-          .currentSeason
+        leagueData.currentSeason
       );
-
   } catch (error) {
     return (
       <main className="page-shell">
 
         <header className="site-header">
-
           <div className="site-title">
 
             <Link href="/">
@@ -271,11 +326,9 @@ export default async function PlayoffScenariosPage() {
             </span>
 
           </div>
-
         </header>
 
         <section className="owners-hero">
-
           <div>
 
             <p className="eyebrow">
@@ -288,11 +341,10 @@ export default async function PlayoffScenariosPage() {
 
             <p>
               {error?.message ||
-                "Unable to load ESPN league settings."}
+                "Unable to load ESPN league data."}
             </p>
 
           </div>
-
         </section>
 
       </main>
@@ -301,7 +353,6 @@ export default async function PlayoffScenariosPage() {
 
   const {
     currentSeason,
-    currentWeek,
     owners,
     currentTeams,
     currentSeasonResults,
@@ -315,8 +366,6 @@ export default async function PlayoffScenariosPage() {
     regularSeasonWeeks,
     playoffSeedingRule,
     matchupTieRule,
-    divisions:
-      espnDivisions,
     divisionNameById,
     teams:
       espnTeams,
@@ -329,13 +378,9 @@ export default async function PlayoffScenariosPage() {
 
   const ownerMap =
     new Map(
-      (
-        owners || []
-      ).map(
+      (owners || []).map(
         (owner) => [
-          Number(
-            owner.id
-          ),
+          Number(owner.id),
           owner.name,
         ]
       )
@@ -379,7 +424,7 @@ export default async function PlayoffScenariosPage() {
     );
 
   // =======================================================
-  // BUILD CURRENT TEAM DATA
+  // TEAM DATA
   // =======================================================
 
   const teams =
@@ -417,9 +462,7 @@ export default async function PlayoffScenariosPage() {
               possibleEspnId
             );
 
-          if (
-            !espnTeam
-          ) {
+          if (!espnTeam) {
             espnTeam =
               espnByName.get(
                 normalizeName(
@@ -430,8 +473,7 @@ export default async function PlayoffScenariosPage() {
 
           const divisionId =
             Number(
-              espnTeam
-                ?.divisionId ??
+              espnTeam?.divisionId ??
                 team.divisionId ??
                 team.division_id ??
                 0
@@ -449,23 +491,19 @@ export default async function PlayoffScenariosPage() {
 
             teamName,
 
-            espnTeamId:
-              espnTeam
-                ?.id ||
-              possibleEspnId,
-
             divisionId,
 
             divisionName:
               divisionNameById[
                 divisionId
               ] ||
-              `Division ${divisionId + 1}`,
+              `Division ${
+                divisionId + 1
+              }`,
 
             currentSeed:
               num(
-                espnTeam
-                  ?.playoffSeed ??
+                espnTeam?.playoffSeed ??
                   team.playoffSeed ??
                   team.playoff_seed ??
                   team.seed
@@ -473,96 +511,79 @@ export default async function PlayoffScenariosPage() {
 
             wins:
               num(
-                espnTeam
-                  ?.wins ??
+                espnTeam?.wins ??
                   team.wins ??
                   result?.wins
               ),
 
             losses:
               num(
-                espnTeam
-                  ?.losses ??
+                espnTeam?.losses ??
                   team.losses ??
-                  result
-                    ?.losses
+                  result?.losses
               ),
 
             ties:
               num(
-                espnTeam
-                  ?.ties ??
+                espnTeam?.ties ??
                   team.ties ??
                   result?.ties
               ),
 
             pointsFor:
               num(
-                espnTeam
-                  ?.pointsFor ??
+                espnTeam?.pointsFor ??
                   team.pointsFor ??
                   team.points_for ??
-                  result
-                    ?.points_for
+                  result?.points_for
               ),
 
             pointsAgainst:
               num(
-                espnTeam
-                  ?.pointsAgainst ??
+                espnTeam?.pointsAgainst ??
                   team.pointsAgainst ??
                   team.points_against ??
-                  result
-                    ?.points_against
+                  result?.points_against
               ),
           };
         }
       )
       .filter(
         (team) =>
-          team.ownerId >
-          0
+          team.ownerId > 0
       );
 
   // =======================================================
-  // REGULAR-SEASON SCHEDULE
+  // SCHEDULE
   // =======================================================
 
   const regularGames =
     (
       currentSeasonMatchups ||
       []
-    )
-      .filter(
-        (game) =>
-          Number(
-            game
-              .matchup_period
-          ) <=
-            regularSeasonWeeks &&
-          game.is_playoff !==
-            true &&
-          game.is_consolation !==
-            true
-      );
+    ).filter(
+      (game) =>
+        Number(
+          game.matchup_period
+        ) <=
+          regularSeasonWeeks &&
+        game.is_playoff !== true &&
+        game.is_consolation !== true
+    );
 
   const completedGames =
     (
       completedCurrentMatchups ||
       []
-    )
-      .filter(
-        (game) =>
-          Number(
-            game
-              .matchup_period
-          ) <=
-            regularSeasonWeeks &&
-          game.is_playoff !==
-            true &&
-          game.is_consolation !==
-            true
-      );
+    ).filter(
+      (game) =>
+        Number(
+          game.matchup_period
+        ) <=
+          regularSeasonWeeks &&
+        game.is_playoff !== true &&
+        game.is_consolation !== true
+    );
 
   const completedKeys =
     new Set(
@@ -576,20 +597,16 @@ export default async function PlayoffScenariosPage() {
       .filter(
         (game) =>
           !completedKeys.has(
-            gameKey(
-              game
-            )
+            gameKey(game)
           )
       )
       .filter(
         (game) =>
           Number(
-            game
-              .away_owner_id
+            game.away_owner_id
           ) > 0 &&
           Number(
-            game
-              .home_owner_id
+            game.home_owner_id
           ) > 0
       )
       .sort(
@@ -608,116 +625,13 @@ export default async function PlayoffScenariosPage() {
         remainingGames.map(
           (game) =>
             Number(
-              game
-                .matchup_period
+              game.matchup_period
             )
         )
       ),
     ].sort(
       (a, b) =>
         a - b
-    );
-
-  // =======================================================
-  // DIVISION STANDINGS
-  // =======================================================
-
-  const divisionMap =
-    new Map();
-
-  for (
-    const team of
-    teams
-  ) {
-    if (
-      !divisionMap.has(
-        team.divisionId
-      )
-    ) {
-      divisionMap.set(
-        team.divisionId,
-        []
-      );
-    }
-
-    divisionMap
-      .get(
-        team.divisionId
-      )
-      .push(team);
-  }
-
-  for (
-    const [
-      divisionId,
-      divisionTeams,
-    ] of
-    divisionMap.entries()
-  ) {
-    divisionMap.set(
-      divisionId,
-      currentSeedSort(
-        divisionTeams
-      )
-    );
-  }
-
-  const divisions =
-    [
-      ...divisionMap.entries(),
-    ].sort(
-      (a, b) =>
-        Number(
-          a[0]
-        ) -
-        Number(
-          b[0]
-        )
-    );
-
-  const divisionLeaders =
-    divisions
-      .map(
-        (
-          [
-            ,
-            divisionTeams,
-          ]
-        ) =>
-          divisionTeams[0]
-      )
-      .filter(
-        Boolean
-      );
-
-  const divisionLeaderIds =
-    new Set(
-      divisionLeaders.map(
-        (team) =>
-          team.ownerId
-      )
-    );
-
-  // =======================================================
-  // WILD CARD
-  // =======================================================
-
-  const wildCardSpots =
-    Math.max(
-      0,
-
-      playoffTeamCount -
-        divisions.length
-    );
-
-  const wildCardRace =
-    currentSeedSort(
-      teams.filter(
-        (team) =>
-          !divisionLeaderIds.has(
-            team.ownerId
-          )
-      )
     );
 
   // =======================================================
@@ -733,20 +647,17 @@ export default async function PlayoffScenariosPage() {
   ) {
     const awayId =
       Number(
-        game
-          .away_owner_id
+        game.away_owner_id
       );
 
     const homeId =
       Number(
-        game
-          .home_owner_id
+        game.home_owner_id
       );
 
     const week =
       Number(
-        game
-          .matchup_period
+        game.matchup_period
       );
 
     if (
@@ -790,21 +701,11 @@ export default async function PlayoffScenariosPage() {
 
   // =======================================================
   // SCENARIO ENGINE
-  //
-  // At four weeks left:
-  // 20 games = 1,048,576 combinations.
-  //
-  // Then it automatically shrinks:
-  // 15 games = 32,768
-  // 10 games = 1,024
-  // 5 games = 32
   // =======================================================
 
   const exactScenarioWindow =
-    remainingWeeks.length <=
-      4 &&
-    remainingGames.length <=
-      20;
+    remainingWeeks.length <= 4 &&
+    remainingGames.length <= 20;
 
   const weeklyTiesAllowed =
     String(
@@ -817,13 +718,9 @@ export default async function PlayoffScenariosPage() {
     !weeklyTiesAllowed
       ? simulatePlayoffScenarios({
           teams,
-
           completedGames,
-
           remainingGames,
-
           playoffTeamCount,
-
           playoffSeedingRule,
         })
       : null;
@@ -833,33 +730,33 @@ export default async function PlayoffScenariosPage() {
       playoffSeedingRule
     );
 
-  // Scenario calculations do not need
-  // to hammer Vercel every 30 seconds.
-  // Five minutes is plenty and still
-  // updates as weekly games become final.
-  const refreshMs =
-    300000;
-
   // =======================================================
-  // STATUS
+  // DISPLAY ORDER
+  //
+  // Alphabetical, so it doesn't feel like standings.
   // =======================================================
 
-  function teamStatus(
-    team
+  const displayTeams =
+    [...teams].sort(
+      (a, b) =>
+        a.ownerName.localeCompare(
+          b.ownerName
+        )
+    );
+
+  function getStatus(
+    stats
   ) {
-    const stats =
-      scenarioEngine
-        ?.teamStats
-        ?.get(
-          team.ownerId
-        );
+    if (
+      stats?.clinchedSeed
+    ) {
+      return `#${stats.clinchedSeed} SEED CLINCHED`;
+    }
 
     if (
       stats?.clinched
     ) {
-      return (
-        "PLAYOFF CLINCHED"
-      );
+      return "PLAYOFF CLINCHED · SEED TBD";
     }
 
     if (
@@ -868,57 +765,152 @@ export default async function PlayoffScenariosPage() {
       return "ELIMINATED";
     }
 
-    if (
-      divisionLeaderIds.has(
-        team.ownerId
-      )
-    ) {
-      return (
-        "DIVISION LEADER"
-      );
-    }
-
-    if (
-      team.currentSeed >
-        0 &&
-      team.currentSeed <=
-        playoffTeamCount
-    ) {
-      return "WILD CARD";
-    }
-
-    return "IN THE HUNT";
+    return "PLAYOFF RACE";
   }
-
-  // =======================================================
-  // RENDER
-  // =======================================================
 
   return (
     <main className="page-shell">
 
       <AutoRefresh
         enabled={true}
-        intervalMs={
-          refreshMs
-        }
+        intervalMs={300000}
       />
 
-      {/* SMALL PAGE-ONLY STYLING */}
-
       <style>{`
-        .scenario-details {
+        .scenario-board {
+          display: grid;
+          gap: 22px;
+        }
+
+        .scenario-owner {
+          overflow: hidden;
+          background: #12161b;
+          border: 1px solid #222830;
+          border-radius: 16px;
+        }
+
+        .scenario-owner-head {
+          display: flex;
+          justify-content: space-between;
+          gap: 20px;
+          padding: 24px;
+        }
+
+        .scenario-owner-head h3 {
+          margin: 6px 0 4px;
+          color: #fff;
+          font-size: 1.3rem;
+        }
+
+        .scenario-owner-head p {
+          margin: 0;
+          color: #727b86;
+          font-size: 0.76rem;
+        }
+
+        .scenario-owner-status {
+          color: #d6a84b;
+          font-size: 0.64rem;
+          font-weight: 900;
+          letter-spacing: .08em;
+        }
+
+        .scenario-current {
+          text-align: right;
+        }
+
+        .scenario-current strong {
+          display: block;
+          color: #fff;
+          font-size: 1.1rem;
+        }
+
+        .scenario-current span {
+          display: block;
+          margin-top: 4px;
+          color: #727b86;
+          font-size: .61rem;
+          letter-spacing: .07em;
+        }
+
+        .scenario-next {
+          padding: 14px 24px;
+          background: #0f1317;
           border-top: 1px solid #222830;
+          border-bottom: 1px solid #222830;
+          color: #8f98a3;
+          font-size: .74rem;
+        }
+
+        .scenario-next strong {
+          color: #fff;
+        }
+
+        .scenario-record-paths,
+        .scenario-seed-paths {
+          display: grid;
+        }
+
+        .scenario-record-row,
+        .scenario-seed-row {
+          display: grid;
+          grid-template-columns: 90px minmax(0,1fr) auto;
+          gap: 18px;
+          align-items: center;
+          min-height: 70px;
+          padding: 0 24px;
+          border-bottom: 1px solid #20262d;
+        }
+
+        .scenario-record-row:last-child,
+        .scenario-seed-row:last-child {
+          border-bottom: none;
+        }
+
+        .scenario-record-row > strong,
+        .scenario-seed-number {
+          color: #fff;
+          font-size: 1rem;
+        }
+
+        .scenario-seed-number {
+          font-size: 1.25rem;
+          font-weight: 900;
+          color: #d6a84b;
+        }
+
+        .scenario-row-main strong {
+          display: block;
+          color: #d6a84b;
+          font-size: .75rem;
+        }
+
+        .scenario-row-main span {
+          display: block;
+          margin-top: 4px;
+          color: #727b86;
+          font-size: .7rem;
+          line-height: 1.45;
+        }
+
+        .scenario-row-right {
+          text-align: right;
+          color: #8f98a3;
+          font-size: .68rem;
+        }
+
+        .scenario-details {
+          border-top: 1px solid #2a3038;
         }
 
         .scenario-details summary {
           cursor: pointer;
           list-style: none;
-          padding: 17px 20px;
+          padding: 18px 24px;
           color: #d6a84b;
-          font-size: 0.72rem;
+          font-size: .69rem;
           font-weight: 900;
-          letter-spacing: 0.08em;
+          letter-spacing: .08em;
           text-transform: uppercase;
         }
 
@@ -934,103 +926,90 @@ export default async function PlayoffScenariosPage() {
           content: " −";
         }
 
-        .scenario-details[open] summary {
-          border-bottom: 1px solid #222830;
-        }
-
-        .scenario-path-list {
+        .scenario-detail-list {
           display: grid;
           gap: 12px;
-          padding: 16px;
+          padding: 0 18px 18px;
         }
 
-        .scenario-path {
-          background: #0f1317;
-          border: 1px solid #222830;
+        .scenario-detail {
+          padding: 16px;
+          background: #0d1115;
+          border: 1px solid #20262d;
           border-radius: 12px;
-          padding: 16px;
         }
 
-        .scenario-path-head {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 16px;
-          margin-bottom: 10px;
-        }
-
-        .scenario-path-head h4 {
-          margin: 0 0 5px;
+        .scenario-detail h4 {
+          margin: 0 0 6px;
           color: #fff;
-          font-size: 0.92rem;
+          font-size: .88rem;
         }
 
-        .scenario-path-head p {
+        .scenario-detail-pattern {
           margin: 0;
           color: #727b86;
-          font-size: 0.72rem;
+          font-size: .7rem;
           line-height: 1.5;
         }
 
-        .scenario-path-status {
-          flex: 0 0 auto;
-          color: #d6a84b;
-          font-size: 0.62rem;
-          font-weight: 900;
-          letter-spacing: 0.06em;
-        }
-
-        .scenario-counts {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px 14px;
-          padding: 10px 0;
-          color: #8f98a3;
-          font-size: 0.7rem;
-        }
-
-        .scenario-counts strong {
-          color: #fff;
-        }
-
-        .scenario-subsection {
+        .scenario-help {
           margin-top: 13px;
-          padding-top: 13px;
-          border-top: 1px solid #1d232a;
+          padding-top: 12px;
+          border-top: 1px solid #20262d;
         }
 
-        .scenario-subsection > strong {
+        .scenario-help > strong {
           display: block;
-          margin-bottom: 7px;
+          margin-bottom: 6px;
           color: #d6a84b;
-          font-size: 0.62rem;
-          letter-spacing: 0.06em;
+          font-size: .6rem;
+          letter-spacing: .07em;
           text-transform: uppercase;
         }
 
-        .scenario-subsection p {
+        .scenario-help p {
           margin: 5px 0 0;
-          color: #a2aab4;
-          font-size: 0.73rem;
+          color: #a1a9b3;
+          font-size: .72rem;
           line-height: 1.5;
         }
 
-        .scenario-clean-message {
-          padding: 16px 20px;
-          color: #8f98a3;
-          font-size: 0.75rem;
-          border-top: 1px solid #222830;
+        .scenario-section-label {
+          padding: 16px 24px 8px;
+          color: #727b86;
+          font-size: .61rem;
+          font-weight: 900;
+          letter-spacing: .08em;
+          text-transform: uppercase;
         }
 
-        @media (max-width: 700px) {
-          .scenario-path-head {
+        .scenario-complete {
+          padding: 22px 24px;
+          color: #a1a9b3;
+          line-height: 1.55;
+          font-size: .77rem;
+        }
+
+        @media (max-width:700px) {
+          .scenario-owner-head {
             flex-direction: column;
-            gap: 8px;
+          }
+
+          .scenario-current {
+            text-align: left;
+          }
+
+          .scenario-record-row,
+          .scenario-seed-row {
+            grid-template-columns: 70px minmax(0,1fr);
+          }
+
+          .scenario-row-right {
+            grid-column: 2;
+            text-align: left;
           }
         }
       `}</style>
-
-      {/* HEADER */}
 
       <header className="site-header">
 
@@ -1050,8 +1029,6 @@ export default async function PlayoffScenariosPage() {
 
       </header>
 
-      {/* HERO */}
-
       <section className="owners-hero">
 
         <div>
@@ -1065,9 +1042,9 @@ export default async function PlayoffScenariosPage() {
           </h1>
 
           <p>
-            Every path to the playoffs,
-            recalculated automatically from ESPN
-            standings, schedule and league rules.
+            Every owner&apos;s path to a playoff berth —
+            and once they clinch, every remaining path
+            to each possible playoff seed.
           </p>
 
         </div>
@@ -1075,18 +1052,16 @@ export default async function PlayoffScenariosPage() {
         <div className="owners-count">
 
           <strong>
-            {playoffTeamCount}
+            {remainingWeeks.length}
           </strong>
 
           <span>
-            PLAYOFF TEAMS
+            WEEKS LEFT
           </span>
 
         </div>
 
       </section>
-
-      {/* NAV */}
 
       <nav className="page-nav">
 
@@ -1095,307 +1070,10 @@ export default async function PlayoffScenariosPage() {
         </Link>
 
         <span>
-          ESPN TB:{" "}
-          {tiebreakLabel}
+          ESPN Tiebreak: {tiebreakLabel}
         </span>
 
       </nav>
-
-      {/* =====================================================
-          DIVISION RACES
-          ===================================================== */}
-
-      <section className="owners-section">
-
-        <div className="section-heading">
-
-          <div>
-
-            <p className="eyebrow">
-              AUTOMATIC BERTHS
-            </p>
-
-            <h2>
-              Division Races
-            </h2>
-
-          </div>
-
-          <span>
-            Winners earn the top seeds
-          </span>
-
-        </div>
-
-        <div className="division-grid">
-
-          {divisions.map(
-            ([
-              divisionId,
-              divisionTeams,
-            ]) => (
-
-              <div
-                className="division-card"
-                key={
-                  divisionId
-                }
-              >
-
-                <div className="division-title">
-
-                  <h3>
-                    {divisionNameById[
-                      divisionId
-                    ] ||
-                      `Division ${Number(
-                        divisionId
-                      ) + 1}`}
-                  </h3>
-
-                </div>
-
-                <div className="division-header">
-
-                  <span>
-                    RK
-                  </span>
-
-                  <span>
-                    TEAM
-                  </span>
-
-                  <span>
-                    W-L
-                  </span>
-
-                  <span>
-                    SEED
-                  </span>
-
-                </div>
-
-                {divisionTeams.map(
-                  (
-                    team,
-                    index
-                  ) => (
-
-                    <div
-                      className={`division-row ${
-                        index === 0
-                          ? "playoff-position"
-                          : ""
-                      }`}
-                      key={
-                        team.ownerId
-                      }
-                    >
-
-                      <span className="standings-rank">
-                        {index + 1}
-                      </span>
-
-                      <div className="standings-team">
-
-                        <div className="team-name-line">
-
-                          <strong>
-                            {team.teamName}
-                          </strong>
-
-                          {index ===
-                            0 && (
-                            <span className="playoff-badge">
-                              LEADER
-                            </span>
-                          )}
-
-                        </div>
-
-                        <span>
-                          {team.ownerName}
-                        </span>
-
-                      </div>
-
-                      <strong className="standings-record">
-
-                        {formatRecord(
-                          team.wins,
-                          team.losses,
-                          team.ties
-                        )}
-
-                      </strong>
-
-                      <strong className="standings-pf">
-
-                        #{team.currentSeed ||
-                          "—"}
-
-                      </strong>
-
-                    </div>
-                  )
-                )}
-
-              </div>
-
-            )
-          )}
-
-        </div>
-
-      </section>
-
-      {/* =====================================================
-          WILD CARD
-          ===================================================== */}
-
-      <section className="owners-section">
-
-        <div className="section-heading">
-
-          <div>
-
-            <p className="eyebrow">
-              SEEDS #
-              {divisions.length + 1}
-              –#
-              {playoffTeamCount}
-            </p>
-
-            <h2>
-              Wild Card Race
-            </h2>
-
-          </div>
-
-          <span>
-            Division leaders removed
-          </span>
-
-        </div>
-
-        <div className="profile-table-wrap">
-
-          <table className="profile-table">
-
-            <thead>
-
-              <tr>
-
-                <th>
-                  WC
-                </th>
-
-                <th>
-                  OWNER
-                </th>
-
-                <th>
-                  TEAM
-                </th>
-
-                <th>
-                  RECORD
-                </th>
-
-                <th>
-                  PF
-                </th>
-
-                <th>
-                  STATUS
-                </th>
-
-              </tr>
-
-            </thead>
-
-            <tbody>
-
-              {wildCardRace.map(
-                (
-                  team,
-                  index
-                ) => (
-
-                  <tr
-                    key={
-                      team.ownerId
-                    }
-                  >
-
-                    <td>
-                      <strong>
-                        #{index + 1}
-                      </strong>
-                    </td>
-
-                    <td>
-                      <strong>
-                        {team.ownerName}
-                      </strong>
-                    </td>
-
-                    <td>
-                      {team.teamName}
-                    </td>
-
-                    <td>
-                      <strong>
-
-                        {formatRecord(
-                          team.wins,
-                          team.losses,
-                          team.ties
-                        )}
-
-                      </strong>
-                    </td>
-
-                    <td>
-                      {formatPoints(
-                        team.pointsFor
-                      )}
-                    </td>
-
-                    <td>
-
-                      {index <
-                      wildCardSpots ? (
-
-                        <span className="playoff-badge">
-                          IN
-                        </span>
-
-                      ) : (
-
-                        <span>
-                          OUT
-                        </span>
-
-                      )}
-
-                    </td>
-
-                  </tr>
-                )
-              )}
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </section>
-
-      {/* =====================================================
-          OWNER PLAYOFF PATHS
-          ===================================================== */}
 
       <section className="owners-section">
 
@@ -1408,7 +1086,7 @@ export default async function PlayoffScenariosPage() {
             </p>
 
             <h2>
-              Playoff Paths
+              What Needs To Happen
             </h2>
 
           </div>
@@ -1416,18 +1094,16 @@ export default async function PlayoffScenariosPage() {
           <span>
 
             {scenarioEngine
-              ? `${scenarioEngine.totalScenarios.toLocaleString()} league-wide outcomes analyzed`
-              : `Exact paths activate with four weeks remaining`}
+              ? `${scenarioEngine.totalScenarios.toLocaleString()} outcomes analyzed`
+              : "Full scenarios activate with 4 weeks left"}
 
           </span>
 
         </div>
 
-        <div className="owners-grid">
+        <div className="scenario-board">
 
-          {currentSeedSort(
-            teams
-          ).map(
+          {displayTeams.map(
             (team) => {
 
               const stats =
@@ -1438,66 +1114,38 @@ export default async function PlayoffScenariosPage() {
                   );
 
               const status =
-                teamStatus(
-                  team
-                );
+                getStatus(stats);
 
               const nextGame =
                 nextGameByOwner.get(
                   team.ownerId
                 );
 
-              const gamesLeft =
-                remainingGames.filter(
-                  (game) =>
-                    Number(
-                      game
-                        .away_owner_id
-                    ) ===
-                      team.ownerId ||
-                    Number(
-                      game
-                        .home_owner_id
-                    ) ===
-                      team.ownerId
-                ).length;
+              const recordGroups =
+                buildRecordGroups(
+                  stats?.patterns ||
+                  []
+                );
 
-              const alive =
+              const availableSeeds =
                 stats
-                  ? stats
-                      .guaranteedIn +
-                    stats
-                      .tiebreakDependent
-                  : 0;
-
-              const possibleSeeds =
-                stats
-                  ?.possibleSeeds
-                  ?.length
-                  ? stats
-                      .possibleSeeds
-                      .map(
-                        (seed) =>
-                          `#${seed}`
-                      )
-                      .join("/")
-                  : "—";
+                  ?.seedSummary
+                  ?.filter(
+                    (item) =>
+                      item.possible > 0
+                  ) || [];
 
               return (
                 <article
-                  className="owner-card"
-                  key={
-                    team.ownerId
-                  }
+                  className="scenario-owner"
+                  key={team.ownerId}
                 >
 
-                  {/* TOP */}
-
-                  <div className="owner-card-top">
+                  <div className="scenario-owner-head">
 
                     <div>
 
-                      <span className="owner-status">
+                      <span className="scenario-owner-status">
                         {status}
                       </span>
 
@@ -1505,41 +1153,13 @@ export default async function PlayoffScenariosPage() {
                         {team.ownerName}
                       </h3>
 
-                      <p className="owner-team-name">
-
+                      <p>
                         {team.teamName}
-
-                        {" · "}
-
-                        {team.divisionName}
-
                       </p>
 
                     </div>
 
-                    <div className="owner-title-count">
-
-                      <strong>
-
-                        {team.currentSeed
-                          ? `#${team.currentSeed}`
-                          : "—"}
-
-                      </strong>
-
-                      <span>
-                        ESPN SEED
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                  {/* MAIN INFO */}
-
-                  <div className="owner-record">
-
-                    <div>
+                    <div className="scenario-current">
 
                       <strong>
 
@@ -1552,509 +1172,131 @@ export default async function PlayoffScenariosPage() {
                       </strong>
 
                       <span>
-                        RECORD
-                      </span>
-
-                    </div>
-
-                    <div>
-
-                      <strong>
-                        {gamesLeft}
-                      </strong>
-
-                      <span>
-                        GAMES LEFT
+                        CURRENT RECORD
                       </span>
 
                     </div>
 
                   </div>
 
-                  {/* COMPACT STATS */}
+                  <div className="scenario-next">
 
-                  <div className="owner-stats-grid">
-
-                    <div>
+                    {stats?.clinchedSeed ? (
 
                       <strong>
-
-                        {stats
-                          ? percent(
-                              alive,
-                              scenarioEngine.totalScenarios
-                            )
-                          : "—"}
-
+                        Seed #{stats.clinchedSeed} is locked.
                       </strong>
 
-                      <span>
-                        PATHS ALIVE
-                      </span>
+                    ) : stats?.clinched ? (
 
-                    </div>
+                      <>
+                        <strong>
+                          Playoff berth secured.
+                        </strong>
+                        {" "}
+                        Seeding is still in play.
+                      </>
 
-                    <div>
+                    ) : stats?.eliminated ? (
 
                       <strong>
-                        {possibleSeeds}
+                        Eliminated from playoff contention.
                       </strong>
 
-                      <span>
-                        POSSIBLE SEEDS
-                      </span>
+                    ) : nextGame ? (
 
-                    </div>
+                      <>
+                        NEXT:{" "}
+                        <strong>
+                          Week {nextGame.week} vs. {nextGame.opponent}
+                        </strong>
+                      </>
 
-                    <div>
+                    ) : (
 
                       <strong>
-
-                        {nextGame
-                          ? `W${nextGame.week}`
-                          : "—"}
-
+                        Regular season complete.
                       </strong>
 
-                      <span>
-                        NEXT GAME
-                      </span>
-
-                    </div>
-
-                    <div>
-
-                      <strong>
-
-                        {stats
-                          ? percent(
-                              stats.tiebreakDependent,
-                              scenarioEngine.totalScenarios
-                            )
-                          : "—"}
-
-                      </strong>
-
-                      <span>
-                        TB PATHS
-                      </span>
-
-                    </div>
+                    )}
 
                   </div>
 
-                  {/* CURRENT MESSAGE */}
-
-                  <div className="owner-card-bottom">
-
-                    <span>
-
-                      {nextGame
-                        ? `vs. ${nextGame.opponent}`
-                        : "Regular season complete"}
-
-                    </span>
-
-                    <strong>
-
-                      {stats?.clinched
-                        ? "PLAYOFF BERTH SECURED"
-                        : stats?.eliminated
-                          ? "NO PLAYOFF PATH REMAINS"
-                          : scenarioEngine
-                            ? `${alive.toLocaleString()} PATHS ALIVE`
-                            : "SCENARIOS COMING"}
-
-                    </strong>
-
-                  </div>
-
-                  {/* =========================================
-                      EVERY SCENARIO FOR THIS OWNER
-                      ========================================= */}
+                  {/* =======================================
+                      PLAYOFF BERTH NOT YET CLINCHED
+                      ======================================= */}
 
                   {scenarioEngine &&
-                    stats && (
-                    <details className="scenario-details">
+                    stats &&
+                    !stats.clinched &&
+                    !stats.eliminated && (
+                    <>
 
-                      <summary>
+                      <div className="scenario-section-label">
+                        Playoff Berth Scenarios
+                      </div>
 
-                        View All Scenarios
-                        {" · "}
-                        {stats.patterns.length}
-                        {" "}
-                        personal W/L paths
+                      <div className="scenario-record-paths">
 
-                      </summary>
+                        {recordGroups.map(
+                          (group) => {
 
-                      <div className="scenario-path-list">
+                            let description;
 
-                        {stats.patterns.map(
-                          (
-                            pattern
-                          ) => {
-
-                            const aliveCount =
-                              pattern.alive;
-
-                            const pfRows =
-                              pattern
-                                .pfCompetitors;
+                            if (
+                              group.status ===
+                              "CLINCHES"
+                            ) {
+                              description =
+                                "Playoff berth guaranteed regardless of every other result.";
+                            } else if (
+                              group.status ===
+                              "ELIMINATED"
+                            ) {
+                              description =
+                                "No remaining league combination gets this team in.";
+                            } else {
+                              description =
+                                `Playoff path survives in ${percent(
+                                  group.alive,
+                                  group.total
+                                )} of the other-result combinations.`;
+                            }
 
                             return (
                               <div
-                                className="scenario-path"
-                                key={
-                                  pattern.code
-                                }
+                                className="scenario-record-row"
+                                key={`${group.ownWins}-${group.ownLosses}`}
                               >
 
-                                {/* HEADER */}
+                                <strong>
+                                  {group.ownWins}-{group.ownLosses}
+                                </strong>
 
-                                <div className="scenario-path-head">
+                                <div className="scenario-row-main">
 
-                                  <div>
+                                  <strong>
+                                    {group.status}
+                                  </strong>
 
-                                    <h4>
-
-                                      {pattern.ownWins}
-                                      -
-                                      {pattern.ownLosses}
-                                      {" "}
-                                      Finish
-                                      {" · "}
-                                      Final Record{" "}
-                                      {formatRecord(
-                                        pattern
-                                          .finalRecord
-                                          .wins,
-
-                                        pattern
-                                          .finalRecord
-                                          .losses,
-
-                                        pattern
-                                          .finalRecord
-                                          .ties
-                                      )}
-
-                                    </h4>
-
-                                    <p>
-                                      {resultPatternText(
-                                        pattern
-                                      )}
-                                    </p>
-
-                                  </div>
-
-                                  <span className="scenario-path-status">
-
-                                    {pattern.status}
-
+                                  <span>
+                                    {description}
                                   </span>
 
                                 </div>
 
-                                {/* COUNTS */}
+                                <div className="scenario-row-right">
 
-                                <div className="scenario-counts">
-
-                                  <span>
-
-                                    <strong>
-                                      {pattern
-                                        .guaranteedIn
-                                        .toLocaleString()}
-                                    </strong>
-                                    {" "}
-                                    guaranteed in
-
-                                  </span>
-
-                                  <span>
-
-                                    <strong>
-                                      {pattern
-                                        .tiebreakDependent
-                                        .toLocaleString()}
-                                    </strong>
-                                    {" "}
-                                    tiebreak
-
-                                  </span>
-
-                                  <span>
-
-                                    <strong>
-                                      {pattern
-                                        .guaranteedOut
-                                        .toLocaleString()}
-                                    </strong>
-                                    {" "}
-                                    out
-
-                                  </span>
-
-                                  <span>
-
-                                    of{" "}
-
-                                    <strong>
-                                      {pattern
-                                        .total
-                                        .toLocaleString()}
-                                    </strong>
-                                    {" "}
-                                    other-result combinations
-
-                                  </span>
-
-                                </div>
-
-                                {/* POSSIBLE SEEDS */}
-
-                                {pattern
-                                  .possibleSeeds
-                                  .length >
-                                  0 && (
-                                  <div className="scenario-subsection">
-
-                                    <strong>
-                                      Possible Seeds
-                                    </strong>
-
-                                    <p>
-
-                                      {pattern
-                                        .possibleSeeds
+                                  {group.seeds.length
+                                    ? group.seeds
                                         .map(
-                                          (
-                                            seed
-                                          ) =>
+                                          (seed) =>
                                             `#${seed}`
                                         )
-                                        .join(
-                                          " · "
-                                        )}
+                                        .join(" · ")
+                                    : "No seed"}
 
-                                    </p>
-
-                                  </div>
-                                )}
-
-                                {/* ELIMINATED */}
-
-                                {aliveCount ===
-                                  0 && (
-                                  <div className="scenario-subsection">
-
-                                    <strong>
-                                      Result
-                                    </strong>
-
-                                    <p>
-                                      No combination of other league results produces a playoff berth with this personal W/L path.
-                                    </p>
-
-                                  </div>
-                                )}
-
-                                {/* GUARANTEED */}
-
-                                {pattern
-                                  .guaranteedIn ===
-                                  pattern
-                                    .total && (
-                                  <div className="scenario-subsection">
-
-                                    <strong>
-                                      Result
-                                    </strong>
-
-                                    <p>
-                                      This path guarantees a playoff berth regardless of every other remaining matchup.
-                                    </p>
-
-                                  </div>
-                                )}
-
-                                {/* EXACT REQUIRED GAME RESULTS */}
-
-                                {pattern
-                                  .mustResults
-                                  .length >
-                                  0 && (
-                                  <div className="scenario-subsection">
-
-                                    <strong>
-                                      Results Required In Every Surviving Path
-                                    </strong>
-
-                                    {pattern
-                                      .mustResults
-                                      .map(
-                                        (
-                                          result,
-                                          index
-                                        ) => (
-                                          <p
-                                            key={`${result.week}-${result.winnerOwnerId}-${result.loserOwnerId}-${index}`}
-                                          >
-
-                                            Week{" "}
-                                            {result.week}
-                                            :{" "}
-
-                                            {result.winnerName}
-                                            {" must beat "}
-                                            {result.loserName}
-
-                                          </p>
-                                        )
-                                      )}
-
-                                  </div>
-                                )}
-
-                                {/* RECORD HELP */}
-
-                                {pattern
-                                  .teamCaps
-                                  .length >
-                                  0 && (
-                                  <div className="scenario-subsection">
-
-                                    <strong>
-                                      Other Teams That Must Be Held Back
-                                    </strong>
-
-                                    {pattern
-                                      .teamCaps
-                                      .map(
-                                        (
-                                          cap
-                                        ) => (
-                                          <p
-                                            key={
-                                              cap.ownerId
-                                            }
-                                          >
-
-                                            {cap.ownerName}
-                                            {" must lose at least "}
-                                            {cap.minimumLosses}
-                                            {" of "}
-                                            {cap.gamesLeft}
-                                            {" remaining games in every surviving path."}
-
-                                          </p>
-                                        )
-                                      )}
-
-                                  </div>
-                                )}
-
-                                {/* PF TIEBREAK */}
-
-                                {pfRows.length >
-                                  0 && (
-                                  <div className="scenario-subsection">
-
-                                    <strong>
-                                      Points For Tiebreaks
-                                    </strong>
-
-                                    {pfRows.map(
-                                      (
-                                        competitor
-                                      ) => (
-
-                                        <p
-                                          key={
-                                            competitor.ownerId
-                                          }
-                                        >
-
-                                          {pfRequirementText(
-                                            team,
-                                            competitor
-                                          )}
-
-                                        </p>
-
-                                      )
-                                    )}
-
-                                  </div>
-                                )}
-
-                                {/* OTHER TIEBREAKS */}
-
-                                {pattern
-                                  .tiebreakReasons
-                                  .includes(
-                                    "PA"
-                                  ) && (
-                                  <div className="scenario-subsection">
-
-                                    <strong>
-                                      Points Against
-                                    </strong>
-
-                                    <p>
-                                      At least one surviving path can remain tied through the earlier ESPN tiebreakers and reach Points Against.
-                                    </p>
-
-                                  </div>
-                                )}
-
-                                {pattern
-                                  .tiebreakReasons
-                                  .includes(
-                                    "COIN"
-                                  ) && (
-                                  <div className="scenario-subsection">
-
-                                    <strong>
-                                      Final Tiebreak
-                                    </strong>
-
-                                    <p>
-                                      At least one mathematically possible path remains tied through every statistical ESPN tiebreaker and would require ESPN&apos;s virtual coin flip.
-                                    </p>
-
-                                  </div>
-                                )}
-
-                                {/* NO UNIVERSAL HELP RESULT */}
-
-                                {aliveCount >
-                                  0 &&
-                                  pattern
-                                    .mustResults
-                                    .length ===
-                                    0 &&
-                                  pattern
-                                    .teamCaps
-                                    .length ===
-                                    0 &&
-                                  pattern
-                                    .guaranteedIn !==
-                                    pattern
-                                      .total && (
-                                  <div className="scenario-subsection">
-
-                                    <strong>
-                                      Help
-                                    </strong>
-
-                                    <p>
-                                      There is no single other-team result required in every surviving path. Multiple combinations of league results can produce the berth.
-                                    </p>
-
-                                  </div>
-                                )}
+                                </div>
 
                               </div>
                             );
@@ -2063,17 +1305,535 @@ export default async function PlayoffScenariosPage() {
 
                       </div>
 
-                    </details>
+                    </>
                   )}
 
-                  {!scenarioEngine && (
-                    <div className="scenario-clean-message">
+                  {/* =======================================
+                      PLAYOFF CLINCHED — SEED NOT LOCKED
+                      ======================================= */}
 
-                      {weeklyTiesAllowed
-                        ? "ESPN currently allows weekly ties, so the exhaustive W/L engine is paused because each remaining matchup can have three outcomes."
-                        : `Exact owner-by-owner scenarios automatically activate when four regular-season weeks remain. There are currently ${remainingWeeks.length} weeks left.`}
+                  {scenarioEngine &&
+                    stats?.clinched &&
+                    !stats.clinchedSeed && (
+                    <>
+
+                      <div className="scenario-section-label">
+                        Seeding Scenarios
+                      </div>
+
+                      <div className="scenario-seed-paths">
+
+                        {availableSeeds.map(
+                          (seedInfo) => (
+
+                            <div
+                              className="scenario-seed-row"
+                              key={
+                                seedInfo.seed
+                              }
+                            >
+
+                              <div className="scenario-seed-number">
+                                #{seedInfo.seed}
+                              </div>
+
+                              <div className="scenario-row-main">
+
+                                <strong>
+                                  SEED #{seedInfo.seed} STILL POSSIBLE
+                                </strong>
+
+                                <span>
+
+                                  Possible in{" "}
+
+                                  {percent(
+                                    seedInfo.possible,
+                                    scenarioEngine.totalScenarios
+                                  )}
+
+                                  {" "}of all remaining league outcomes.
+
+                                </span>
+
+                              </div>
+
+                              <div className="scenario-row-right">
+
+                                {seedInfo.guaranteed >
+                                0
+                                  ? `${percent(
+                                      seedInfo.guaranteed,
+                                      scenarioEngine.totalScenarios
+                                    )} locked`
+                                  : "Needs specific results"}
+
+                              </div>
+
+                            </div>
+
+                          )
+                        )}
+
+                      </div>
+
+                    </>
+                  )}
+
+                  {/* =======================================
+                      SPECIFIC SEED ALREADY CLINCHED
+                      ======================================= */}
+
+                  {scenarioEngine &&
+                    stats?.clinchedSeed && (
+
+                    <div className="scenario-complete">
+
+                      <strong>
+                        #{stats.clinchedSeed} seed clinched.
+                      </strong>
+
+                      {" "}
+
+                      No remaining combination of regular-season
+                      results can move this team to another seed.
 
                     </div>
+
+                  )}
+
+                  {/* =======================================
+                      ELIMINATED
+                      ======================================= */}
+
+                  {scenarioEngine &&
+                    stats?.eliminated && (
+
+                    <div className="scenario-complete">
+
+                      There is no remaining mathematical path
+                      to the playoffs.
+
+                    </div>
+
+                  )}
+
+                  {/* =======================================
+                      FULL PLAYOFF SCENARIOS
+                      ======================================= */}
+
+                  {scenarioEngine &&
+                    stats &&
+                    !stats.clinched &&
+                    !stats.eliminated && (
+
+                    <details className="scenario-details">
+
+                      <summary>
+                        View Every Playoff Scenario
+                      </summary>
+
+                      <div className="scenario-detail-list">
+
+                        {stats.patterns.map(
+                          (pattern) => (
+
+                            <div
+                              className="scenario-detail"
+                              key={
+                                pattern.code
+                              }
+                            >
+
+                              <h4>
+
+                                Go{" "}
+                                {pattern.ownWins}
+                                -
+                                {pattern.ownLosses}
+                                {" · Finish "}
+                                {formatRecord(
+                                  pattern.finalRecord.wins,
+                                  pattern.finalRecord.losses,
+                                  pattern.finalRecord.ties
+                                )}
+
+                              </h4>
+
+                              <p className="scenario-detail-pattern">
+                                {resultPatternText(
+                                  pattern
+                                )}
+                              </p>
+
+                              {pattern.mustResults.length >
+                                0 && (
+
+                                <div className="scenario-help">
+
+                                  <strong>
+                                    Games That Must Go Your Way
+                                  </strong>
+
+                                  {pattern.mustResults.map(
+                                    (
+                                      result,
+                                      index
+                                    ) => (
+
+                                      <p
+                                        key={`${result.week}-${result.winnerOwnerId}-${index}`}
+                                      >
+
+                                        Week{" "}
+                                        {result.week}
+                                        :{" "}
+                                        {result.winnerName}
+                                        {" must beat "}
+                                        {result.loserName}
+
+                                      </p>
+
+                                    )
+                                  )}
+
+                                </div>
+
+                              )}
+
+                              {pattern.teamCaps.length >
+                                0 && (
+
+                                <div className="scenario-help">
+
+                                  <strong>
+                                    Help Needed
+                                  </strong>
+
+                                  {pattern.teamCaps.map(
+                                    (cap) => (
+
+                                      <p
+                                        key={
+                                          cap.ownerId
+                                        }
+                                      >
+
+                                        {cap.ownerName}
+                                        {" must lose at least "}
+                                        {cap.minimumLosses}
+                                        {" of "}
+                                        {cap.gamesLeft}
+                                        {" remaining games."}
+
+                                      </p>
+
+                                    )
+                                  )}
+
+                                </div>
+
+                              )}
+
+                              {pattern.pfCompetitors.length >
+                                0 && (
+
+                                <div className="scenario-help">
+
+                                  <strong>
+                                    Points For Tiebreak
+                                  </strong>
+
+                                  {pattern.pfCompetitors.map(
+                                    (competitor) => (
+
+                                      <p
+                                        key={
+                                          competitor.ownerId
+                                        }
+                                      >
+
+                                        {pfRequirementText(
+                                          team,
+                                          competitor
+                                        )}
+
+                                      </p>
+
+                                    )
+                                  )}
+
+                                </div>
+
+                              )}
+
+                            </div>
+
+                          )
+                        )}
+
+                      </div>
+
+                    </details>
+
+                  )}
+
+                  {/* =======================================
+                      FULL SEED-SPECIFIC SCENARIOS
+                      ======================================= */}
+
+                  {scenarioEngine &&
+                    stats?.clinched &&
+                    !stats.clinchedSeed &&
+                    availableSeeds.map(
+                      (seedInfo) => {
+
+                        const seedPaths =
+                          getSeedPaths(
+                            stats,
+                            seedInfo.seed
+                          );
+
+                        return (
+                          <details
+                            className="scenario-details"
+                            key={`seed-details-${seedInfo.seed}`}
+                          >
+
+                            <summary>
+                              How To Get Seed #{seedInfo.seed}
+                            </summary>
+
+                            <div className="scenario-detail-list">
+
+                              {seedPaths.map(
+                                (path) => (
+
+                                  <div
+                                    className="scenario-detail"
+                                    key={`${seedInfo.seed}-${path.code}`}
+                                  >
+
+                                    <h4>
+
+                                      Go{" "}
+                                      {path.ownWins}
+                                      -
+                                      {path.ownLosses}
+                                      {" · Finish "}
+                                      {formatRecord(
+                                        path.finalRecord.wins,
+                                        path.finalRecord.losses,
+                                        path.finalRecord.ties
+                                      )}
+
+                                    </h4>
+
+                                    <p className="scenario-detail-pattern">
+
+                                      {resultPatternText(
+                                        path
+                                      )}
+
+                                    </p>
+
+                                    <div className="scenario-help">
+
+                                      <strong>
+                                        Seed #{seedInfo.seed} Outlook
+                                      </strong>
+
+                                      <p>
+
+                                        Seed #{seedInfo.seed} occurs in{" "}
+
+                                        {path.possible.toLocaleString()}
+
+                                        {" "}of the{" "}
+
+                                        {path.patternTotal.toLocaleString()}
+
+                                        {" "}league-result combinations attached to this personal finish.
+
+                                      </p>
+
+                                      {path.guaranteed >
+                                        0 && (
+
+                                        <p>
+
+                                          It is guaranteed in{" "}
+
+                                          {path.guaranteed.toLocaleString()}
+
+                                          {" "}of those combinations.
+
+                                        </p>
+
+                                      )}
+
+                                    </div>
+
+                                    {path.mustResults.length >
+                                      0 && (
+
+                                      <div className="scenario-help">
+
+                                        <strong>
+                                          Games That Must Go Your Way
+                                        </strong>
+
+                                        {path.mustResults.map(
+                                          (
+                                            result,
+                                            index
+                                          ) => (
+
+                                            <p
+                                              key={`${result.week}-${result.winnerOwnerId}-${index}`}
+                                            >
+
+                                              Week{" "}
+                                              {result.week}
+                                              :{" "}
+                                              {result.winnerName}
+                                              {" must beat "}
+                                              {result.loserName}
+
+                                            </p>
+
+                                          )
+                                        )}
+
+                                      </div>
+
+                                    )}
+
+                                    {path.teamCaps.length >
+                                      0 && (
+
+                                      <div className="scenario-help">
+
+                                        <strong>
+                                          Teams That Must Be Held Back
+                                        </strong>
+
+                                        {path.teamCaps.map(
+                                          (cap) => (
+
+                                            <p
+                                              key={
+                                                cap.ownerId
+                                              }
+                                            >
+
+                                              {cap.ownerName}
+                                              {" must lose at least "}
+                                              {cap.minimumLosses}
+                                              {" of "}
+                                              {cap.gamesLeft}
+                                              {" remaining games."}
+
+                                            </p>
+
+                                          )
+                                        )}
+
+                                      </div>
+
+                                    )}
+
+                                    {path.pfCompetitors.length >
+                                      0 && (
+
+                                      <div className="scenario-help">
+
+                                        <strong>
+                                          Points For Tiebreak
+                                        </strong>
+
+                                        {path.pfCompetitors.map(
+                                          (
+                                            competitor
+                                          ) => (
+
+                                            <p
+                                              key={
+                                                competitor.ownerId
+                                              }
+                                            >
+
+                                              {pfRequirementText(
+                                                team,
+                                                competitor
+                                              )}
+
+                                            </p>
+
+                                          )
+                                        )}
+
+                                      </div>
+
+                                    )}
+
+                                    {path.tiebreakReasons.includes(
+                                      "PA"
+                                    ) && (
+
+                                      <div className="scenario-help">
+
+                                        <strong>
+                                          Deep Tiebreak
+                                        </strong>
+
+                                        <p>
+                                          At least one path to this seed reaches Points Against after ESPN&apos;s earlier tiebreakers.
+                                        </p>
+
+                                      </div>
+
+                                    )}
+
+                                    {path.tiebreakReasons.includes(
+                                      "COIN"
+                                    ) && (
+
+                                      <div className="scenario-help">
+
+                                        <strong>
+                                          Final Tiebreak
+                                        </strong>
+
+                                        <p>
+                                          At least one path to this seed can reach ESPN&apos;s final random tiebreak.
+                                        </p>
+
+                                      </div>
+
+                                    )}
+
+                                  </div>
+
+                                )
+                              )}
+
+                            </div>
+
+                          </details>
+                        );
+                      }
+                    )}
+
+                  {!scenarioEngine && (
+
+                    <div className="scenario-complete">
+
+                      Exact scenarios automatically activate when
+                      four regular-season weeks remain.
+
+                    </div>
+
                   )}
 
                 </article>
@@ -2085,8 +1845,6 @@ export default async function PlayoffScenariosPage() {
 
       </section>
 
-      {/* FOOTER */}
-
       <footer className="site-footer">
 
         <strong>
@@ -2094,16 +1852,12 @@ export default async function PlayoffScenariosPage() {
         </strong>
 
         <span>
-          ESPN Tiebreak:{" "}
-          {tiebreakLabel}
+          ESPN Tiebreak: {tiebreakLabel}
         </span>
 
         <p>
-          Every remaining W/L combination is evaluated once the
-          four-week scenario window opens. Future Points For is
-          never guessed; paths that reach PF remain correctly
-          marked as tiebreak-dependent until those points are
-          actually scored.
+          Playoff and seed scenarios recalculate automatically
+          as ESPN results, records and tiebreak positions change.
         </p>
 
       </footer>
