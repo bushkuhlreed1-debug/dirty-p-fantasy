@@ -50,11 +50,15 @@ function hasNumber(value) {
     value !== null &&
     value !== undefined &&
     value !== "" &&
-    Number.isFinite(Number(value))
+    Number.isFinite(
+      Number(value)
+    )
   );
 }
 
-function firstName(value = "") {
+function firstName(
+  value = ""
+) {
   return (
     String(value)
       .trim()
@@ -63,12 +67,20 @@ function firstName(value = "") {
   );
 }
 
-function formatScore(value) {
-  return num(value).toFixed(2);
+function formatScore(
+  value
+) {
+  return num(value).toFixed(
+    2
+  );
 }
 
-function formatOne(value) {
-  return num(value).toFixed(1);
+function formatOne(
+  value
+) {
+  return num(value).toFixed(
+    1
+  );
 }
 
 function formatRecord(
@@ -76,11 +88,19 @@ function formatRecord(
   losses,
   ties = 0
 ) {
-  if (num(ties) > 0) {
-    return `${num(wins)}-${num(losses)}-${num(ties)}`;
+  if (
+    num(ties) > 0
+  ) {
+    return `${num(
+      wins
+    )}-${num(
+      losses
+    )}-${num(ties)}`;
   }
 
-  return `${num(wins)}-${num(losses)}`;
+  return `${num(
+    wins
+  )}-${num(losses)}`;
 }
 
 function isAssignedRival(
@@ -89,10 +109,14 @@ function isAssignedRival(
 ) {
   return ASSIGNED_RIVALS.some(
     ([a, b]) =>
-      (a === owner1 &&
-        b === owner2) ||
-      (a === owner2 &&
-        b === owner1)
+      (
+        a === owner1 &&
+        b === owner2
+      ) ||
+      (
+        a === owner2 &&
+        b === owner1
+      )
   );
 }
 
@@ -106,11 +130,13 @@ function gameSides(
 ) {
   return [
     {
-      side: "AWAY",
+      side:
+        "AWAY",
 
-      ownerId: Number(
-        game.away_owner_id
-      ),
+      ownerId:
+        Number(
+          game.away_owner_id
+        ),
 
       ownerName:
         ownerMap.get(
@@ -124,17 +150,20 @@ function gameSides(
         game.away_team_name ||
         "Unknown Team",
 
-      score: num(
-        game.away_score
-      ),
+      score:
+        num(
+          game.away_score
+        ),
     },
 
     {
-      side: "HOME",
+      side:
+        "HOME",
 
-      ownerId: Number(
-        game.home_owner_id
-      ),
+      ownerId:
+        Number(
+          game.home_owner_id
+        ),
 
       ownerName:
         ownerMap.get(
@@ -148,9 +177,10 @@ function gameSides(
         game.home_team_name ||
         "Unknown Team",
 
-      score: num(
-        game.home_score
-      ),
+      score:
+        num(
+          game.home_score
+        ),
     },
   ];
 }
@@ -159,20 +189,26 @@ function winnerFromGame(
   game,
   ownerMap
 ) {
-  const sides = gameSides(
-    game,
-    ownerMap
-  );
+  const sides =
+    gameSides(
+      game,
+      ownerMap
+    );
 
-  const winner = String(
-    game.winner || ""
-  ).toUpperCase();
+  const winner =
+    String(
+      game.winner || ""
+    ).toUpperCase();
 
-  if (winner === "AWAY") {
+  if (
+    winner === "AWAY"
+  ) {
     return sides[0];
   }
 
-  if (winner === "HOME") {
+  if (
+    winner === "HOME"
+  ) {
     return sides[1];
   }
 
@@ -183,9 +219,12 @@ function winnerFromGame(
     return null;
   }
 
-  return [...sides].sort(
+  return [
+    ...sides,
+  ].sort(
     (a, b) =>
-      b.score - a.score
+      b.score -
+      a.score
   )[0];
 }
 
@@ -236,10 +275,18 @@ function getSeries(
           );
 
         return (
-          (home === owner1Id &&
-            away === owner2Id) ||
-          (home === owner2Id &&
-            away === owner1Id)
+          (
+            home ===
+              owner1Id &&
+            away ===
+              owner2Id
+          ) ||
+          (
+            home ===
+              owner2Id &&
+            away ===
+              owner1Id
+          )
         );
       }
     );
@@ -277,7 +324,8 @@ function getSeries(
         game.winner || ""
       ).toUpperCase();
 
-    let winnerId = null;
+    let winnerId =
+      null;
 
     if (
       winner === "HOME"
@@ -394,7 +442,9 @@ function buildStreaks(
   ownerMap
 ) {
   const chronological =
-    [...games].sort(
+    [
+      ...games,
+    ].sort(
       (a, b) =>
         Number(
           a.matchup_period
@@ -490,7 +540,7 @@ function buildStreaks(
     const type =
       ownerResults[
         ownerResults.length -
-        1
+          1
       ];
 
     if (
@@ -513,6 +563,7 @@ function buildStreaks(
         type
       ) {
         count += 1;
+
       } else {
         break;
       }
@@ -555,14 +606,17 @@ function buildFantasyLine({
     home <= 0
   ) {
     return {
-      available: false,
+      available:
+        false,
 
       projectedWinner:
         null,
 
-      line: "—",
+      line:
+        "—",
 
-      total: "—",
+      total:
+        "—",
 
       projectedScore:
         null,
@@ -582,8 +636,7 @@ function buildFantasyLine({
     "PICK";
 
   if (
-    difference >=
-    0.05
+    difference >= 0.05
   ) {
     projectedWinner =
       away > home
@@ -750,7 +803,9 @@ function getNotableOutlook(
           a.projection
       )[0];
 
-  if (favorable) {
+  if (
+    favorable
+  ) {
     return (
       `${favorable.name} has one of the best fantasy spots in the matchup, ` +
       `with ESPN projecting ${formatOne(
@@ -773,7 +828,9 @@ function getNotableOutlook(
           a.projection
       )[0];
 
-  if (tough) {
+  if (
+    tough
+  ) {
     return (
       `${tough.name} draws one of the tougher fantasy spots, ` +
       `with ESPN projecting ${formatOne(
@@ -954,8 +1011,7 @@ export default async function Home() {
       );
 
     if (
-      ownerId >
-      0
+      ownerId > 0
     ) {
       currentTeamByOwner.set(
         ownerId,
@@ -1291,7 +1347,9 @@ export default async function Home() {
   function getOwnerIntel(
     ownerId
   ) {
-    if (!matchupIntel) {
+    if (
+      !matchupIntel
+    ) {
       return null;
     }
 
@@ -1311,7 +1369,9 @@ export default async function Home() {
         ownerId
       );
 
-    if (!espnTeamId) {
+    if (
+      !espnTeamId
+    ) {
       return null;
     }
 
@@ -1426,12 +1486,14 @@ export default async function Home() {
                 ?.projectedPoints,
           });
 
-        let hypeScore = 0;
+        let hypeScore =
+          0;
 
         if (
           assignedRivals
         ) {
-          hypeScore += 20;
+          hypeScore +=
+            20;
         }
 
         if (
@@ -1442,7 +1504,8 @@ export default async function Home() {
             ?.losses ===
             0
         ) {
-          hypeScore += 8;
+          hypeScore +=
+            8;
         }
 
         if (
@@ -1453,7 +1516,8 @@ export default async function Home() {
             ?.losses ===
             0
         ) {
-          hypeScore += 8;
+          hypeScore +=
+            8;
         }
 
         const awayPlayoff =
@@ -1476,13 +1540,15 @@ export default async function Home() {
           awayPlayoff &&
           homePlayoff
         ) {
-          hypeScore += 12;
+          hypeScore +=
+            12;
 
         } else if (
           awayPlayoff ||
           homePlayoff
         ) {
-          hypeScore += 6;
+          hypeScore +=
+            6;
         }
 
         if (
@@ -1588,7 +1654,8 @@ export default async function Home() {
   // AROUND THE LEAGUE
   // =======================================================
 
-  const stories = [];
+  const stories =
+    [];
 
   if (
     latestWeekGames.length >
@@ -1609,13 +1676,17 @@ export default async function Home() {
       );
 
     const highScore =
-      [...weekSides].sort(
+      [
+        ...weekSides,
+      ].sort(
         (a, b) =>
           b.score -
           a.score
       )[0];
 
-    if (highScore) {
+    if (
+      highScore
+    ) {
       const winner =
         winnerFromGame(
           highScore.game,
@@ -1775,13 +1846,17 @@ export default async function Home() {
         );
 
     const closest =
-      [...decided].sort(
+      [
+        ...decided,
+      ].sort(
         (a, b) =>
           a.margin -
           b.margin
       )[0];
 
-    if (closest) {
+    if (
+      closest
+    ) {
       const winner =
         winnerFromGame(
           closest.game,
@@ -1851,7 +1926,9 @@ export default async function Home() {
             a.count
         )[0];
 
-    if (hottest) {
+    if (
+      hottest
+    ) {
       stories.push({
         headline:
           `${firstName(
@@ -1878,14 +1955,16 @@ export default async function Home() {
   function matchupAnalysis(
     matchup
   ) {
-    const pieces = [];
+    const pieces =
+      [];
 
     if (
       matchup
         .assignedRivals
     ) {
       pieces.push(
-        matchup.rivalryWeek
+        matchup
+          .rivalryWeek
           ? `${matchup.awayName} and ${matchup.homeName} meet in their official Rivalry Week matchup.`
           : `${matchup.awayName} and ${matchup.homeName} are assigned rivals, adding extra bragging rights.`
       );
@@ -1988,7 +2067,9 @@ export default async function Home() {
         matchup
       );
 
-    if (notable) {
+    if (
+      notable
+    ) {
       pieces.push(
         notable
       );
@@ -2161,6 +2242,10 @@ export default async function Home() {
           GOAT Rankings
         </Link>
 
+        <Link href="/playoff-scenarios">
+          2026 Playoff Scenarios
+        </Link>
+
         <Link href="/map">
           Map
         </Link>
@@ -2181,8 +2266,7 @@ export default async function Home() {
           {unmatchedEspnOwners
             .map(
               (owner) =>
-                owner
-                  .ownerName
+                owner.ownerName
             )
             .join(", ")}
 
@@ -2503,7 +2587,7 @@ export default async function Home() {
         </section>
       )}
 
-      {/* LIVE SCOREBOARD OR PREGAME PREVIEW */}
+      {/* LIVE SCOREBOARD OR PREGAME */}
 
       <section className="section-block">
 
@@ -2616,7 +2700,8 @@ export default async function Home() {
 
                         <span>
 
-                          {index === 0
+                          {index ===
+                          0
                             ? "GAME OF THE WEEK"
                             : `WEEK ${previewWeek}`}
 
@@ -2642,7 +2727,7 @@ export default async function Home() {
 
                     </div>
 
-                    {/* AWAY TEAM */}
+                    {/* AWAY */}
 
                     <div
                       className={`matchup-team-row ${
@@ -2718,7 +2803,7 @@ export default async function Home() {
 
                     </div>
 
-                    {/* HOME TEAM */}
+                    {/* HOME */}
 
                     <div
                       className={`matchup-team-row ${
@@ -3422,9 +3507,11 @@ export default async function Home() {
                                 ) : (
 
                                   <div className="matchup-player-row">
+
                                     <small>
                                       Projection data unavailable.
                                     </small>
+
                                   </div>
 
                                 )}
@@ -3490,9 +3577,11 @@ export default async function Home() {
                                 ) : (
 
                                   <div className="matchup-player-row">
+
                                     <small>
                                       Projection data unavailable.
                                     </small>
+
                                   </div>
 
                                 )}
