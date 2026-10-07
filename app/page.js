@@ -50,15 +50,11 @@ function hasNumber(value) {
     value !== null &&
     value !== undefined &&
     value !== "" &&
-    Number.isFinite(
-      Number(value)
-    )
+    Number.isFinite(Number(value))
   );
 }
 
-function firstName(
-  value = ""
-) {
+function firstName(value = "") {
   return (
     String(value)
       .trim()
@@ -81,17 +77,10 @@ function formatRecord(
   ties = 0
 ) {
   if (num(ties) > 0) {
-    return (
-      `${num(wins)}-` +
-      `${num(losses)}-` +
-      `${num(ties)}`
-    );
+    return `${num(wins)}-${num(losses)}-${num(ties)}`;
   }
 
-  return (
-    `${num(wins)}-` +
-    `${num(losses)}`
-  );
+  return `${num(wins)}-${num(losses)}`;
 }
 
 function isAssignedRival(
@@ -100,14 +89,10 @@ function isAssignedRival(
 ) {
   return ASSIGNED_RIVALS.some(
     ([a, b]) =>
-      (
-        a === owner1 &&
-        b === owner2
-      ) ||
-      (
-        a === owner2 &&
-        b === owner1
-      )
+      (a === owner1 &&
+        b === owner2) ||
+      (a === owner2 &&
+        b === owner1)
   );
 }
 
@@ -121,13 +106,11 @@ function gameSides(
 ) {
   return [
     {
-      side:
-        "AWAY",
+      side: "AWAY",
 
-      ownerId:
-        Number(
-          game.away_owner_id
-        ),
+      ownerId: Number(
+        game.away_owner_id
+      ),
 
       ownerName:
         ownerMap.get(
@@ -141,20 +124,17 @@ function gameSides(
         game.away_team_name ||
         "Unknown Team",
 
-      score:
-        num(
-          game.away_score
-        ),
+      score: num(
+        game.away_score
+      ),
     },
 
     {
-      side:
-        "HOME",
+      side: "HOME",
 
-      ownerId:
-        Number(
-          game.home_owner_id
-        ),
+      ownerId: Number(
+        game.home_owner_id
+      ),
 
       ownerName:
         ownerMap.get(
@@ -168,10 +148,9 @@ function gameSides(
         game.home_team_name ||
         "Unknown Team",
 
-      score:
-        num(
-          game.home_score
-        ),
+      score: num(
+        game.home_score
+      ),
     },
   ];
 }
@@ -180,26 +159,20 @@ function winnerFromGame(
   game,
   ownerMap
 ) {
-  const sides =
-    gameSides(
-      game,
-      ownerMap
-    );
+  const sides = gameSides(
+    game,
+    ownerMap
+  );
 
-  const winner =
-    String(
-      game.winner || ""
-    ).toUpperCase();
+  const winner = String(
+    game.winner || ""
+  ).toUpperCase();
 
-  if (
-    winner === "AWAY"
-  ) {
+  if (winner === "AWAY") {
     return sides[0];
   }
 
-  if (
-    winner === "HOME"
-  ) {
+  if (winner === "HOME") {
     return sides[1];
   }
 
@@ -212,8 +185,7 @@ function winnerFromGame(
 
   return [...sides].sort(
     (a, b) =>
-      b.score -
-      a.score
+      b.score - a.score
   )[0];
 }
 
@@ -264,18 +236,10 @@ function getSeries(
           );
 
         return (
-          (
-            home ===
-              owner1Id &&
-            away ===
-              owner2Id
-          ) ||
-          (
-            home ===
-              owner2Id &&
-            away ===
-              owner1Id
-          )
+          (home === owner1Id &&
+            away === owner2Id) ||
+          (home === owner2Id &&
+            away === owner1Id)
         );
       }
     );
@@ -313,25 +277,27 @@ function getSeries(
         game.winner || ""
       ).toUpperCase();
 
-    let winnerId =
-      null;
+    let winnerId = null;
 
     if (
       winner === "HOME"
     ) {
       winnerId =
         homeId;
+
     } else if (
       winner === "AWAY"
     ) {
       winnerId =
         awayId;
+
     } else if (
       homeScore >
       awayScore
     ) {
       winnerId =
         homeId;
+
     } else if (
       awayScore >
       homeScore
@@ -378,9 +344,7 @@ function seriesText(
     !series ||
     series.games === 0
   ) {
-    return (
-      "First recorded meeting"
-    );
+    return "First recorded meeting";
   }
 
   if (
@@ -526,7 +490,7 @@ function buildStreaks(
     const type =
       ownerResults[
         ownerResults.length -
-          1
+        1
       ];
 
     if (
@@ -591,17 +555,14 @@ function buildFantasyLine({
     home <= 0
   ) {
     return {
-      available:
-        false,
+      available: false,
 
       projectedWinner:
         null,
 
-      line:
-        "—",
+      line: "—",
 
-      total:
-        "—",
+      total: "—",
 
       projectedScore:
         null,
@@ -676,14 +637,12 @@ function topPlayers(
     return [];
   }
 
-  return (
-    teamIntel
-      .impactPlayers
-      .slice(
-        0,
-        limit
-      )
-  );
+  return teamIntel
+    .impactPlayers
+    .slice(
+      0,
+      limit
+    );
 }
 
 function outlookWord(
@@ -883,6 +842,7 @@ export default async function Home() {
   } catch (error) {
     return (
       <main className="page-shell">
+
         <h1>
           Dirty P Fantasy Football
         </h1>
@@ -891,6 +851,7 @@ export default async function Home() {
           {error?.message ||
             "Unable to load league data."}
         </p>
+
       </main>
     );
   }
@@ -1538,8 +1499,8 @@ export default async function Home() {
                 Math.abs(
                   awayStanding
                     .playoffSeed -
-                    homeStanding
-                      .playoffSeed
+                  homeStanding
+                    .playoffSeed
                 )
             );
         }
@@ -1562,8 +1523,8 @@ export default async function Home() {
               Math.abs(
                 series
                   .owner1Wins -
-                  series
-                    .owner2Wins
+                series
+                  .owner2Wins
               )
           );
 
@@ -2626,24 +2587,15 @@ export default async function Home() {
                     homeLiveProjection
                   );
 
-                const espnLiveProjection =
-                  liveProjectionAvailable
-                    ? `${formatOne(
-                        awayLiveProjection
-                      )} - ${formatOne(
-                        homeLiveProjection
-                      )}`
-                    : "—";
-
                 const espnLiveTotal =
                   liveProjectionAvailable
                     ? formatOne(
                         Number(
                           awayLiveProjection
                         ) +
-                          Number(
-                            homeLiveProjection
-                          )
+                        Number(
+                          homeLiveProjection
+                        )
                       )
                     : "—";
 
@@ -2759,9 +2711,11 @@ export default async function Home() {
                     </div>
 
                     <div className="matchup-vs">
+
                       <span>
                         VS
                       </span>
+
                     </div>
 
                     {/* HOME TEAM */}
@@ -2832,14 +2786,14 @@ export default async function Home() {
 
                     </div>
 
-                    {/* LIVE INFO ONLY - NO PREGAME PROJECTION */}
+                    {/* LIVE SCOREBOARD INFO */}
 
                     <div className="scoreboard-market-strip">
 
                       <div>
 
                         <span>
-                          DIRTY P LINE
+                          SPREAD
                         </span>
 
                         <strong>
@@ -2853,11 +2807,13 @@ export default async function Home() {
                       <div>
 
                         <span>
-                          ESPN LIVE PROJ
+                          O/U
                         </span>
 
                         <strong>
-                          {espnLiveProjection}
+                          {matchup
+                            .fantasyLine
+                            .total}
                         </strong>
 
                       </div>
@@ -3012,8 +2968,6 @@ export default async function Home() {
 
                 </p>
 
-                {/* PREGAME PROJECTIONS ONLY */}
-
                 {gameOfTheWeek
                   .fantasyLine
                   .available && (
@@ -3022,7 +2976,7 @@ export default async function Home() {
                     <div>
 
                       <span>
-                        DIRTY P LINE
+                        SPREAD
                       </span>
 
                       <strong>
@@ -3036,7 +2990,7 @@ export default async function Home() {
                     <div>
 
                       <span>
-                        PROJECTED TOTAL
+                        O/U
                       </span>
 
                       <strong>
@@ -3549,14 +3503,12 @@ export default async function Home() {
 
                           )}
 
-                          {/* PREGAME PROJECTIONS */}
-
                           <div className="scoreboard-market-strip">
 
                             <div>
 
                               <span>
-                                DIRTY P LINE
+                                SPREAD
                               </span>
 
                               <strong>
@@ -3570,7 +3522,7 @@ export default async function Home() {
                             <div>
 
                               <span>
-                                PROJECTED TOTAL
+                                O/U
                               </span>
 
                               <strong>
