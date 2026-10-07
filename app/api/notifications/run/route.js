@@ -33,8 +33,7 @@ const NFL_SUMMARY =
 // =========================================================
 
 function num(value) {
-  const parsed =
-    Number(value);
+  const parsed = Number(value);
 
   return Number.isFinite(parsed)
     ? parsed
@@ -73,22 +72,28 @@ function normalize(value = "") {
 
 
 function matchupKey(game) {
-  const a =
+  const away =
     Number(
       game.away_owner_id
     );
 
-  const h =
+  const home =
     Number(
       game.home_owner_id
     );
 
-  return `${Math.min(a, h)}-${Math.max(a, h)}`;
+  return `${Math.min(
+    away,
+    home
+  )}-${Math.max(
+    away,
+    home
+  )}`;
 }
 
 
 // =========================================================
-// SUPABASE STATE
+// NOTIFICATION STATE
 // =========================================================
 
 async function getState(
@@ -254,7 +259,6 @@ async function pushToOwner(
         payload
       );
 
-
       sent += 1;
 
     } catch (error) {
@@ -265,10 +269,8 @@ async function pushToOwner(
 
 
       if (
-        error?.statusCode ===
-          404 ||
-        error?.statusCode ===
-          410
+        error?.statusCode === 404 ||
+        error?.statusCode === 410
       ) {
         await supabaseAdmin
           .from(
@@ -289,11 +291,12 @@ async function pushToOwner(
 
 
 // =========================================================
-// NFL DATA
+// ESPN HTTP
 // =========================================================
 
 async function getJson(
-  url
+  url,
+  options = {}
 ) {
   const response =
     await fetch(
@@ -301,6 +304,8 @@ async function getJson(
       {
         cache:
           "no-store",
+
+        ...options,
       }
     );
 
@@ -315,6 +320,10 @@ async function getJson(
   return response.json();
 }
 
+
+// =========================================================
+// NFL EVENTS
+// =========================================================
 
 async function getNflEvents(
   season,
@@ -340,15 +349,6 @@ async function getNflEvents(
 }
 
 
-async function getNflSummary(
-  eventId
-) {
-  return getJson(
-    `${NFL_SUMMARY}?event=${eventId}`
-  );
-}
-
-
 function eventState(
   event
 ) {
@@ -371,22 +371,290 @@ function eventDay(
 
 
   try {
-    return new Intl.DateTimeFormat(
-      "en-US",
-      {
-        timeZone:
-          "America/Chicago",
+    return new Intl
+      .DateTimeFormat(
+        "en-US",
+        {
+          timeZone:
+            "America/Chicago",
 
-        weekday:
-          "long",
-      }
-    ).format(
-      new Date(
-        event.date
+          weekday:
+            "long",
+        }
       )
-    );
+      .format(
+        new Date(
+          event.date
+        )
+      );
+
   } catch {
     return "";
+  }
+}
+
+
+// =========================================================
+// NFL SUMMARY CACHE
+// =========================================================
+
+async function getNflSummary(
+  event,
+  season,
+  week
+) {
+  const state =
+    eventState(event);
+
+
+  const cacheKey =
+    `nfl-summary:${season}:${week}:${event.id}`;
+
+
+  if (
+    state === "post"
+  ) {
+    const cached =
+      await getState(
+        cacheKey
+      );
+
+
+    if (
+      cached?.summary
+    ) {
+      return cached.summary;
+    }
+  }
+
+
+  const data =
+    await getJson(
+      `${NFL_SUMMARY}?event=${event.id}`
+    );
+
+
+  const compact = {
+    scoringPlays:
+      Array.isArray(
+        data?.scoringPlays
+      )
+        ? data.scoringPlays
+        : [],
+
+    boxscore: {
+      players:
+        Array.isArray(
+          data
+            ?.boxscore
+            ?.players
+        )
+          ? data.boxscore.players
+          : [],
+    },
+  };
+
+
+  if (
+    state === "post"
+  ) {
+    await setState(
+      cacheKey,
+      {
+        summary:
+          compact,
+      }
+    );
+  }
+
+
+  return compact;
+}
+
+
+// =========================================================
+// ESPN FANTASY PLAYER POINTS
+// =========================================================
+
+async function getFantasyPointsByTeam(
+  season,
+  week
+) {
+  const leagueId =
+    process.env
+      .ESPN_LEAGUE_ID;
+
+  const espnS2 =
+    process.env
+      .ESPN_S2;
+
+  const espnSwid =
+    process.env
+      .ESPN_SWID;
+
+
+  if (!leagueId) {
+    return new Map();
+  }
+
+
+  const cookieParts =
+    [];
+
+
+  if (espnS2) {
+    cookieParts.push(
+      `espn_s2=${espnS2}`
+    );
+  }
+
+
+  if (espnSwid) {
+    cookieParts.push(
+      `SWID=${espnSwid}`
+    );
+  }
+
+
+  const url =
+    `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/` +
+    `seasons/${season}/segments/0/leagues/${leagueId}` +
+    `?scoringPeriodId=${week}` +
+    `&view=mRoster` +
+    `&view=mTeam`;
+
+
+  try {
+    const data =
+      await getJson(
+        url,
+        {
+          headers:
+            cookieParts.length
+              ? {
+                  Cookie:
+                    cookieParts.join(
+                      "; "
+                    ),
+                }
+              : {},
+        }
+      );
+
+
+    const result =
+      new Map();
+
+
+    for (
+      const team of
+      data?.teams || []
+    ) {
+      const playerMap =
+        new Map();
+
+
+      for (
+        const entry of
+        team
+          ?.roster
+          ?.entries || []
+      ) {
+        const playerId =
+          String(
+            entry?.playerId ||
+            entry
+              ?.playerPoolEntry
+              ?.id ||
+            ""
+          );
+
+
+        if (!playerId) {
+          continue;
+        }
+
+
+        let points =
+          entry
+            ?.playerPoolEntry
+            ?.appliedStatTotal;
+
+
+        if (
+          points === null ||
+          points === undefined
+        ) {
+          const stats =
+            entry
+              ?.playerPoolEntry
+              ?.player
+              ?.stats ||
+            [];
+
+
+          const weekStat =
+            stats.find(
+              (stat) =>
+                Number(
+                  stat
+                    ?.seasonId
+                ) ===
+                  Number(
+                    season
+                  ) &&
+                Number(
+                  stat
+                    ?.scoringPeriodId
+                ) ===
+                  Number(
+                    week
+                  ) &&
+                Number(
+                  stat
+                    ?.statSourceId
+                ) ===
+                  0
+            );
+
+
+          points =
+            weekStat
+              ?.appliedTotal;
+        }
+
+
+        if (
+          points !== null &&
+          points !== undefined &&
+          Number.isFinite(
+            Number(points)
+          )
+        ) {
+          playerMap.set(
+            playerId,
+            Number(points)
+          );
+        }
+      }
+
+
+      result.set(
+        Number(team.id),
+        playerMap
+      );
+    }
+
+
+    return result;
+
+  } catch (error) {
+    console.error(
+      "Fantasy points lookup failed:",
+      error
+    );
+
+    return new Map();
   }
 }
 
@@ -415,17 +683,18 @@ function scoringPlaysFromSummary(
             play
               ?.type
               ?.text ||
-              ""
-          ).toLowerCase();
+            ""
+          )
+            .toLowerCase();
 
 
         const text =
           String(
             play?.text ||
-            play
-              ?.shortText ||
+            play?.shortText ||
             ""
-          ).toLowerCase();
+          )
+            .toLowerCase();
 
 
         return (
@@ -479,8 +748,7 @@ function scoringPlaysFromSummary(
 
           text:
             play?.text ||
-            play
-              ?.shortText ||
+            play?.shortText ||
             "Touchdown",
 
           participantIds:
@@ -505,9 +773,11 @@ function starterMatchesPlay(
 
   if (
     playerId &&
-    play.participantIds.includes(
-      playerId
-    )
+    play
+      .participantIds
+      .includes(
+        playerId
+      )
   ) {
     return true;
   }
@@ -561,8 +831,7 @@ function starterMatchesPlay(
 
 
     if (
-      lastName.length >=
-        4 &&
+      lastName.length >= 4 &&
       playText.includes(
         lastName
       )
@@ -577,7 +846,712 @@ function starterMatchesPlay(
 
 
 // =========================================================
-// MAIN RUNNER
+// PLAYER BOX SCORE HELPERS
+// =========================================================
+
+function athleteMatchesStarter(
+  athlete,
+  starter
+) {
+  const athleteId =
+    String(
+      athlete?.id ||
+      ""
+    );
+
+
+  const starterId =
+    String(
+      starter?.playerId ||
+      starter?.id ||
+      ""
+    );
+
+
+  if (
+    athleteId &&
+    starterId &&
+    athleteId ===
+      starterId
+  ) {
+    return true;
+  }
+
+
+  const athleteName =
+    normalize(
+      athlete?.displayName ||
+      athlete?.fullName ||
+      athlete?.shortName
+    );
+
+
+  const starterName =
+    normalize(
+      starter?.name
+    );
+
+
+  return Boolean(
+    athleteName &&
+    starterName &&
+    (
+      athleteName ===
+        starterName ||
+      athleteName.includes(
+        starterName
+      ) ||
+      starterName.includes(
+        athleteName
+      )
+    )
+  );
+}
+
+
+function cleanStatLabel(
+  value = ""
+) {
+  return String(value)
+    .trim()
+    .toUpperCase();
+}
+
+
+function extractPlayerBoxStats(
+  summary,
+  starter
+) {
+  const result =
+    {};
+
+
+  const teams =
+    summary
+      ?.boxscore
+      ?.players ||
+    [];
+
+
+  for (
+    const teamBlock of
+    teams
+  ) {
+    const categories =
+      teamBlock
+        ?.statistics ||
+      [];
+
+
+    for (
+      const category of
+      categories
+    ) {
+      const categoryName =
+        String(
+          category?.name ||
+          category
+            ?.displayName ||
+          ""
+        )
+          .toLowerCase();
+
+
+      const labels =
+        category?.labels ||
+        category?.names ||
+        [];
+
+
+      const athletes =
+        category?.athletes ||
+        [];
+
+
+      for (
+        const row of
+        athletes
+      ) {
+        const athlete =
+          row?.athlete ||
+          {};
+
+
+        if (
+          !athleteMatchesStarter(
+            athlete,
+            starter
+          )
+        ) {
+          continue;
+        }
+
+
+        if (
+          !result[
+            categoryName
+          ]
+        ) {
+          result[
+            categoryName
+          ] = {};
+        }
+
+
+        const values =
+          row?.stats ||
+          [];
+
+
+        for (
+          let i = 0;
+          i <
+          Math.max(
+            labels.length,
+            values.length
+          );
+          i++
+        ) {
+          const label =
+            cleanStatLabel(
+              labels[i] ||
+              `STAT${i}`
+            );
+
+
+          result[
+            categoryName
+          ][label] =
+            values[i];
+        }
+      }
+    }
+  }
+
+
+  return result;
+}
+
+
+function findCategory(
+  stats,
+  search
+) {
+  const key =
+    Object
+      .keys(stats || {})
+      .find(
+        (name) =>
+          name.includes(
+            search
+          )
+      );
+
+
+  return key
+    ? stats[key]
+    : {};
+}
+
+
+function statExists(
+  value
+) {
+  return (
+    value !== undefined &&
+    value !== null &&
+    value !== ""
+  );
+}
+
+
+function numericStat(
+  value
+) {
+  if (!statExists(value)) {
+    return 0;
+  }
+
+
+  const parsed =
+    Number(
+      String(value)
+        .replace(
+          /,/g,
+          ""
+        )
+    );
+
+
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
+}
+
+
+function buildPlayerStatLine(
+  starter,
+  boxStats
+) {
+  const position =
+    String(
+      starter?.position ||
+      ""
+    )
+      .toUpperCase();
+
+
+  const passing =
+    findCategory(
+      boxStats,
+      "pass"
+    );
+
+
+  const rushing =
+    findCategory(
+      boxStats,
+      "rush"
+    );
+
+
+  const receiving =
+    findCategory(
+      boxStats,
+      "receiv"
+    );
+
+
+  const kicking =
+    findCategory(
+      boxStats,
+      "kick"
+    );
+
+
+  const parts =
+    [];
+
+
+  // =======================================================
+  // QB
+  // =======================================================
+
+  if (
+    position === "QB"
+  ) {
+    if (
+      statExists(
+        passing["C/ATT"]
+      )
+    ) {
+      parts.push(
+        `${passing["C/ATT"]} CMP/ATT`
+      );
+    }
+
+
+    if (
+      statExists(
+        passing.YDS
+      )
+    ) {
+      parts.push(
+        `${passing.YDS} PASS YDS`
+      );
+    }
+
+
+    if (
+      statExists(
+        passing.TD
+      )
+    ) {
+      parts.push(
+        `${passing.TD} PASS TD`
+      );
+    }
+
+
+    if (
+      statExists(
+        passing.INT
+      )
+    ) {
+      parts.push(
+        `${passing.INT} INT`
+      );
+    }
+
+
+    if (
+      numericStat(
+        rushing.YDS
+      ) !== 0
+    ) {
+      parts.push(
+        `${rushing.YDS} RUSH YDS`
+      );
+    }
+
+
+    if (
+      numericStat(
+        rushing.TD
+      ) > 0
+    ) {
+      parts.push(
+        `${rushing.TD} RUSH TD`
+      );
+    }
+
+
+    return parts.join(
+      " · "
+    );
+  }
+
+
+  // =======================================================
+  // RB
+  // =======================================================
+
+  if (
+    position === "RB"
+  ) {
+    if (
+      statExists(
+        rushing.CAR
+      )
+    ) {
+      parts.push(
+        `${rushing.CAR} CAR`
+      );
+    }
+
+
+    if (
+      statExists(
+        rushing.YDS
+      )
+    ) {
+      parts.push(
+        `${rushing.YDS} RUSH YDS`
+      );
+    }
+
+
+    if (
+      statExists(
+        rushing.TD
+      )
+    ) {
+      parts.push(
+        `${rushing.TD} RUSH TD`
+      );
+    }
+
+
+    if (
+      statExists(
+        receiving.REC
+      )
+    ) {
+      parts.push(
+        `${receiving.REC} REC`
+      );
+    }
+
+
+    if (
+      statExists(
+        receiving.YDS
+      )
+    ) {
+      parts.push(
+        `${receiving.YDS} REC YDS`
+      );
+    }
+
+
+    if (
+      numericStat(
+        receiving.TD
+      ) > 0
+    ) {
+      parts.push(
+        `${receiving.TD} REC TD`
+      );
+    }
+
+
+    return parts.join(
+      " · "
+    );
+  }
+
+
+  // =======================================================
+  // WR / TE
+  // =======================================================
+
+  if (
+    position === "WR" ||
+    position === "TE"
+  ) {
+    if (
+      statExists(
+        receiving.REC
+      )
+    ) {
+      parts.push(
+        `${receiving.REC} REC`
+      );
+    }
+
+
+    if (
+      statExists(
+        receiving.YDS
+      )
+    ) {
+      parts.push(
+        `${receiving.YDS} YDS`
+      );
+    }
+
+
+    if (
+      statExists(
+        receiving.TD
+      )
+    ) {
+      parts.push(
+        `${receiving.TD} TD`
+      );
+    }
+
+
+    if (
+      statExists(
+        receiving.TGTS
+      )
+    ) {
+      parts.push(
+        `${receiving.TGTS} TGTS`
+      );
+    }
+
+
+    if (
+      numericStat(
+        rushing.YDS
+      ) !== 0
+    ) {
+      parts.push(
+        `${rushing.YDS} RUSH YDS`
+      );
+    }
+
+
+    if (
+      numericStat(
+        rushing.TD
+      ) > 0
+    ) {
+      parts.push(
+        `${rushing.TD} RUSH TD`
+      );
+    }
+
+
+    return parts.join(
+      " · "
+    );
+  }
+
+
+  // =======================================================
+  // KICKER
+  // =======================================================
+
+  if (
+    position === "K"
+  ) {
+    if (
+      statExists(
+        kicking.FG
+      )
+    ) {
+      parts.push(
+        `${kicking.FG} FG`
+      );
+    }
+
+
+    if (
+      statExists(
+        kicking.XP
+      )
+    ) {
+      parts.push(
+        `${kicking.XP} XP`
+      );
+    }
+
+
+    if (
+      statExists(
+        kicking.LONG
+      )
+    ) {
+      parts.push(
+        `LONG ${kicking.LONG}`
+      );
+    }
+
+
+    if (
+      statExists(
+        kicking.PTS
+      )
+    ) {
+      parts.push(
+        `${kicking.PTS} PTS`
+      );
+    }
+
+
+    return parts.join(
+      " · "
+    );
+  }
+
+
+  // =======================================================
+  // GENERIC FALLBACK
+  // =======================================================
+
+  if (
+    statExists(
+      receiving.REC
+    )
+  ) {
+    parts.push(
+      `${receiving.REC} REC`
+    );
+  }
+
+
+  if (
+    statExists(
+      receiving.YDS
+    )
+  ) {
+    parts.push(
+      `${receiving.YDS} REC YDS`
+    );
+  }
+
+
+  if (
+    statExists(
+      receiving.TD
+    )
+  ) {
+    parts.push(
+      `${receiving.TD} REC TD`
+    );
+  }
+
+
+  if (
+    statExists(
+      rushing.YDS
+    )
+  ) {
+    parts.push(
+      `${rushing.YDS} RUSH YDS`
+    );
+  }
+
+
+  if (
+    statExists(
+      rushing.TD
+    )
+  ) {
+    parts.push(
+      `${rushing.TD} RUSH TD`
+    );
+  }
+
+
+  if (
+    statExists(
+      passing.YDS
+    )
+  ) {
+    parts.push(
+      `${passing.YDS} PASS YDS`
+    );
+  }
+
+
+  if (
+    statExists(
+      passing.TD
+    )
+  ) {
+    parts.push(
+      `${passing.TD} PASS TD`
+    );
+  }
+
+
+  return parts.join(
+    " · "
+  );
+}
+
+
+// =========================================================
+// FIND PLAYER IN NFL SUMMARIES
+// =========================================================
+
+function findPlayerBoxStats(
+  starter,
+  summaries
+) {
+  for (
+    const summary of
+    summaries
+  ) {
+    const stats =
+      extractPlayerBoxStats(
+        summary,
+        starter
+      );
+
+
+    if (
+      Object.keys(
+        stats
+      ).length
+    ) {
+      return stats;
+    }
+  }
+
+
+  return {};
+}
+
+
+// =========================================================
+// RUN NOTIFICATIONS
 // =========================================================
 
 async function runNotifications() {
@@ -609,7 +1583,8 @@ async function runNotifications() {
 
   const matchups =
     (
-      league.currentSeasonMatchups ||
+      league
+        .currentSeasonMatchups ||
       []
     ).filter(
       (game) =>
@@ -622,6 +1597,7 @@ async function runNotifications() {
   if (!matchups.length) {
     return {
       ok: true,
+
       message:
         "No current matchups.",
     };
@@ -635,6 +1611,7 @@ async function runNotifications() {
           Number(
             owner.id
           ),
+
           owner.name,
         ]
       )
@@ -679,6 +1656,7 @@ async function runNotifications() {
       await getMatchupIntel(
         week
       );
+
   } catch (error) {
     console.error(
       "Matchup intel error:",
@@ -724,7 +1702,96 @@ async function runNotifications() {
   }
 
 
-  let pushesSent = 0;
+  function espnTeamIdForOwner(
+    ownerId
+  ) {
+    const team =
+      teamByOwner.get(
+        Number(ownerId)
+      );
+
+
+    return Number(
+      team?.espnTeamId ??
+      team?.espn_team_id ??
+      team?.id ??
+      0
+    );
+  }
+
+
+  let pushesSent =
+    0;
+
+
+  // =======================================================
+  // NFL DATA
+  // =======================================================
+
+  const nflEvents =
+    await getNflEvents(
+      season,
+      week
+    );
+
+
+  const summaries =
+    [];
+
+
+  const summaryByEvent =
+    new Map();
+
+
+  for (
+    const event of
+    nflEvents
+  ) {
+    if (
+      eventState(
+        event
+      ) === "pre"
+    ) {
+      continue;
+    }
+
+
+    try {
+      const summary =
+        await getNflSummary(
+          event,
+          season,
+          week
+        );
+
+
+      summaries.push(
+        summary
+      );
+
+
+      summaryByEvent.set(
+        String(
+          event.id
+        ),
+        summary
+      );
+
+    } catch (error) {
+      console.error(
+        "NFL summary error:",
+        event.id,
+        error
+      );
+    }
+  }
+
+
+  const fantasyPoints =
+    await getFantasyPointsByTeam(
+      season,
+      week
+    );
 
 
   // =======================================================
@@ -739,6 +1806,7 @@ async function runNotifications() {
       Number(
         game.away_owner_id
       );
+
 
     const homeId =
       Number(
@@ -800,13 +1868,11 @@ async function runNotifications() {
       )}`;
 
 
-    const existing =
+    if (
       await getState(
         key
-      );
-
-
-    if (existing) {
+      )
+    ) {
       continue;
     }
 
@@ -866,7 +1932,8 @@ async function runNotifications() {
     await setState(
       key,
       {
-        sent: true,
+        sent:
+          true,
       }
     );
   }
@@ -876,13 +1943,6 @@ async function runNotifications() {
   // TOUCHDOWNS
   // =======================================================
 
-  const nflEvents =
-    await getNflEvents(
-      season,
-      week
-    );
-
-
   const touchdownPlays =
     [];
 
@@ -891,35 +1951,25 @@ async function runNotifications() {
     const event of
     nflEvents
   ) {
-    if (
-      eventState(event) ===
-      "pre"
-    ) {
-      continue;
-    }
-
-
-    try {
-      const summary =
-        await getNflSummary(
-          event.id
-        );
-
-
-      touchdownPlays.push(
-        ...scoringPlaysFromSummary(
-          summary,
+    const summary =
+      summaryByEvent.get(
+        String(
           event.id
         )
       );
 
-    } catch (error) {
-      console.error(
-        "NFL summary error:",
-        event.id,
-        error
-      );
+
+    if (!summary) {
+      continue;
     }
+
+
+    touchdownPlays.push(
+      ...scoringPlaysFromSummary(
+        summary,
+        event.id
+      )
+    );
   }
 
 
@@ -940,9 +1990,6 @@ async function runNotifications() {
     );
 
 
-  // First run establishes a baseline.
-  // This prevents old touchdowns from
-  // firing as brand-new alerts.
   if (!oldTdState) {
     await setState(
       tdStateKey,
@@ -951,6 +1998,7 @@ async function runNotifications() {
           currentKeys,
       }
     );
+
   } else {
     const seen =
       new Set(
@@ -980,6 +2028,7 @@ async function runNotifications() {
           Number(
             game.away_owner_id
           );
+
 
         const homeId =
           Number(
@@ -1106,17 +2155,326 @@ async function runNotifications() {
       tdStateKey,
       {
         seen:
-          [...seen].slice(
-            -250
-          ),
+          [...seen]
+            .slice(
+              -250
+            ),
       }
     );
   }
 
 
   // =======================================================
+  // PLAYER FINALS
+  // =======================================================
+
+  const playerFinalBaselineKey =
+    `player-final-baseline:${season}:${week}`;
+
+
+  const playerFinalBaseline =
+    await getState(
+      playerFinalBaselineKey
+    );
+
+
+  // First deployment establishes a baseline so an old
+  // completed week cannot suddenly send every player final.
+  if (!playerFinalBaseline) {
+    for (
+      const game of
+      matchups
+    ) {
+      for (
+        const ownerId of
+        [
+          Number(
+            game.away_owner_id
+          ),
+
+          Number(
+            game.home_owner_id
+          ),
+        ]
+      ) {
+        const starters =
+          ownerIntel(
+            ownerId
+          )?.starters ||
+          [];
+
+
+        for (
+          const player of
+          starters
+        ) {
+          if (
+            player
+              ?.nflGameState !==
+            "post"
+          ) {
+            continue;
+          }
+
+
+          const playerId =
+            String(
+              player?.playerId ||
+              player?.id ||
+              normalize(
+                player?.name
+              )
+            );
+
+
+          if (!playerId) {
+            continue;
+          }
+
+
+          await setState(
+            `player-final:${season}:${week}:${ownerId}:${playerId}`,
+            {
+              baseline:
+                true,
+            }
+          );
+        }
+      }
+    }
+
+
+    await setState(
+      playerFinalBaselineKey,
+      {
+        initialized:
+          true,
+      }
+    );
+
+  } else {
+
+    for (
+      const game of
+      matchups
+    ) {
+      const awayId =
+        Number(
+          game.away_owner_id
+        );
+
+
+      const homeId =
+        Number(
+          game.home_owner_id
+        );
+
+
+      for (
+        const ownerId of
+        [
+          awayId,
+          homeId,
+        ]
+      ) {
+        const teamIntel =
+          ownerIntel(
+            ownerId
+          );
+
+
+        const starters =
+          teamIntel
+            ?.starters ||
+          [];
+
+
+        const fantasyTeamId =
+          espnTeamIdForOwner(
+            ownerId
+          );
+
+
+        const teamPointMap =
+          fantasyPoints.get(
+            fantasyTeamId
+          ) ||
+          new Map();
+
+
+        for (
+          const player of
+          starters
+        ) {
+          if (
+            player
+              ?.nflGameState !==
+            "post"
+          ) {
+            continue;
+          }
+
+
+          const playerId =
+            String(
+              player?.playerId ||
+              player?.id ||
+              normalize(
+                player?.name
+              )
+            );
+
+
+          if (!playerId) {
+            continue;
+          }
+
+
+          const stateKey =
+            `player-final:${season}:${week}:${ownerId}:${playerId}`;
+
+
+          if (
+            await getState(
+              stateKey
+            )
+          ) {
+            continue;
+          }
+
+
+          const actualPoints =
+            teamPointMap.has(
+              playerId
+            )
+              ? teamPointMap.get(
+                  playerId
+                )
+              : null;
+
+
+          const projection =
+            Number(
+              player?.projection
+            );
+
+
+          const boxStats =
+            findPlayerBoxStats(
+              player,
+              summaries
+            );
+
+
+          const statLine =
+            buildPlayerStatLine(
+              player,
+              boxStats
+            );
+
+
+          let firstLine =
+            `${player?.name || "Your starter"}`;
+
+
+          if (
+            actualPoints !==
+            null
+          ) {
+            firstLine +=
+              ` — ${actualPoints.toFixed(
+                1
+              )} fantasy pts`;
+          }
+
+
+          if (
+            Number.isFinite(
+              projection
+            ) &&
+            projection > 0
+          ) {
+            if (
+              actualPoints !==
+              null
+            ) {
+              const diff =
+                actualPoints -
+                projection;
+
+
+              firstLine +=
+                ` · ${diff >= 0 ? "+" : ""}${diff.toFixed(
+                  1
+                )} vs proj`;
+
+            } else {
+              firstLine +=
+                ` · ${projection.toFixed(
+                  1
+                )} projected`;
+            }
+          }
+
+
+          let body =
+            firstLine;
+
+
+          if (
+            statLine
+          ) {
+            body +=
+              `\n${statLine}`;
+          }
+
+
+          pushesSent +=
+            await pushToOwner(
+              subscriptions,
+              ownerId,
+              {
+                title:
+                  "📊 PLAYER FINAL",
+
+                body,
+
+                tag:
+                  stateKey,
+
+                url:
+                  "/",
+              }
+            );
+
+
+          await setState(
+            stateKey,
+            {
+              sent:
+                true,
+
+              player:
+                player?.name ||
+                null,
+
+              points:
+                actualPoints,
+
+              stats:
+                statLine ||
+                null,
+            }
+          );
+        }
+      }
+    }
+  }
+
+
+  // =======================================================
   // LEAD CHANGES
-  // Only after BOTH teams reach 50.
+  // Only after BOTH fantasy teams have 50+.
   // =======================================================
 
   for (
@@ -1128,6 +2486,7 @@ async function runNotifications() {
         game.away_owner_id
       );
 
+
     const homeId =
       Number(
         game.home_owner_id
@@ -1138,6 +2497,7 @@ async function runNotifications() {
       num(
         game.away_score
       );
+
 
     const homeScore =
       num(
@@ -1293,7 +2653,7 @@ async function runNotifications() {
 
 
   // =======================================================
-  // THURSDAY + SUNDAY UPDATES
+  // THURSDAY / SUNDAY UPDATES
   // =======================================================
 
   const dayGroups = [
@@ -1365,6 +2725,7 @@ async function runNotifications() {
         Number(
           game.away_owner_id
         );
+
 
       const homeId =
         Number(
@@ -1464,7 +2825,7 @@ async function runNotifications() {
 
 
   // =======================================================
-  // FINAL SCORE
+  // FANTASY MATCHUP FINAL
   // =======================================================
 
   for (
@@ -1483,6 +2844,7 @@ async function runNotifications() {
       Number(
         game.away_owner_id
       );
+
 
     const homeId =
       Number(
@@ -1508,6 +2870,7 @@ async function runNotifications() {
       num(
         game.away_score
       );
+
 
     const homeScore =
       num(
@@ -1548,6 +2911,7 @@ async function runNotifications() {
         )} ${score(
           homeScore
         )}`;
+
     } else {
       const winnerName =
         awayScore >
@@ -1640,11 +3004,16 @@ async function runNotifications() {
 
 
   return {
-    ok: true,
+    ok:
+      true,
+
     season,
+
     week,
+
     matchups:
       matchups.length,
+
     pushesSent,
   };
 }
@@ -1673,14 +3042,16 @@ export async function GET() {
 
     return NextResponse.json(
       {
-        ok: false,
+        ok:
+          false,
 
         error:
           error?.message ||
           "Notification runner failed.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
