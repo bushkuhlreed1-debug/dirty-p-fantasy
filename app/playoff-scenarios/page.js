@@ -5,21 +5,28 @@ import {
 } from "../../lib/leagueData";
 
 import {
-  supabase,
-} from "../../lib/supabase";
+  getEspnPlayoffSettings,
+} from "../../lib/espnPlayoffSettings";
 
 import AutoRefresh from "../components/AutoRefresh";
 
-export const dynamic = "force-dynamic";
+export const dynamic =
+  "force-dynamic";
+
+const MAX_FIELD_BRANCHES =
+  64;
 
 // =========================================================
 // BASIC HELPERS
 // =========================================================
 
 function num(value) {
-  const parsed = Number(value);
+  const parsed =
+    Number(value);
 
-  return Number.isFinite(parsed)
+  return Number.isFinite(
+    parsed
+  )
     ? parsed
     : 0;
 }
@@ -29,188 +36,47 @@ function formatRecord(
   losses,
   ties = 0
 ) {
-  if (num(ties) > 0) {
-    return `${num(wins)}-${num(losses)}-${num(ties)}`;
+  if (
+    num(ties) > 0
+  ) {
+    return `${num(
+      wins
+    )}-${num(
+      losses
+    )}-${num(
+      ties
+    )}`;
   }
 
-  return `${num(wins)}-${num(losses)}`;
-}
-
-function formatPoints(value) {
-  return num(value).toFixed(2);
+  return `${num(
+    wins
+  )}-${num(
+    losses
+  )}`;
 }
 
 function formatPercent(
-  value
+  numerator,
+  denominator
 ) {
   if (
-    value === null ||
-    value === undefined ||
-    !Number.isFinite(
-      Number(value)
-    )
+    !denominator
   ) {
     return "—";
   }
 
-  return `${Number(value).toFixed(
-    1
-  )}%`;
-}
-
-function recordValue(team) {
   return (
-    num(team.wins) +
-    num(team.ties) * 0.5
-  );
+    (
+      numerator /
+      denominator
+    ) *
+    100
+  ).toFixed(1) + "%";
 }
 
-// =========================================================
-// STANDINGS SORT
-//
-// Record first.
-// Current PF is used as the tiebreak snapshot.
-// =========================================================
-
-function rankTeams(teams) {
-  return [...teams].sort(
-    (a, b) => {
-      const recordDiff =
-        recordValue(b) -
-        recordValue(a);
-
-      if (
-        Math.abs(
-          recordDiff
-        ) > 0.0001
-      ) {
-        return recordDiff;
-      }
-
-      const pfDiff =
-        num(b.pointsFor) -
-        num(a.pointsFor);
-
-      if (
-        Math.abs(
-          pfDiff
-        ) > 0.0001
-      ) {
-        return pfDiff;
-      }
-
-      return String(
-        a.ownerName
-      ).localeCompare(
-        String(
-          b.ownerName
-        )
-      );
-    }
-  );
-}
-
-function gamesBackText(
-  leader,
-  team
+function gameKey(
+  game
 ) {
-  if (
-    !leader ||
-    !team
-  ) {
-    return "—";
-  }
-
-  const difference =
-    recordValue(leader) -
-    recordValue(team);
-
-  if (
-    difference <= 0
-  ) {
-    return "Leader";
-  }
-
-  if (
-    difference === 0.5
-  ) {
-    return "0.5 GB";
-  }
-
-  return `${difference.toFixed(
-    1
-  )} GB`;
-}
-
-// =========================================================
-// DIVISIONS
-// =========================================================
-
-function groupByDivision(
-  standings
-) {
-  const groups =
-    new Map();
-
-  for (
-    const team of
-    standings
-  ) {
-    const division =
-      team.division ||
-      "No Division";
-
-    if (
-      !groups.has(
-        division
-      )
-    ) {
-      groups.set(
-        division,
-        []
-      );
-    }
-
-    groups
-      .get(division)
-      .push(team);
-  }
-
-  for (
-    const [
-      division,
-      teams,
-    ] of
-    groups.entries()
-  ) {
-    groups.set(
-      division,
-      rankTeams(teams)
-    );
-  }
-
-  return groups;
-}
-
-// =========================================================
-// GAME HELPERS
-// =========================================================
-
-function getRegularGames(
-  games
-) {
-  return (
-    games || []
-  ).filter(
-    (game) =>
-      game.is_playoff !==
-        true &&
-      game.is_consolation !==
-        true
-  );
-}
-
-function gameKey(game) {
   return [
     Number(
       game.matchup_period
@@ -225,140 +91,1060 @@ function gameKey(game) {
 }
 
 // =========================================================
-// PLAYOFF FIELD
-//
-// #1 = better division winner
-// #2 = other division winner
-// #3 = best remaining record
-// #4 = second-best remaining record
+// ESPN TIEBREAK RULE
 // =========================================================
 
-function buildPlayoffField(
-  standings
+function getTiebreakCriteria(
+  rule
 ) {
-  const divisions =
-    groupByDivision(
-      standings
+  const value =
+    String(
+      rule || ""
+    ).toUpperCase();
+
+  if (
+    value.includes(
+      "H2H"
+    )
+  ) {
+    return [
+      "H2H",
+      "PF",
+      "DIV",
+      "PA",
+      "COIN",
+    ];
+  }
+
+  if (
+    value.includes(
+      "INTRA"
+    ) ||
+    value.includes(
+      "DIVISION"
+    )
+  ) {
+    return [
+      "DIV",
+      "H2H",
+      "PF",
+      "PA",
+      "COIN",
+    ];
+  }
+
+  if (
+    value.includes(
+      "AGAINST"
+    )
+  ) {
+    return [
+      "PA",
+      "H2H",
+      "PF",
+      "DIV",
+      "COIN",
+    ];
+  }
+
+  // ESPN Points For / default
+  return [
+    "PF",
+    "H2H",
+    "DIV",
+    "PA",
+    "COIN",
+  ];
+}
+
+function getTiebreakLabel(
+  rule
+) {
+  return getTiebreakCriteria(
+    rule
+  )
+    .map(
+      (item) => {
+        if (
+          item ===
+          "H2H"
+        ) {
+          return "H2H";
+        }
+
+        if (
+          item ===
+          "PF"
+        ) {
+          return "PF";
+        }
+
+        if (
+          item ===
+          "DIV"
+        ) {
+          return "DIV";
+        }
+
+        if (
+          item ===
+          "PA"
+        ) {
+          return "PA";
+        }
+
+        return "COIN";
+      }
+    )
+    .join(" → ");
+}
+
+// =========================================================
+// CURRENT GAME RESULT
+// =========================================================
+
+function getGameWinner(
+  game
+) {
+  const winner =
+    String(
+      game?.winner || ""
+    ).toUpperCase();
+
+  const awayId =
+    Number(
+      game
+        ?.away_owner_id
     );
 
-  const divisionWinners =
+  const homeId =
+    Number(
+      game
+        ?.home_owner_id
+    );
+
+  if (
+    winner === "AWAY"
+  ) {
+    return awayId;
+  }
+
+  if (
+    winner === "HOME"
+  ) {
+    return homeId;
+  }
+
+  const awayScore =
+    Number(
+      game?.away_score
+    );
+
+  const homeScore =
+    Number(
+      game?.home_score
+    );
+
+  if (
+    Number.isFinite(
+      awayScore
+    ) &&
+    Number.isFinite(
+      homeScore
+    )
+  ) {
+    if (
+      awayScore >
+      homeScore
+    ) {
+      return awayId;
+    }
+
+    if (
+      homeScore >
+      awayScore
+    ) {
+      return homeId;
+    }
+  }
+
+  return null;
+}
+
+// =========================================================
+// CURRENT ESPN ORDER
+// =========================================================
+
+function currentSeedSort(
+  teams
+) {
+  return [
+    ...teams,
+  ].sort(
+    (a, b) => {
+      const seedA =
+        a.currentSeed >
+        0
+          ? a.currentSeed
+          : 999;
+
+      const seedB =
+        b.currentSeed >
+        0
+          ? b.currentSeed
+          : 999;
+
+      if (
+        seedA !==
+        seedB
+      ) {
+        return (
+          seedA -
+          seedB
+        );
+      }
+
+      if (
+        b.wins !==
+        a.wins
+      ) {
+        return (
+          b.wins -
+          a.wins
+        );
+      }
+
+      return (
+        b.pointsFor -
+        a.pointsFor
+      );
+    }
+  );
+}
+
+// =========================================================
+// RATIO HELPERS
+// =========================================================
+
+function ratioValue(
+  numerator,
+  denominator
+) {
+  if (
+    denominator <= 0
+  ) {
+    return 0;
+  }
+
+  return (
+    numerator /
+    denominator
+  );
+}
+
+function keepBestRatio(
+  indices,
+  numeratorFn,
+  denominatorFn
+) {
+  let best =
+    -Infinity;
+
+  const result =
     [];
 
   for (
-    const [
-      division,
-      teams,
-    ] of
-    divisions.entries()
+    const index of
+    indices
+  ) {
+    const value =
+      ratioValue(
+        numeratorFn(
+          index
+        ),
+        denominatorFn(
+          index
+        )
+      );
+
+    if (
+      value >
+      best +
+        0.0000001
+    ) {
+      best =
+        value;
+
+      result.length =
+        0;
+
+      result.push(
+        index
+      );
+
+    } else if (
+      Math.abs(
+        value -
+        best
+      ) <
+      0.0000001
+    ) {
+      result.push(
+        index
+      );
+    }
+  }
+
+  return result;
+}
+
+function keepBestNumber(
+  indices,
+  valueFn
+) {
+  let best =
+    -Infinity;
+
+  const result =
+    [];
+
+  for (
+    const index of
+    indices
+  ) {
+    const value =
+      Number(
+        valueFn(index)
+      );
+
+    if (
+      value >
+      best +
+        0.0000001
+    ) {
+      best =
+        value;
+
+      result.length =
+        0;
+
+      result.push(
+        index
+      );
+
+    } else if (
+      Math.abs(
+        value -
+        best
+      ) <
+      0.0000001
+    ) {
+      result.push(
+        index
+      );
+    }
+  }
+
+  return result;
+}
+
+// =========================================================
+// ESPN TIEBREAK EMULATION
+//
+// If we reach PF or PA while future games remain,
+// we DO NOT fake the answer using today's point totals.
+//
+// Instead, every team still tied is kept as a possible
+// winner and the result becomes tiebreak-dependent.
+// =========================================================
+
+function resolveTieCandidates(
+  indices,
+  context
+) {
+  let group =
+    [
+      ...indices,
+    ];
+
+  const {
+    teamCount,
+    h2hGames,
+    h2hScore,
+    divisionGames,
+    divisionScore,
+    pointsFor,
+    pointsAgainst,
+    pointsFinal,
+    criteria,
+  } = context;
+
+  let unresolved =
+    false;
+
+  let unresolvedAt =
+    null;
+
+  for (
+    const criterion of
+    criteria
   ) {
     if (
-      division ===
-        "No Division" ||
-      !teams.length
+      group.length <=
+      1
     ) {
+      break;
+    }
+
+    // ---------------------------------
+    // HEAD TO HEAD
+    // ---------------------------------
+
+    if (
+      criterion ===
+      "H2H"
+    ) {
+      const gamesPlayed =
+        new Map();
+
+      const score =
+        new Map();
+
+      let requiredGames =
+        null;
+
+      let valid =
+        true;
+
+      for (
+        const teamIndex of
+        group
+      ) {
+        let games =
+          0;
+
+        let points =
+          0;
+
+        for (
+          const opponentIndex of
+          group
+        ) {
+          if (
+            teamIndex ===
+            opponentIndex
+          ) {
+            continue;
+          }
+
+          const matrixIndex =
+            teamIndex *
+              teamCount +
+            opponentIndex;
+
+          games +=
+            h2hGames[
+              matrixIndex
+            ];
+
+          points +=
+            h2hScore[
+              matrixIndex
+            ];
+        }
+
+        gamesPlayed.set(
+          teamIndex,
+          games
+        );
+
+        score.set(
+          teamIndex,
+          points
+        );
+
+        if (
+          requiredGames ===
+          null
+        ) {
+          requiredGames =
+            games;
+
+        } else if (
+          games !==
+          requiredGames
+        ) {
+          valid =
+            false;
+        }
+      }
+
+      // ESPN skips H2H in a multi-team tie if
+      // tied teams did not play an equal number
+      // of games against the tied group.
+      if (
+        !valid
+      ) {
+        continue;
+      }
+
+      group =
+        keepBestRatio(
+          group,
+
+          (index) =>
+            score.get(
+              index
+            ) || 0,
+
+          (index) =>
+            (
+              gamesPlayed.get(
+                index
+              ) || 0
+            ) * 2
+        );
+
       continue;
     }
 
-    divisionWinners.push({
-      ...teams[0],
+    // ---------------------------------
+    // POINTS FOR
+    // ---------------------------------
 
-      playoffType:
-        "DIVISION",
-    });
+    if (
+      criterion ===
+      "PF"
+    ) {
+      if (
+        !pointsFinal
+      ) {
+        unresolved =
+          true;
+
+        unresolvedAt =
+          "PF";
+
+        break;
+      }
+
+      group =
+        keepBestNumber(
+          group,
+          (index) =>
+            pointsFor[
+              index
+            ]
+        );
+
+      continue;
+    }
+
+    // ---------------------------------
+    // INTRA-DIVISION RECORD
+    // ---------------------------------
+
+    if (
+      criterion ===
+      "DIV"
+    ) {
+      group =
+        keepBestRatio(
+          group,
+
+          (index) =>
+            divisionScore[
+              index
+            ],
+
+          (index) =>
+            divisionGames[
+              index
+            ] * 2
+        );
+
+      continue;
+    }
+
+    // ---------------------------------
+    // POINTS AGAINST
+    // ESPN awards higher PA.
+    // ---------------------------------
+
+    if (
+      criterion ===
+      "PA"
+    ) {
+      if (
+        !pointsFinal
+      ) {
+        unresolved =
+          true;
+
+        unresolvedAt =
+          "PA";
+
+        break;
+      }
+
+      group =
+        keepBestNumber(
+          group,
+          (index) =>
+            pointsAgainst[
+              index
+            ]
+        );
+
+      continue;
+    }
+
+    // ---------------------------------
+    // COIN FLIP
+    // ---------------------------------
+
+    if (
+      criterion ===
+      "COIN"
+    ) {
+      unresolved =
+        true;
+
+      unresolvedAt =
+        "COIN";
+
+      break;
+    }
   }
 
-  const rankedDivisionWinners =
-    rankTeams(
-      divisionWinners
-    );
-
-  const divisionWinnerIds =
-    new Set(
-      rankedDivisionWinners.map(
-        (team) =>
-          team.ownerId
-      )
-    );
-
-  const remaining =
-    rankTeams(
-      standings.filter(
-        (team) =>
-          !divisionWinnerIds.has(
-            team.ownerId
-          )
-      )
-    );
-
-  const wildCards =
-    remaining
-      .slice(
-        0,
-        Math.max(
-          0,
-          4 -
-            rankedDivisionWinners.length
-        )
-      )
-      .map(
-        (team) => ({
-          ...team,
-
-          playoffType:
-            "WILD CARD",
-        })
-      );
-
-  const seeds = [
-    ...rankedDivisionWinners,
-    ...wildCards,
-  ]
-    .slice(
-      0,
-      4
-    )
-    .map(
-      (team, index) => ({
-        ...team,
-
-        seed:
-          index + 1,
-      })
-    );
-
   return {
-    divisionWinners:
-      rankedDivisionWinners,
+    candidates:
+      group,
 
-    wildCards,
+    unresolved,
 
-    seeds,
+    unresolvedAt,
   };
 }
 
 // =========================================================
-// EXACT SCENARIO ENGINE
-//
-// Activates with four regular-season weeks left.
-//
-// Maximum:
-// 20 games
-// 1,048,576 W/L combinations
-//
-// This version is optimized so we are not creating/sorting
-// thousands of large objects inside every simulation.
+// GET BEST RECORD GROUP
 // =========================================================
 
-function simulateScenarios({
-  standings,
+function getTopRecordGroup(
+  indices,
+  wins,
+  ties
+) {
+  let best =
+    -Infinity;
+
+  const result =
+    [];
+
+  for (
+    const index of
+    indices
+  ) {
+    // 2 points per win,
+    // 1 point per tie.
+    const value =
+      wins[index] *
+        2 +
+      ties[index];
+
+    if (
+      value > best
+    ) {
+      best =
+        value;
+
+      result.length =
+        0;
+
+      result.push(
+        index
+      );
+
+    } else if (
+      value ===
+      best
+    ) {
+      result.push(
+        index
+      );
+    }
+  }
+
+  return result;
+}
+
+// =========================================================
+// POSSIBLE RANKINGS
+//
+// ESPN resets its tiebreak process after each seed is set.
+// This recursion does exactly that.
+// =========================================================
+
+function rankPossible(
+  indices,
+  spots,
+  context,
+  limit =
+    MAX_FIELD_BRANCHES
+) {
+  const results =
+    [];
+
+  let truncated =
+    false;
+
+  function walk(
+    pool,
+    spotsLeft,
+    prefix
+  ) {
+    if (
+      truncated
+    ) {
+      return;
+    }
+
+    if (
+      results.length >=
+      limit
+    ) {
+      truncated =
+        true;
+
+      return;
+    }
+
+    if (
+      spotsLeft <= 0 ||
+      pool.length === 0
+    ) {
+      results.push(
+        prefix
+      );
+
+      return;
+    }
+
+    const topRecord =
+      getTopRecordGroup(
+        pool,
+        context.wins,
+        context.ties
+      );
+
+    const resolved =
+      resolveTieCandidates(
+        topRecord,
+        context
+      );
+
+    for (
+      const candidate of
+      resolved.candidates
+    ) {
+      const nextPool =
+        pool.filter(
+          (index) =>
+            index !==
+            candidate
+        );
+
+      walk(
+        nextPool,
+        spotsLeft - 1,
+        [
+          ...prefix,
+          candidate,
+        ]
+      );
+
+      if (
+        truncated
+      ) {
+        return;
+      }
+    }
+  }
+
+  walk(
+    indices,
+    spots,
+    []
+  );
+
+  return {
+    results,
+    truncated,
+  };
+}
+
+// =========================================================
+// POSSIBLE PLAYOFF FIELDS FOR ONE FINAL W/L SCENARIO
+// =========================================================
+
+function possiblePlayoffFields({
+  divisionGroups,
+  playoffTeamCount,
+  teamCount,
+  context,
+}) {
+  const fieldMap =
+    new Map();
+
+  let truncated =
+    false;
+
+  const divisionWinnerOptions =
+    [];
+
+  for (
+    const divisionTeams of
+    divisionGroups
+  ) {
+    const ranking =
+      rankPossible(
+        divisionTeams,
+        1,
+        context
+      );
+
+    if (
+      ranking.truncated
+    ) {
+      truncated =
+        true;
+
+      break;
+    }
+
+    divisionWinnerOptions.push(
+      [
+        ...new Set(
+          ranking.results.map(
+            (result) =>
+              result[0]
+          )
+        ),
+      ]
+    );
+  }
+
+  if (
+    truncated
+  ) {
+    return {
+      fields: [],
+      truncated:
+        true,
+    };
+  }
+
+  function addField(
+    field
+  ) {
+    const key =
+      field.join("-");
+
+    if (
+      !fieldMap.has(
+        key
+      )
+    ) {
+      fieldMap.set(
+        key,
+        field
+      );
+    }
+
+    if (
+      fieldMap.size >=
+      MAX_FIELD_BRANCHES
+    ) {
+      truncated =
+        true;
+    }
+  }
+
+  function processChampions(
+    champions
+  ) {
+    if (
+      truncated
+    ) {
+      return;
+    }
+
+    const champRanking =
+      rankPossible(
+        champions,
+        champions.length,
+        context
+      );
+
+    if (
+      champRanking.truncated
+    ) {
+      truncated =
+        true;
+
+      return;
+    }
+
+    const championSet =
+      new Set(
+        champions
+      );
+
+    const remaining =
+      [];
+
+    for (
+      let index = 0;
+      index <
+      teamCount;
+      index += 1
+    ) {
+      if (
+        !championSet.has(
+          index
+        )
+      ) {
+        remaining.push(
+          index
+        );
+      }
+    }
+
+    const wildCardSpots =
+      Math.max(
+        0,
+        playoffTeamCount -
+          champions.length
+      );
+
+    const wildcardRanking =
+      rankPossible(
+        remaining,
+        wildCardSpots,
+        context
+      );
+
+    if (
+      wildcardRanking.truncated
+    ) {
+      truncated =
+        true;
+
+      return;
+    }
+
+    for (
+      const champOrder of
+      champRanking.results
+    ) {
+      for (
+        const wildcardOrder of
+        wildcardRanking.results
+      ) {
+        addField([
+          ...champOrder,
+          ...wildcardOrder,
+        ]);
+
+        if (
+          truncated
+        ) {
+          return;
+        }
+      }
+    }
+  }
+
+  function chooseDivisionWinners(
+    divisionIndex,
+    champions
+  ) {
+    if (
+      truncated
+    ) {
+      return;
+    }
+
+    if (
+      divisionIndex >=
+      divisionWinnerOptions.length
+    ) {
+      processChampions(
+        champions
+      );
+
+      return;
+    }
+
+    for (
+      const candidate of
+      divisionWinnerOptions[
+        divisionIndex
+      ]
+    ) {
+      chooseDivisionWinners(
+        divisionIndex + 1,
+        [
+          ...champions,
+          candidate,
+        ]
+      );
+
+      if (
+        truncated
+      ) {
+        return;
+      }
+    }
+  }
+
+  chooseDivisionWinners(
+    0,
+    []
+  );
+
+  return {
+    fields: [
+      ...fieldMap.values(),
+    ],
+
+    truncated,
+  };
+}
+
+// =========================================================
+// FULL SCENARIO ENGINE
+//
+// Uses Gray-code iteration so only ONE future game changes
+// between consecutive scenarios.
+//
+// This makes four weeks / 20 games much more manageable.
+// =========================================================
+
+function simulatePlayoffScenarios({
+  teams,
+  completedGames,
   remainingGames,
+  playoffTeamCount,
+  playoffSeedingRule,
 }) {
   const teamCount =
-    standings.length;
+    teams.length;
 
-  const ownerIndex =
+  const teamIndexByOwner =
     new Map(
-      standings.map(
+      teams.map(
         (team, index) => [
           team.ownerId,
           index,
@@ -366,26 +1152,37 @@ function simulateScenarios({
       )
     );
 
-  const games =
+  const futureGames =
     remainingGames
       .map(
-        (game) => ({
-          game,
-
-          away:
-            ownerIndex.get(
+        (game) => {
+          const away =
+            teamIndexByOwner.get(
               Number(
                 game.away_owner_id
               )
-            ),
+            );
 
-          home:
-            ownerIndex.get(
+          const home =
+            teamIndexByOwner.get(
               Number(
                 game.home_owner_id
               )
-            ),
-        })
+            );
+
+          return {
+            game,
+
+            away,
+
+            home,
+
+            week:
+              Number(
+                game.matchup_period
+              ),
+          };
+        }
       )
       .filter(
         (game) =>
@@ -398,7 +1195,7 @@ function simulateScenarios({
       );
 
   const gameCount =
-    games.length;
+    futureGames.length;
 
   if (
     gameCount > 20
@@ -406,527 +1203,719 @@ function simulateScenarios({
     return null;
   }
 
-  const divisionMap =
-    new Map();
-
-  standings.forEach(
-    (team, index) => {
-      if (
-        !divisionMap.has(
-          team.division
-        )
-      ) {
-        divisionMap.set(
-          team.division,
-          []
-        );
-      }
-
-      divisionMap
-        .get(
-          team.division
-        )
-        .push(index);
-    }
-  );
-
-  const divisionEntries =
-    [
-      ...divisionMap.entries(),
-    ].filter(
-      ([division]) =>
-        division !==
-        "No Division"
+  const criteria =
+    getTiebreakCriteria(
+      playoffSeedingRule
     );
 
-  if (
-    divisionEntries.length !==
-    2
-  ) {
-    return null;
-  }
-
-  const divisionA =
-    divisionEntries[0][1];
-
-  const divisionB =
-    divisionEntries[1][1];
-
-  const baseWins =
+  const wins =
     Int16Array.from(
-      standings.map(
+      teams.map(
         (team) =>
-          num(team.wins)
+          num(
+            team.wins
+          )
       )
     );
 
   const ties =
     Int16Array.from(
-      standings.map(
+      teams.map(
         (team) =>
-          num(team.ties)
+          num(
+            team.ties
+          )
       )
     );
 
   const pointsFor =
-    standings.map(
-      (team) =>
-        num(
-          team.pointsFor
-        )
+    Float64Array.from(
+      teams.map(
+        (team) =>
+          num(
+            team.pointsFor
+          )
+      )
     );
 
-  const names =
-    standings.map(
-      (team) =>
-        team.ownerName
+  const pointsAgainst =
+    Float64Array.from(
+      teams.map(
+        (team) =>
+          num(
+            team.pointsAgainst
+          )
+      )
     );
 
-  const wins =
+  const h2hGames =
+    new Uint8Array(
+      teamCount *
+        teamCount
+    );
+
+  // Two points = win,
+  // one = tie,
+  // zero = loss.
+  const h2hScore =
     new Int16Array(
-      teamCount
+      teamCount *
+        teamCount
     );
 
-  const futureWins =
-    new Int16Array(
-      teamCount
-    );
-
-  const inPlayoffs =
+  const divisionGames =
     new Uint8Array(
       teamCount
     );
 
-  const playoffCount =
-    new Uint32Array(
-      teamCount
-    );
-
-  const divisionTitleCount =
-    new Uint32Array(
-      teamCount
-    );
-
-  const nextWinScenarios =
-    new Uint32Array(
-      teamCount
-    );
-
-  const nextWinPlayoffs =
-    new Uint32Array(
-      teamCount
-    );
-
-  const nextLossScenarios =
-    new Uint32Array(
-      teamCount
-    );
-
-  const nextLossPlayoffs =
-    new Uint32Array(
-      teamCount
-    );
-
-  const minFutureWinsInPlayoff =
+  const divisionScore =
     new Int16Array(
       teamCount
     );
 
-  minFutureWinsInPlayoff.fill(
-    999
-  );
-
-  const maxFutureWinsMissingPlayoffs =
-    new Int16Array(
-      teamCount
+  const divisionId =
+    teams.map(
+      (team) =>
+        team.divisionId
     );
 
-  maxFutureWinsMissingPlayoffs.fill(
-    -1
-  );
+  // =======================================================
+  // COMPLETED H2H / DIVISION RECORD
+  // =======================================================
 
-  const seedCounts =
-    Array.from(
-      {
-        length:
-          teamCount,
-      },
-      () =>
-        new Uint32Array(
-          5
+  for (
+    const game of
+    completedGames
+  ) {
+    const away =
+      teamIndexByOwner.get(
+        Number(
+          game.away_owner_id
         )
-    );
+      );
 
-  const nextGameIndex =
-    new Int16Array(
-      teamCount
-    );
+    const home =
+      teamIndexByOwner.get(
+        Number(
+          game.home_owner_id
+        )
+      );
 
-  nextGameIndex.fill(
-    -1
-  );
+    if (
+      !Number.isInteger(
+        away
+      ) ||
+      !Number.isInteger(
+        home
+      )
+    ) {
+      continue;
+    }
 
-  const nextGameOwnerIsAway =
-    new Uint8Array(
-      teamCount
-    );
+    const awayHomeIndex =
+      away *
+        teamCount +
+      home;
 
-  games.forEach(
-    (game, gameIndex) => {
+    const homeAwayIndex =
+      home *
+        teamCount +
+      away;
+
+    h2hGames[
+      awayHomeIndex
+    ] += 1;
+
+    h2hGames[
+      homeAwayIndex
+    ] += 1;
+
+    const winner =
+      getGameWinner(
+        game
+      );
+
+    if (
+      winner ===
+      teams[away].ownerId
+    ) {
+      h2hScore[
+        awayHomeIndex
+      ] += 2;
+
+    } else if (
+      winner ===
+      teams[home].ownerId
+    ) {
+      h2hScore[
+        homeAwayIndex
+      ] += 2;
+
+    } else {
+      h2hScore[
+        awayHomeIndex
+      ] += 1;
+
+      h2hScore[
+        homeAwayIndex
+      ] += 1;
+    }
+
+    if (
+      divisionId[
+        away
+      ] ===
+      divisionId[
+        home
+      ]
+    ) {
+      divisionGames[
+        away
+      ] += 1;
+
+      divisionGames[
+        home
+      ] += 1;
+
       if (
-        nextGameIndex[
+        winner ===
+        teams[away]
+          .ownerId
+      ) {
+        divisionScore[
+          away
+        ] += 2;
+
+      } else if (
+        winner ===
+        teams[home]
+          .ownerId
+      ) {
+        divisionScore[
+          home
+        ] += 2;
+
+      } else {
+        divisionScore[
+          away
+        ] += 1;
+
+        divisionScore[
+          home
+        ] += 1;
+      }
+    }
+  }
+
+  // =======================================================
+  // DIVISION GROUPS
+  // =======================================================
+
+  const divisionMap =
+    new Map();
+
+  teams.forEach(
+    (team, index) => {
+      const key =
+        String(
+          team.divisionId
+        );
+
+      if (
+        !divisionMap.has(
+          key
+        )
+      ) {
+        divisionMap.set(
+          key,
+          []
+        );
+      }
+
+      divisionMap
+        .get(key)
+        .push(index);
+    }
+  );
+
+  const divisionGroups =
+    [
+      ...divisionMap.values(),
+    ];
+
+  // =======================================================
+  // INITIAL FUTURE STATE:
+  // Every remaining game begins as HOME WIN.
+  //
+  // H2H game counts don't change between scenarios,
+  // only who won them.
+  // =======================================================
+
+  for (
+    const futureGame of
+    futureGames
+  ) {
+    const {
+      away,
+      home,
+    } =
+      futureGame;
+
+    wins[
+      home
+    ] += 1;
+
+    const awayHomeIndex =
+      away *
+        teamCount +
+      home;
+
+    const homeAwayIndex =
+      home *
+        teamCount +
+      away;
+
+    h2hGames[
+      awayHomeIndex
+    ] += 1;
+
+    h2hGames[
+      homeAwayIndex
+    ] += 1;
+
+    h2hScore[
+      homeAwayIndex
+    ] += 2;
+
+    if (
+      divisionId[
+        away
+      ] ===
+      divisionId[
+        home
+      ]
+    ) {
+      divisionGames[
+        away
+      ] += 1;
+
+      divisionGames[
+        home
+      ] += 1;
+
+      divisionScore[
+        home
+      ] += 2;
+    }
+  }
+
+  // =======================================================
+  // NEXT GAME LOOKUP
+  // =======================================================
+
+  const nextGameBit =
+    new Int16Array(
+      teamCount
+    );
+
+  nextGameBit.fill(
+    -1
+  );
+
+  const nextGameIsAway =
+    new Uint8Array(
+      teamCount
+    );
+
+  futureGames.forEach(
+    (
+      game,
+      index
+    ) => {
+      if (
+        nextGameBit[
           game.away
         ] === -1
       ) {
-        nextGameIndex[
+        nextGameBit[
           game.away
         ] =
-          gameIndex;
+          index;
 
-        nextGameOwnerIsAway[
+        nextGameIsAway[
           game.away
         ] = 1;
       }
 
       if (
-        nextGameIndex[
+        nextGameBit[
           game.home
         ] === -1
       ) {
-        nextGameIndex[
+        nextGameBit[
           game.home
         ] =
-          gameIndex;
+          index;
 
-        nextGameOwnerIsAway[
+        nextGameIsAway[
           game.home
         ] = 0;
       }
     }
   );
 
-  function betterTeam(
-    teamA,
-    teamB
-  ) {
-    if (
-      teamA < 0
-    ) {
-      return false;
-    }
+  // =======================================================
+  // STATS
+  // =======================================================
 
-    if (
-      teamB < 0
-    ) {
-      return true;
-    }
-
-    const recordA =
-      wins[teamA] * 2 +
-      ties[teamA];
-
-    const recordB =
-      wins[teamB] * 2 +
-      ties[teamB];
-
-    if (
-      recordA !==
-      recordB
-    ) {
-      return (
-        recordA >
-        recordB
-      );
-    }
-
-    if (
-      pointsFor[
-        teamA
-      ] !==
-      pointsFor[
-        teamB
-      ]
-    ) {
-      return (
-        pointsFor[
-          teamA
-        ] >
-        pointsFor[
-          teamB
-        ]
-      );
-    }
-
-    return (
-      String(
-        names[
-          teamA
-        ]
-      ).localeCompare(
-        String(
-          names[
-            teamB
-          ]
-        )
-      ) < 0
+  const guaranteedIn =
+    new Uint32Array(
+      teamCount
     );
-  }
 
-  function findDivisionWinner(
-    indices
-  ) {
-    let winner = -1;
+  const guaranteedOut =
+    new Uint32Array(
+      teamCount
+    );
 
-    for (
-      const index of
-      indices
-    ) {
-      if (
-        betterTeam(
-          index,
-          winner
-        )
-      ) {
-        winner =
-          index;
-      }
-    }
+  const tiebreakDependent =
+    new Uint32Array(
+      teamCount
+    );
 
-    return winner;
-  }
+  const seedMask =
+    new Uint8Array(
+      teamCount
+    );
 
-  function findWildCards(
-    divisionWinnerA,
-    divisionWinnerB
-  ) {
-    let wildCard1 =
-      -1;
+  const nextWinTotal =
+    new Uint32Array(
+      teamCount
+    );
 
-    let wildCard2 =
-      -1;
+  const nextWinGuaranteed =
+    new Uint32Array(
+      teamCount
+    );
 
-    for (
-      let index = 0;
-      index <
-      teamCount;
-      index += 1
-    ) {
-      if (
-        index ===
-          divisionWinnerA ||
-        index ===
-          divisionWinnerB
-      ) {
-        continue;
-      }
+  const nextLossTotal =
+    new Uint32Array(
+      teamCount
+    );
 
-      if (
-        betterTeam(
-          index,
-          wildCard1
-        )
-      ) {
-        wildCard2 =
-          wildCard1;
+  const nextLossGuaranteed =
+    new Uint32Array(
+      teamCount
+    );
 
-        wildCard1 =
-          index;
+  const nextWinTiebreak =
+    new Uint32Array(
+      teamCount
+    );
 
-        continue;
-      }
-
-      if (
-        betterTeam(
-          index,
-          wildCard2
-        )
-      ) {
-        wildCard2 =
-          index;
-      }
-    }
-
-    return [
-      wildCard1,
-      wildCard2,
-    ];
-  }
+  const nextLossTiebreak =
+    new Uint32Array(
+      teamCount
+    );
 
   const totalScenarios =
     2 ** gameCount;
 
+  let truncatedScenarioCount =
+    0;
+
+  // PF and PA are only final once the
+  // regular season is actually finished.
+  const pointsFinal =
+    gameCount === 0;
+
+  let previousGray =
+    0;
+
+  // =======================================================
+  // PROCESS EACH W/L COMBINATION
+  // =======================================================
+
   for (
-    let mask = 0;
-    mask <
+    let scenario = 0;
+    scenario <
     totalScenarios;
-    mask += 1
+    scenario += 1
   ) {
-    wins.set(
-      baseWins
-    );
-
-    futureWins.fill(
-      0
-    );
-
-    inPlayoffs.fill(
-      0
-    );
+    const gray =
+      scenario ^
+      (
+        scenario >> 1
+      );
 
     // ---------------------------------
-    // APPLY EACH FUTURE RESULT
+    // Only one future result changes.
     // ---------------------------------
 
-    for (
-      let gameIndex = 0;
-      gameIndex <
-      gameCount;
-      gameIndex += 1
+    if (
+      scenario > 0
     ) {
-      const game =
-        games[
-          gameIndex
-        ];
+      const changed =
+        gray ^
+        previousGray;
 
-      const awayWins =
+      const bit =
+        31 -
+        Math.clz32(
+          changed
+        );
+
+      const bitMask =
+        1 << bit;
+
+      const nowAwayWins =
         (
-          mask &
-          (
-            1 <<
-            gameIndex
-          )
+          gray &
+          bitMask
         ) !== 0;
 
+      const game =
+        futureGames[
+          bit
+        ];
+
+      const {
+        away,
+        home,
+      } =
+        game;
+
+      const awayHomeIndex =
+        away *
+          teamCount +
+        home;
+
+      const homeAwayIndex =
+        home *
+          teamCount +
+        away;
+
       if (
-        awayWins
+        nowAwayWins
       ) {
         wins[
-          game.away
+          home
+        ] -= 1;
+
+        wins[
+          away
         ] += 1;
 
-        futureWins[
-          game.away
-        ] += 1;
+        h2hScore[
+          homeAwayIndex
+        ] -= 2;
+
+        h2hScore[
+          awayHomeIndex
+        ] += 2;
+
+        if (
+          divisionId[
+            away
+          ] ===
+          divisionId[
+            home
+          ]
+        ) {
+          divisionScore[
+            home
+          ] -= 2;
+
+          divisionScore[
+            away
+          ] += 2;
+        }
 
       } else {
         wins[
-          game.home
+          away
+        ] -= 1;
+
+        wins[
+          home
         ] += 1;
 
-        futureWins[
-          game.home
-        ] += 1;
+        h2hScore[
+          awayHomeIndex
+        ] -= 2;
+
+        h2hScore[
+          homeAwayIndex
+        ] += 2;
+
+        if (
+          divisionId[
+            away
+          ] ===
+          divisionId[
+            home
+          ]
+        ) {
+          divisionScore[
+            away
+          ] -= 2;
+
+          divisionScore[
+            home
+          ] += 2;
+        }
       }
     }
 
+    previousGray =
+      gray;
+
+    const context = {
+      teamCount,
+      wins,
+      ties,
+      pointsFor,
+      pointsAgainst,
+      h2hGames,
+      h2hScore,
+      divisionGames,
+      divisionScore,
+      pointsFinal,
+      criteria,
+    };
+
+    const outcome =
+      possiblePlayoffFields({
+        divisionGroups,
+        playoffTeamCount,
+        teamCount,
+        context,
+      });
+
     // ---------------------------------
-    // DIVISION WINNERS
+    // Extremely complex unresolved tie:
+    // classify conservatively rather
+    // than pretend we know the answer.
     // ---------------------------------
-
-    const divisionWinnerA =
-      findDivisionWinner(
-        divisionA
-      );
-
-    const divisionWinnerB =
-      findDivisionWinner(
-        divisionB
-      );
-
-    divisionTitleCount[
-      divisionWinnerA
-    ] += 1;
-
-    divisionTitleCount[
-      divisionWinnerB
-    ] += 1;
-
-    let seed1;
-    let seed2;
 
     if (
-      betterTeam(
-        divisionWinnerA,
-        divisionWinnerB
-      )
+      outcome.truncated ||
+      outcome.fields.length ===
+        0
     ) {
-      seed1 =
-        divisionWinnerA;
+      truncatedScenarioCount +=
+        1;
 
-      seed2 =
-        divisionWinnerB;
+      for (
+        let teamIndex = 0;
+        teamIndex <
+        teamCount;
+        teamIndex += 1
+      ) {
+        tiebreakDependent[
+          teamIndex
+        ] += 1;
 
-    } else {
-      seed1 =
-        divisionWinnerB;
+        // Conservatively allow
+        // every playoff seed.
+        for (
+          let seed = 1;
+          seed <=
+          playoffTeamCount;
+          seed += 1
+        ) {
+          seedMask[
+            teamIndex
+          ] |=
+            1 << seed;
+        }
 
-      seed2 =
-        divisionWinnerA;
+        const nextBit =
+          nextGameBit[
+            teamIndex
+          ];
+
+        if (
+          nextBit < 0
+        ) {
+          continue;
+        }
+
+        const awayWon =
+          (
+            gray &
+            (
+              1 <<
+              nextBit
+            )
+          ) !== 0;
+
+        const ownerWon =
+          nextGameIsAway[
+            teamIndex
+          ]
+            ? awayWon
+            : !awayWon;
+
+        if (
+          ownerWon
+        ) {
+          nextWinTotal[
+            teamIndex
+          ] += 1;
+
+          nextWinTiebreak[
+            teamIndex
+          ] += 1;
+
+        } else {
+          nextLossTotal[
+            teamIndex
+          ] += 1;
+
+          nextLossTiebreak[
+            teamIndex
+          ] += 1;
+        }
+      }
+
+      continue;
     }
 
     // ---------------------------------
-    // WILD CARDS
+    // Count appearances across every
+    // legal tiebreak resolution.
     // ---------------------------------
 
-    const [
-      seed3,
-      seed4,
-    ] =
-      findWildCards(
-        divisionWinnerA,
-        divisionWinnerB
+    const appearances =
+      new Uint16Array(
+        teamCount
       );
 
-    const playoffSeeds = [
-      seed1,
-      seed2,
-      seed3,
-      seed4,
-    ];
+    for (
+      const field of
+      outcome.fields
+    ) {
+      field.forEach(
+        (
+          teamIndex,
+          seedIndex
+        ) => {
+          appearances[
+            teamIndex
+          ] += 1;
 
-    playoffSeeds.forEach(
-      (
-        teamIndex,
-        seedIndex
-      ) => {
-        if (
-          teamIndex < 0
-        ) {
-          return;
+          seedMask[
+            teamIndex
+          ] |=
+            1 <<
+            (
+              seedIndex +
+              1
+            );
         }
-
-        inPlayoffs[
-          teamIndex
-        ] = 1;
-
-        playoffCount[
-          teamIndex
-        ] += 1;
-
-        seedCounts[
-          teamIndex
-        ][
-          seedIndex + 1
-        ] += 1;
-
-        minFutureWinsInPlayoff[
-          teamIndex
-        ] =
-          Math.min(
-            minFutureWinsInPlayoff[
-              teamIndex
-            ],
-
-            futureWins[
-              teamIndex
-            ]
-          );
-      }
-    );
-
-    // ---------------------------------
-    // TEAM-SPECIFIC CONDITIONS
-    // ---------------------------------
+      );
+    }
 
     for (
       let teamIndex = 0;
@@ -934,80 +1923,115 @@ function simulateScenarios({
       teamCount;
       teamIndex += 1
     ) {
-      if (
-        !inPlayoffs[
-          teamIndex
-        ]
-      ) {
-        maxFutureWinsMissingPlayoffs[
-          teamIndex
-        ] =
-          Math.max(
-            maxFutureWinsMissingPlayoffs[
-              teamIndex
-            ],
+      let status;
 
-            futureWins[
-              teamIndex
-            ]
-          );
+      if (
+        appearances[
+          teamIndex
+        ] ===
+        outcome.fields.length
+      ) {
+        guaranteedIn[
+          teamIndex
+        ] += 1;
+
+        status =
+          "IN";
+
+      } else if (
+        appearances[
+          teamIndex
+        ] === 0
+      ) {
+        guaranteedOut[
+          teamIndex
+        ] += 1;
+
+        status =
+          "OUT";
+
+      } else {
+        tiebreakDependent[
+          teamIndex
+        ] += 1;
+
+        status =
+          "TB";
       }
 
-      const nextGame =
-        nextGameIndex[
+      // ---------------------------------
+      // NEXT GAME CONDITIONAL
+      // ---------------------------------
+
+      const nextBit =
+        nextGameBit[
           teamIndex
         ];
 
       if (
-        nextGame < 0
+        nextBit < 0
       ) {
         continue;
       }
 
-      const awayWins =
+      const awayWon =
         (
-          mask &
+          gray &
           (
             1 <<
-            nextGame
+            nextBit
           )
         ) !== 0;
 
       const ownerWon =
-        nextGameOwnerIsAway[
+        nextGameIsAway[
           teamIndex
         ]
-          ? awayWins
-          : !awayWins;
+          ? awayWon
+          : !awayWon;
 
       if (
         ownerWon
       ) {
-        nextWinScenarios[
+        nextWinTotal[
           teamIndex
         ] += 1;
 
         if (
-          inPlayoffs[
-            teamIndex
-          ]
+          status ===
+          "IN"
         ) {
-          nextWinPlayoffs[
+          nextWinGuaranteed[
+            teamIndex
+          ] += 1;
+
+        } else if (
+          status ===
+          "TB"
+        ) {
+          nextWinTiebreak[
             teamIndex
           ] += 1;
         }
 
       } else {
-        nextLossScenarios[
+        nextLossTotal[
           teamIndex
         ] += 1;
 
         if (
-          inPlayoffs[
-            teamIndex
-          ]
+          status ===
+          "IN"
         ) {
-          nextLossPlayoffs[
+          nextLossGuaranteed[
+            teamIndex
+          ] += 1;
+
+        } else if (
+          status ===
+          "TB"
+        ) {
+          nextLossTiebreak[
             teamIndex
           ] += 1;
         }
@@ -1015,77 +2039,89 @@ function simulateScenarios({
     }
   }
 
+  // =======================================================
+  // FINAL RESULT MAP
+  // =======================================================
+
   const stats =
     new Map();
 
-  standings.forEach(
-    (team, index) => {
+  teams.forEach(
+    (
+      team,
+      index
+    ) => {
+      const possibleSeeds =
+        [];
+
+      for (
+        let seed = 1;
+        seed <=
+        playoffTeamCount;
+        seed += 1
+      ) {
+        if (
+          seedMask[
+            index
+          ] &
+          (
+            1 <<
+            seed
+          )
+        ) {
+          possibleSeeds.push(
+            seed
+          );
+        }
+      }
+
       stats.set(
         team.ownerId,
         {
-          playoffCount:
-            playoffCount[
+          guaranteedIn:
+            guaranteedIn[
               index
             ],
 
-          divisionTitleCount:
-            divisionTitleCount[
+          guaranteedOut:
+            guaranteedOut[
               index
             ],
 
-          seedCounts: {
-            1:
-              seedCounts[
-                index
-              ][1],
-
-            2:
-              seedCounts[
-                index
-              ][2],
-
-            3:
-              seedCounts[
-                index
-              ][3],
-
-            4:
-              seedCounts[
-                index
-              ][4],
-          },
-
-          nextWinScenarios:
-            nextWinScenarios[
+          tiebreakDependent:
+            tiebreakDependent[
               index
             ],
 
-          nextWinPlayoffs:
-            nextWinPlayoffs[
+          possibleSeeds,
+
+          nextWinTotal:
+            nextWinTotal[
               index
             ],
 
-          nextLossScenarios:
-            nextLossScenarios[
+          nextWinGuaranteed:
+            nextWinGuaranteed[
               index
             ],
 
-          nextLossPlayoffs:
-            nextLossPlayoffs[
+          nextWinTiebreak:
+            nextWinTiebreak[
               index
             ],
 
-          minFutureWinsInPlayoff:
-            minFutureWinsInPlayoff[
+          nextLossTotal:
+            nextLossTotal[
               index
-            ] === 999
-              ? Infinity
-              : minFutureWinsInPlayoff[
-                  index
-                ],
+            ],
 
-          maxFutureWinsMissingPlayoffs:
-            maxFutureWinsMissingPlayoffs[
+          nextLossGuaranteed:
+            nextLossGuaranteed[
+              index
+            ],
+
+          nextLossTiebreak:
+            nextLossTiebreak[
               index
             ],
         }
@@ -1095,151 +2131,13 @@ function simulateScenarios({
 
   return {
     totalScenarios,
+
     stats,
+
+    truncatedScenarioCount,
+
+    criteria,
   };
-}
-
-// =========================================================
-// TEAM STATUS
-// =========================================================
-
-function getStatus({
-  team,
-  currentField,
-  exact,
-}) {
-  const exactStats =
-    exact?.stats?.get(
-      team.ownerId
-    );
-
-  if (
-    exactStats
-  ) {
-    if (
-      exactStats
-        .divisionTitleCount ===
-      exact.totalScenarios
-    ) {
-      return "DIVISION CLINCHED";
-    }
-
-    if (
-      exactStats
-        .playoffCount ===
-      exact.totalScenarios
-    ) {
-      return "PLAYOFF CLINCHED";
-    }
-
-    if (
-      exactStats
-        .playoffCount ===
-      0
-    ) {
-      return "ELIMINATED";
-    }
-  }
-
-  const divisionLeader =
-    currentField
-      .divisionWinners
-      .some(
-        (item) =>
-          item.ownerId ===
-          team.ownerId
-      );
-
-  if (
-    divisionLeader
-  ) {
-    return "DIVISION LEADER";
-  }
-
-  const wildCard =
-    currentField
-      .wildCards
-      .some(
-        (item) =>
-          item.ownerId ===
-          team.ownerId
-      );
-
-  if (
-    wildCard
-  ) {
-    return "WILD CARD";
-  }
-
-  return "IN THE HUNT";
-}
-
-// =========================================================
-// SCENARIO LABEL
-// =========================================================
-
-function getScenarioLabel({
-  stats,
-  exact,
-  gamesLeft,
-}) {
-  if (
-    !stats ||
-    !exact
-  ) {
-    return "PATH OPEN";
-  }
-
-  if (
-    stats.playoffCount ===
-    exact.totalScenarios
-  ) {
-    return "CLINCHED";
-  }
-
-  if (
-    stats.playoffCount ===
-    0
-  ) {
-    return "ELIMINATED";
-  }
-
-  const nextWinClinches =
-    stats.nextWinScenarios >
-      0 &&
-    stats.nextWinPlayoffs ===
-      stats.nextWinScenarios;
-
-  if (
-    nextWinClinches
-  ) {
-    return "WIN & IN";
-  }
-
-  const nextLossEliminates =
-    stats.nextLossScenarios >
-      0 &&
-    stats.nextLossPlayoffs ===
-      0;
-
-  if (
-    nextLossEliminates
-  ) {
-    return "MUST WIN";
-  }
-
-  const mustWinOut =
-    stats
-      .minFutureWinsInPlayoff ===
-    gamesLeft;
-
-  if (
-    mustWinOut
-  ) {
-    return "MUST WIN OUT";
-  }
-
-  return "PLAYOFF RACE";
 }
 
 // =========================================================
@@ -1248,23 +2146,60 @@ function getScenarioLabel({
 
 export default async function PlayoffScenariosPage() {
   let leagueData;
+  let espnSettings;
 
   try {
     leagueData =
       await getLeagueData();
 
+    espnSettings =
+      await getEspnPlayoffSettings(
+        leagueData
+          .currentSeason
+      );
+
   } catch (error) {
     return (
       <main className="page-shell">
 
-        <h1>
-          2026 Playoff Scenarios
-        </h1>
+        <header className="site-header">
 
-        <p>
-          {error?.message ||
-            "Unable to load league data."}
-        </p>
+          <div className="site-title">
+
+            <Link href="/">
+              <strong>
+                DIRTY P FANTASY FOOTBALL
+              </strong>
+            </Link>
+
+            <span>
+              THE LEAGUE ARCHIVE · EST. 2014
+            </span>
+
+          </div>
+
+        </header>
+
+        <section className="owners-hero">
+
+          <div>
+
+            <p className="eyebrow">
+              ESPN DATA ERROR
+            </p>
+
+            <h1>
+              Playoff Scenarios
+            </h1>
+
+            <p>
+              {error?.message ||
+                "Unable to load ESPN playoff settings."}
+            </p>
+
+          </div>
+
+        </section>
 
       </main>
     );
@@ -1278,73 +2213,27 @@ export default async function PlayoffScenariosPage() {
     currentSeasonResults,
     currentSeasonMatchups,
     completedCurrentMatchups,
-  } = leagueData;
-
-  // =======================================================
-  // GET 2026 DIVISION INFORMATION
-  // =======================================================
+  } =
+    leagueData;
 
   const {
-    data:
-      divisionRows,
-
-    error:
-      divisionError,
+    playoffTeamCount,
+    regularSeasonWeeks,
+    playoffSeedingRule,
+    matchupTieRule,
+    divisionNameById,
+    teamDivisionByEspnId,
   } =
-    await supabase
-      .from("teams")
-      .select(`
-        owner_id,
-        team_name,
-        division
-      `)
-      .eq(
-        "season_year",
-        currentSeason
-      );
-
-  if (
-    divisionError
-  ) {
-    return (
-      <main className="page-shell">
-
-        <h1>
-          {currentSeason} Playoff Scenarios
-        </h1>
-
-        <p>
-          {divisionError.message}
-        </p>
-
-      </main>
-    );
-  }
-
-  const divisionByOwner =
-    new Map(
-      (
-        divisionRows ||
-        []
-      ).map(
-        (team) => [
-          Number(
-            team.owner_id
-          ),
-          team,
-        ]
-      )
-    );
+    espnSettings;
 
   // =======================================================
-  // LOOKUPS
+  // OWNER / RESULT LOOKUPS
   // =======================================================
 
   const ownerMap =
     new Map(
       (
-        owners ||
-        []
+        owners || []
       ).map(
         (owner) => [
           Number(
@@ -1371,197 +2260,183 @@ export default async function PlayoffScenariosPage() {
     );
 
   // =======================================================
-  // CURRENT STANDINGS
+  // BUILD TEAM LIST USING ESPN'S DIVISIONS
   // =======================================================
 
-  const standings =
-    rankTeams(
-      (
-        currentTeams ||
-        []
-      )
-        .map(
-          (team) => {
-            const ownerId =
-              Number(
-                team.owner_id ??
-                  team.ownerId ??
-                  0
-              );
+  const teams =
+    (
+      currentTeams ||
+      []
+    )
+      .map(
+        (team) => {
+          const ownerId =
+            Number(
+              team.owner_id ??
+                team.ownerId ??
+                0
+            );
 
-            const result =
-              resultMap.get(
+          const espnTeamId =
+            Number(
+              team.espnTeamId ??
+                team.espn_team_id ??
+                team.id ??
+                0
+            );
+
+          const result =
+            resultMap.get(
+              ownerId
+            );
+
+          const divisionId =
+            Number(
+              teamDivisionByEspnId[
+                espnTeamId
+              ]
+            );
+
+          return {
+            ownerId,
+
+            espnTeamId,
+
+            ownerName:
+              ownerMap.get(
                 ownerId
-              );
+              ) ||
+              team.ownerName ||
+              "Unknown Owner",
 
-            const divisionRow =
-              divisionByOwner.get(
-                ownerId
-              );
+            teamName:
+              team.team_name ||
+              team.teamName ||
+              "Unknown Team",
 
-            return {
-              ownerId,
+            divisionId,
 
-              ownerName:
-                ownerMap.get(
-                  ownerId
-                ) ||
-                team.ownerName ||
-                "Unknown Owner",
+            divisionName:
+              divisionNameById[
+                divisionId
+              ] ||
+              `Division ${divisionId + 1}`,
 
-              teamName:
-                divisionRow
-                  ?.team_name ||
-                team.team_name ||
-                team.teamName ||
-                "Unknown Team",
+            currentSeed:
+              num(
+                team.playoffSeed ??
+                  team.playoff_seed ??
+                  team.seed
+              ),
 
-              division:
-                divisionRow
-                  ?.division ||
-                team.division ||
-                "No Division",
+            wins:
+              num(
+                team.wins ??
+                  result?.wins
+              ),
 
-              wins:
-                num(
-                  team.wins ??
-                    result?.wins
-                ),
+            losses:
+              num(
+                team.losses ??
+                  result?.losses
+              ),
 
-              losses:
-                num(
-                  team.losses ??
-                    result
-                      ?.losses
-                ),
+            ties:
+              num(
+                team.ties ??
+                  result?.ties
+              ),
 
-              ties:
-                num(
-                  team.ties ??
-                    result?.ties
-                ),
+            pointsFor:
+              num(
+                team.pointsFor ??
+                  team.points_for ??
+                  result
+                    ?.points_for
+              ),
 
-              pointsFor:
-                num(
-                  team.pointsFor ??
-                    team.points_for ??
-                    result
-                      ?.points_for
-                ),
-            };
-          }
-        )
-        .filter(
-          (team) =>
-            team.ownerId >
-            0
-        )
-    );
-
-  // =======================================================
-  // CURRENT PLAYOFF FIELD
-  // =======================================================
-
-  const currentField =
-    buildPlayoffField(
-      standings
-    );
-
-  const currentSeedMap =
-    new Map(
-      currentField.seeds.map(
-        (team) => [
-          team.ownerId,
-          team.seed,
-        ]
+            pointsAgainst:
+              num(
+                team.pointsAgainst ??
+                  team.points_against ??
+                  result
+                    ?.points_against
+              ),
+          };
+        }
       )
-    );
+      .filter(
+        (team) =>
+          team.ownerId >
+            0 &&
+          Number.isFinite(
+            team.divisionId
+          )
+      );
 
   // =======================================================
-  // DIVISION STANDINGS
+  // REGULAR-SEASON GAMES ONLY
   // =======================================================
 
-  const divisions =
-    groupByDivision(
-      standings
-    );
+  const regularGames =
+    (
+      currentSeasonMatchups ||
+      []
+    )
+      .filter(
+        (game) =>
+          Number(
+            game.matchup_period
+          ) <=
+            regularSeasonWeeks &&
+          game.is_playoff !==
+            true &&
+          game.is_consolation !==
+            true
+      );
 
-  const divisionNames =
-    [
-      ...divisions.keys(),
-    ].filter(
-      (division) =>
-        division !==
-        "No Division"
-    );
+  const completedRegularGames =
+    (
+      completedCurrentMatchups ||
+      []
+    )
+      .filter(
+        (game) =>
+          Number(
+            game.matchup_period
+          ) <=
+            regularSeasonWeeks &&
+          game.is_playoff !==
+            true &&
+          game.is_consolation !==
+            true
+      );
 
-  // =======================================================
-  // COMPLETED GAME LOOKUP
-  //
-  // This is better than just checking the latest week
-  // because some games can be final while others are live.
-  // =======================================================
-
-  const completedGameKeys =
+  const completedKeys =
     new Set(
-      (
-        completedCurrentMatchups ||
-        []
-      ).map(
+      completedRegularGames.map(
         gameKey
       )
     );
 
-  // =======================================================
-  // REGULAR-SEASON SCHEDULE
-  // =======================================================
-
-  const regularGames =
-    getRegularGames(
-      currentSeasonMatchups
-    );
-
-  const regularSeasonEndWeek =
-    regularGames.length
-      ? Math.max(
-          ...regularGames.map(
-            (game) =>
-              Number(
-                game.matchup_period
-              )
-          )
-        )
-      : 0;
-
   const remainingGames =
     regularGames
       .filter(
-        (game) => {
-          const awayId =
-            Number(
-              game.away_owner_id
-            );
-
-          const homeId =
-            Number(
-              game.home_owner_id
-            );
-
-          if (
-            awayId <= 0 ||
-            homeId <= 0
-          ) {
-            return false;
-          }
-
-          return (
-            !completedGameKeys.has(
-              gameKey(
-                game
-              )
+        (game) =>
+          !completedKeys.has(
+            gameKey(
+              game
             )
-          );
-        }
+          )
+      )
+      .filter(
+        (game) =>
+          Number(
+            game.away_owner_id
+          ) > 0 &&
+          Number(
+            game.home_owner_id
+          ) > 0
       )
       .sort(
         (a, b) =>
@@ -1589,21 +2464,95 @@ export default async function PlayoffScenariosPage() {
     );
 
   // =======================================================
-  // REMAINING SCHEDULE BY OWNER
+  // CURRENT DIVISION RACES
+  //
+  // Current ESPN playoffSeed is used as the source of truth
+  // for today's order, so ESPN itself decides current ties.
   // =======================================================
 
-  const scheduleByOwner =
+  const divisionMap =
     new Map();
 
   for (
     const team of
-    standings
+    teams
   ) {
-    scheduleByOwner.set(
-      team.ownerId,
-      []
+    if (
+      !divisionMap.has(
+        team.divisionId
+      )
+    ) {
+      divisionMap.set(
+        team.divisionId,
+        []
+      );
+    }
+
+    divisionMap
+      .get(
+        team.divisionId
+      )
+      .push(team);
+  }
+
+  for (
+    const [
+      divisionId,
+      divisionTeams,
+    ] of
+    divisionMap.entries()
+  ) {
+    divisionMap.set(
+      divisionId,
+      currentSeedSort(
+        divisionTeams
+      )
     );
   }
+
+  const divisions =
+    [
+      ...divisionMap.entries(),
+    ].sort(
+      (a, b) =>
+        Number(a[0]) -
+        Number(b[0])
+    );
+
+  const currentDivisionLeaders =
+    divisions
+      .map(
+        ([, divisionTeams]) =>
+          divisionTeams[0]
+      )
+      .filter(
+        Boolean
+      );
+
+  const leaderOwnerIds =
+    new Set(
+      currentDivisionLeaders.map(
+        (team) =>
+          team.ownerId
+      )
+    );
+
+  const wildcardRace =
+    currentSeedSort(
+      teams.filter(
+        (team) =>
+          !leaderOwnerIds.has(
+            team.ownerId
+          )
+      )
+    );
+
+  // =======================================================
+  // NEXT GAME BY OWNER
+  // =======================================================
+
+  const nextGameByOwner =
+    new Map();
 
   for (
     const game of
@@ -1625,15 +2574,13 @@ export default async function PlayoffScenariosPage() {
       );
 
     if (
-      scheduleByOwner.has(
+      !nextGameByOwner.has(
         awayId
       )
     ) {
-      scheduleByOwner
-        .get(
-          awayId
-        )
-        .push({
+      nextGameByOwner.set(
+        awayId,
+        {
           week,
 
           opponentId:
@@ -1643,21 +2590,19 @@ export default async function PlayoffScenariosPage() {
             ownerMap.get(
               homeId
             ) ||
-            game.home_team_name ||
             "Unknown",
-        });
+        }
+      );
     }
 
     if (
-      scheduleByOwner.has(
+      !nextGameByOwner.has(
         homeId
       )
     ) {
-      scheduleByOwner
-        .get(
-          homeId
-        )
-        .push({
+      nextGameByOwner.set(
+        homeId,
+        {
           week,
 
           opponentId:
@@ -1667,69 +2612,108 @@ export default async function PlayoffScenariosPage() {
             ownerMap.get(
               awayId
             ) ||
-            game.away_team_name ||
             "Unknown",
-        });
+        }
+      );
     }
   }
 
   // =======================================================
-  // EXACT SCENARIO ENGINE
+  // EXACT ENGINE ACTIVATION
   //
-  // Activates at 4 weeks remaining.
+  // Weekly matchup ties must be broken by ESPN so that a
+  // future matchup has two possible outcomes: W or L.
   // =======================================================
 
-  const exactEngineActive =
-    divisionNames.length ===
-      2 &&
+  const binaryWeeklyResults =
+    Boolean(
+      matchupTieRule
+    ) &&
+    String(
+      matchupTieRule
+    ).toUpperCase() !==
+      "NONE";
+
+  const scenarioEngineActive =
     remainingWeeks.length <=
       4 &&
     remainingGames.length <=
-      20;
+      20 &&
+    binaryWeeklyResults;
 
-  const exact =
-    exactEngineActive
-      ? simulateScenarios({
-          standings,
+  const scenarioEngine =
+    scenarioEngineActive
+      ? simulatePlayoffScenarios({
+          teams,
+          completedGames:
+            completedRegularGames,
           remainingGames,
+          playoffTeamCount,
+          playoffSeedingRule,
         })
       : null;
 
-  // =======================================================
-  // WILD CARD RACE
-  // =======================================================
-
-  const currentDivisionWinnerIds =
-    new Set(
-      currentField
-        .divisionWinners
-        .map(
-          (team) =>
-            team.ownerId
-        )
-    );
-
-  const wildCardRace =
-    rankTeams(
-      standings.filter(
-        (team) =>
-          !currentDivisionWinnerIds.has(
-            team.ownerId
-          )
-      )
-    );
-
-  // =======================================================
-  // REFRESH
-  //
-  // Before exact scenarios: every 30 sec
-  // Exact million-scenario engine: every 5 min
-  // =======================================================
-
   const refreshMs =
-    exact
+    scenarioEngine
       ? 300000
       : 30000;
+
+  const tiebreakLabel =
+    getTiebreakLabel(
+      playoffSeedingRule
+    );
+
+  // =======================================================
+  // CARD STATUS
+  // =======================================================
+
+  function getStatus(
+    team
+  ) {
+    const stats =
+      scenarioEngine
+        ?.stats
+        ?.get(
+          team.ownerId
+        );
+
+    if (
+      stats &&
+      stats.guaranteedIn ===
+        scenarioEngine
+          .totalScenarios
+    ) {
+      return "PLAYOFF CLINCHED";
+    }
+
+    if (
+      stats &&
+      stats.guaranteedOut ===
+        scenarioEngine
+          .totalScenarios
+    ) {
+      return "ELIMINATED";
+    }
+
+    if (
+      leaderOwnerIds.has(
+        team.ownerId
+      )
+    ) {
+      return "DIVISION LEADER";
+    }
+
+    if (
+      team.currentSeed >
+        0 &&
+      team.currentSeed <=
+        playoffTeamCount
+    ) {
+      return "WILD CARD";
+    }
+
+    return "IN THE HUNT";
+  }
 
   // =======================================================
   // RENDER
@@ -1765,7 +2749,7 @@ export default async function PlayoffScenariosPage() {
 
       </header>
 
-      {/* HERO — SAME STYLE AS OTHER TABS */}
+      {/* HERO */}
 
       <section className="owners-hero">
 
@@ -1780,9 +2764,9 @@ export default async function PlayoffScenariosPage() {
           </h1>
 
           <p>
-            Division races, wild-card positioning,
-            remaining schedules and every team&apos;s
-            path to the {currentSeason} Dirty P playoffs.
+            The live division and wild-card race,
+            calculated using ESPN&apos;s actual league
+            settings and playoff tiebreak rules.
           </p>
 
         </div>
@@ -1790,7 +2774,7 @@ export default async function PlayoffScenariosPage() {
         <div className="owners-count">
 
           <strong>
-            4
+            {playoffTeamCount}
           </strong>
 
           <span>
@@ -1801,7 +2785,7 @@ export default async function PlayoffScenariosPage() {
 
       </section>
 
-      {/* PAGE NAV — SAME STYLE AS OTHER TABS */}
+      {/* PAGE NAV */}
 
       <nav className="page-nav">
 
@@ -1810,104 +2794,12 @@ export default async function PlayoffScenariosPage() {
         </Link>
 
         <span>
-          Week {currentWeek} ·{" "}
-          {remainingWeeks.length} regular-season{" "}
-          {remainingWeeks.length === 1
-            ? "week"
-            : "weeks"}{" "}
-          remaining
+          Week {currentWeek}
+          {" · "}
+          ESPN TB: {tiebreakLabel}
         </span>
 
       </nav>
-
-      {/* =====================================================
-          PLAYOFF FORMAT
-          ===================================================== */}
-
-      <section className="owners-section">
-
-        <div className="section-heading">
-
-          <div>
-
-            <p className="eyebrow">
-              PLAYOFF FORMAT
-            </p>
-
-            <h2>
-              How Teams Get In
-            </h2>
-
-          </div>
-
-          <span>
-            Four-team playoff field
-          </span>
-
-        </div>
-
-        <div className="h2h-grid">
-
-          <div className="h2h-card">
-
-            <span>
-              SEEDS #1 & #2
-            </span>
-
-            <strong>
-              Division Winners
-            </strong>
-
-            <div>
-              Each division champion earns an
-              automatic playoff berth.
-            </div>
-
-          </div>
-
-          <div className="h2h-card">
-
-            <span>
-              SEEDS #3 & #4
-            </span>
-
-            <strong>
-              Wild Cards
-            </strong>
-
-            <div>
-              The two best remaining records
-              qualify after the division winners
-              are removed.
-            </div>
-
-          </div>
-
-          <div className="h2h-card">
-
-            <span>
-              EXACT SCENARIOS
-            </span>
-
-            <strong>
-              {exact
-                ? "Scenario Engine Active"
-                : "Activates With 4 Weeks Left"}
-            </strong>
-
-            <div>
-
-              {exact
-                ? `${exact.totalScenarios.toLocaleString()} remaining W/L combinations are being evaluated.`
-                : "Clinching, elimination, win-and-in and seeding scenarios will appear automatically."}
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
 
       {/* =====================================================
           DIVISION RACES
@@ -1930,134 +2822,125 @@ export default async function PlayoffScenariosPage() {
           </div>
 
           <span>
-            Division winners automatically qualify
+            Winners take the top seeds
           </span>
 
         </div>
 
         <div className="division-grid">
 
-          {divisionNames.map(
-            (division) => {
+          {divisions.map(
+            ([
+              divisionId,
+              divisionTeams,
+            ]) => (
 
-              const teams =
-                divisions.get(
-                  division
-                ) || [];
+              <div
+                className="division-card"
+                key={
+                  divisionId
+                }
+              >
 
-              const leader =
-                teams[0];
+                <div className="division-title">
 
-              return (
-                <div
-                  className="division-card"
-                  key={
-                    division
-                  }
-                >
+                  <h3>
+                    {divisionNameById[
+                      divisionId
+                    ] ||
+                      `Division ${Number(divisionId) + 1}`}
+                  </h3>
 
-                  <div className="division-title">
+                </div>
 
-                    <h3>
-                      {division}
-                    </h3>
+                <div className="division-header">
 
-                  </div>
+                  <span>
+                    RK
+                  </span>
 
-                  <div className="division-header">
+                  <span>
+                    TEAM
+                  </span>
 
-                    <span>
-                      RK
-                    </span>
+                  <span>
+                    W-L
+                  </span>
 
-                    <span>
-                      TEAM
-                    </span>
+                  <span>
+                    SEED
+                  </span>
 
-                    <span>
-                      W-L
-                    </span>
+                </div>
 
-                    <span>
-                      PF
-                    </span>
+                {divisionTeams.map(
+                  (
+                    team,
+                    index
+                  ) => (
 
-                  </div>
+                    <div
+                      className={`division-row ${
+                        index === 0
+                          ? "playoff-position"
+                          : ""
+                      }`}
+                      key={
+                        team.ownerId
+                      }
+                    >
 
-                  {teams.map(
-                    (
-                      team,
-                      index
-                    ) => (
+                      <span className="standings-rank">
+                        {index + 1}
+                      </span>
 
-                      <div
-                        className={`division-row ${
-                          index === 0
-                            ? "playoff-position"
-                            : ""
-                        }`}
-                        key={
-                          team.ownerId
-                        }
-                      >
+                      <div className="standings-team">
 
-                        <span className="standings-rank">
-                          {index + 1}
-                        </span>
+                        <div className="team-name-line">
 
-                        <div className="standings-team">
+                          <strong>
+                            {team.teamName}
+                          </strong>
 
-                          <div className="team-name-line">
-
-                            <strong>
-                              {team.teamName}
-                            </strong>
-
-                            {index ===
-                              0 && (
-                              <span className="playoff-badge">
-                                LEADER
-                              </span>
-                            )}
-
-                          </div>
-
-                          <span>
-                            {team.ownerName}
-                            {" · "}
-                            {gamesBackText(
-                              leader,
-                              team
-                            )}
-                          </span>
+                          {index ===
+                            0 && (
+                            <span className="playoff-badge">
+                              LEADER
+                            </span>
+                          )}
 
                         </div>
 
-                        <strong className="standings-record">
-
-                          {formatRecord(
-                            team.wins,
-                            team.losses,
-                            team.ties
-                          )}
-
-                        </strong>
-
-                        <strong className="standings-pf">
-
-                          {formatPoints(
-                            team.pointsFor
-                          )}
-
-                        </strong>
+                        <span>
+                          {team.ownerName}
+                        </span>
 
                       </div>
-                    )
-                  )}
 
-                </div>
-              );
-            }
+                      <strong className="standings-record">
+
+                        {formatRecord(
+                          team.wins,
+                          team.losses,
+                          team.ties
+                        )}
+
+                      </strong>
+
+                      <strong className="standings-pf">
+
+                        #{team.currentSeed ||
+                          "—"}
+
+                      </strong>
+
+                    </div>
+                  )
+                )}
+
+              </div>
+
+            )
           )}
 
         </div>
@@ -2065,7 +2948,7 @@ export default async function PlayoffScenariosPage() {
       </section>
 
       {/* =====================================================
-          WILD CARD RACE
+          WILD CARD
           ===================================================== */}
 
       <section className="owners-section">
@@ -2075,7 +2958,7 @@ export default async function PlayoffScenariosPage() {
           <div>
 
             <p className="eyebrow">
-              SEEDS #3 & #4
+              REMAINING BERTHS
             </p>
 
             <h2>
@@ -2085,7 +2968,7 @@ export default async function PlayoffScenariosPage() {
           </div>
 
           <span>
-            Current division leaders removed
+            Division leaders removed
           </span>
 
         </div>
@@ -2111,15 +2994,11 @@ export default async function PlayoffScenariosPage() {
                 </th>
 
                 <th>
-                  DIVISION
-                </th>
-
-                <th>
                   RECORD
                 </th>
 
                 <th>
-                  PF
+                  ESPN SEED
                 </th>
 
                 <th>
@@ -2132,78 +3011,87 @@ export default async function PlayoffScenariosPage() {
 
             <tbody>
 
-              {wildCardRace.map(
+              {wildcardRace.map(
                 (
                   team,
                   index
-                ) => (
+                ) => {
 
-                  <tr
-                    key={
-                      team.ownerId
-                    }
-                  >
+                  const wildCardSpots =
+                    Math.max(
+                      0,
+                      playoffTeamCount -
+                        divisions.length
+                    );
 
-                    <td>
+                  return (
+                    <tr
+                      key={
+                        team.ownerId
+                      }
+                    >
 
-                      <strong>
-                        #{index + 1}
-                      </strong>
+                      <td>
 
-                    </td>
+                        <strong>
+                          #{index + 1}
+                        </strong>
 
-                    <td>
+                      </td>
 
-                      <strong>
-                        {team.ownerName}
-                      </strong>
+                      <td>
 
-                    </td>
+                        <strong>
+                          {team.ownerName}
+                        </strong>
 
-                    <td>
-                      {team.teamName}
-                    </td>
+                      </td>
 
-                    <td>
-                      {team.division}
-                    </td>
+                      <td>
+                        {team.teamName}
+                      </td>
 
-                    <td>
+                      <td>
 
-                      <strong>
+                        <strong>
 
-                        {formatRecord(
-                          team.wins,
-                          team.losses,
-                          team.ties
+                          {formatRecord(
+                            team.wins,
+                            team.losses,
+                            team.ties
+                          )}
+
+                        </strong>
+
+                      </td>
+
+                      <td>
+                        #{team.currentSeed ||
+                          "—"}
+                      </td>
+
+                      <td>
+
+                        {index <
+                        wildCardSpots ? (
+
+                          <span className="playoff-badge">
+                            IN
+                          </span>
+
+                        ) : (
+
+                          <span>
+                            OUT
+                          </span>
+
                         )}
 
-                      </strong>
+                      </td>
 
-                    </td>
-
-                    <td>
-                      {formatPoints(
-                        team.pointsFor
-                      )}
-                    </td>
-
-                    <td>
-
-                      {index < 2 ? (
-                        <span className="playoff-badge">
-                          IN
-                        </span>
-                      ) : (
-                        <span>
-                          OUT
-                        </span>
-                      )}
-
-                    </td>
-
-                  </tr>
-                )
+                    </tr>
+                  );
+                }
               )}
 
             </tbody>
@@ -2215,7 +3103,7 @@ export default async function PlayoffScenariosPage() {
       </section>
 
       {/* =====================================================
-          INDIVIDUAL TEAM SCENARIOS
+          PLAYOFF SCENARIOS
           ===================================================== */}
 
       <section className="owners-section">
@@ -2229,173 +3117,105 @@ export default async function PlayoffScenariosPage() {
             </p>
 
             <h2>
-              Paths to the Playoffs
+              Playoff Paths
             </h2>
 
           </div>
 
           <span>
-            Updates automatically from league data
+
+            {scenarioEngine
+              ? `${scenarioEngine.totalScenarios.toLocaleString()} W/L scenarios`
+              : "Full scenarios activate with 4 weeks left"}
+
           </span>
 
         </div>
 
         <div className="owners-grid">
 
-          {standings.map(
+          {currentSeedSort(
+            teams
+          ).map(
             (team) => {
 
-              const divisionTeams =
-                divisions.get(
-                  team.division
-                ) || [];
-
-              const divisionLeader =
-                divisionTeams[0] ||
-                null;
-
-              const divisionPosition =
-                divisionTeams.findIndex(
-                  (item) =>
-                    item.ownerId ===
+              const stats =
+                scenarioEngine
+                  ?.stats
+                  ?.get(
                     team.ownerId
-                ) + 1;
+                  );
 
-              const schedule =
-                scheduleByOwner.get(
-                  team.ownerId
-                ) || [];
-
-              const currentSeed =
-                currentSeedMap.get(
+              const nextGame =
+                nextGameByOwner.get(
                   team.ownerId
                 );
 
               const status =
-                getStatus({
-                  team,
-                  currentField,
-                  exact,
-                });
-
-              const exactStats =
-                exact?.stats?.get(
-                  team.ownerId
+                getStatus(
+                  team
                 );
 
-              const playoffPercent =
-                exactStats &&
-                exact
-                  ? (
-                      exactStats
-                        .playoffCount /
-                      exact.totalScenarios
-                    ) *
-                    100
-                  : null;
+              const guaranteed =
+                stats
+                  ? formatPercent(
+                      stats.guaranteedIn,
+                      scenarioEngine
+                        .totalScenarios
+                    )
+                  : "—";
 
-              const divisionPercent =
-                exactStats &&
-                exact
-                  ? (
-                      exactStats
-                        .divisionTitleCount /
-                      exact.totalScenarios
-                    ) *
-                    100
-                  : null;
+              const tiebreak =
+                stats
+                  ? formatPercent(
+                      stats.tiebreakDependent,
+                      scenarioEngine
+                        .totalScenarios
+                    )
+                  : "—";
 
-              const nextWinPercent =
-                exactStats
-                  ?.nextWinScenarios >
-                0
-                  ? (
-                      exactStats
-                        .nextWinPlayoffs /
-                      exactStats
-                        .nextWinScenarios
-                    ) *
-                    100
-                  : null;
+              const winGuaranteed =
+                stats
+                  ? formatPercent(
+                      stats.nextWinGuaranteed,
+                      stats.nextWinTotal
+                    )
+                  : "—";
 
-              const nextLossPercent =
-                exactStats
-                  ?.nextLossScenarios >
-                0
-                  ? (
-                      exactStats
-                        .nextLossPlayoffs /
-                      exactStats
-                        .nextLossScenarios
-                    ) *
-                    100
-                  : null;
+              const lossGuaranteed =
+                stats
+                  ? formatPercent(
+                      stats.nextLossGuaranteed,
+                      stats.nextLossTotal
+                    )
+                  : "—";
 
               const possibleSeeds =
-                exactStats
-                  ? [
-                      1,
-                      2,
-                      3,
-                      4,
-                    ].filter(
-                      (seed) =>
-                        exactStats
-                          .seedCounts[
-                            seed
-                          ] > 0
-                    )
-                  : [];
+                stats
+                  ?.possibleSeeds
+                  ?.length
+                  ? stats.possibleSeeds
+                      .map(
+                        (seed) =>
+                          `#${seed}`
+                      )
+                      .join("/")
+                  : scenarioEngine
+                    ? "NONE"
+                    : "—";
 
               const gamesLeft =
-                schedule.length;
-
-              const bestRecord =
-                formatRecord(
-                  team.wins +
-                    gamesLeft,
-
-                  team.losses,
-
-                  team.ties
-                );
-
-              const worstRecord =
-                formatRecord(
-                  team.wins,
-
-                  team.losses +
-                    gamesLeft,
-
-                  team.ties
-                );
-
-              const scenarioLabel =
-                getScenarioLabel({
-                  stats:
-                    exactStats,
-
-                  exact,
-
-                  gamesLeft,
-                });
-
-              const nextGame =
-                schedule[0];
-
-              const nextGameText =
-                nextGame
-                  ? `Week ${nextGame.week} vs. ${nextGame.opponent}`
-                  : "Regular season complete";
-
-              const primaryPath =
-                divisionPosition ===
-                1
-                  ? "WIN DIVISION"
-                  : "DIVISION TITLE";
-
-              const fallbackPath =
-                "WILD CARD";
+                remainingGames.filter(
+                  (game) =>
+                    Number(
+                      game.away_owner_id
+                    ) ===
+                      team.ownerId ||
+                    Number(
+                      game.home_owner_id
+                    ) ===
+                      team.ownerId
+                ).length;
 
               return (
                 <article
@@ -2422,7 +3242,7 @@ export default async function PlayoffScenariosPage() {
                       <p className="owner-team-name">
                         {team.teamName}
                         {" · "}
-                        {team.division}
+                        {team.divisionName}
                       </p>
 
                     </div>
@@ -2431,21 +3251,21 @@ export default async function PlayoffScenariosPage() {
 
                       <strong>
 
-                        {currentSeed
-                          ? `#${currentSeed}`
-                          : "OUT"}
+                        {team.currentSeed
+                          ? `#${team.currentSeed}`
+                          : "—"}
 
                       </strong>
 
                       <span>
-                        SEED
+                        ESPN SEED
                       </span>
 
                     </div>
 
                   </div>
 
-                  {/* RECORD / DIVISION */}
+                  {/* RECORD */}
 
                   <div className="owner-record">
 
@@ -2462,40 +3282,7 @@ export default async function PlayoffScenariosPage() {
                       </strong>
 
                       <span>
-                        CURRENT RECORD
-                      </span>
-
-                    </div>
-
-                    <div>
-
-                      <strong>
-                        #{divisionPosition ||
-                          "—"}
-                      </strong>
-
-                      <span>
-                        DIVISION POSITION
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                  {/* BASIC STATS */}
-
-                  <div className="owner-stats-grid">
-
-                    <div>
-
-                      <strong>
-                        {formatPoints(
-                          team.pointsFor
-                        )}
-                      </strong>
-
-                      <span>
-                        PF
+                        RECORD
                       </span>
 
                     </div>
@@ -2512,199 +3299,84 @@ export default async function PlayoffScenariosPage() {
 
                     </div>
 
+                  </div>
+
+                  {/* ONLY THE IMPORTANT SCENARIO DATA */}
+
+                  <div className="owner-stats-grid">
+
+                    <div>
+
+                      <strong>
+                        {guaranteed}
+                      </strong>
+
+                      <span>
+                        GUARANTEED IN
+                      </span>
+
+                    </div>
+
+                    <div>
+
+                      <strong>
+                        {tiebreak}
+                      </strong>
+
+                      <span>
+                        TIEBREAK
+                      </span>
+
+                    </div>
+
+                    <div>
+
+                      <strong>
+                        {possibleSeeds}
+                      </strong>
+
+                      <span>
+                        POSSIBLE SEEDS
+                      </span>
+
+                    </div>
+
                     <div>
 
                       <strong>
 
-                        {exact
-                          ? formatPercent(
-                              playoffPercent
-                            )
+                        {nextGame
+                          ? `W${nextGame.week}`
                           : "—"}
 
                       </strong>
 
                       <span>
-                        PLAYOFF SCENARIOS
-                      </span>
-
-                    </div>
-
-                    <div>
-
-                      <strong>
-
-                        {exact
-                          ? formatPercent(
-                              divisionPercent
-                            )
-                          : "—"}
-
-                      </strong>
-
-                      <span>
-                        DIVISION SCENARIOS
+                        NEXT GAME
                       </span>
 
                     </div>
 
                   </div>
-
-                  {/* PATHS */}
-
-                  <div className="owner-record">
-
-                    <div>
-
-                      <strong>
-                        {primaryPath}
-                      </strong>
-
-                      <span>
-                        AUTOMATIC PATH
-                      </span>
-
-                    </div>
-
-                    <div>
-
-                      <strong>
-                        {fallbackPath}
-                      </strong>
-
-                      <span>
-                        SECONDARY PATH
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                  {/* RECORD RANGE */}
-
-                  <div className="owner-record">
-
-                    <div>
-
-                      <strong>
-                        {bestRecord}
-                      </strong>
-
-                      <span>
-                        BEST POSSIBLE RECORD
-                      </span>
-
-                    </div>
-
-                    <div>
-
-                      <strong>
-                        {worstRecord}
-                      </strong>
-
-                      <span>
-                        WORST POSSIBLE RECORD
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                  {/* EXACT SCENARIOS */}
-
-                  {exact &&
-                    exactStats && (
-                    <>
-
-                      <div className="owner-stats-grid">
-
-                        <div>
-
-                          <strong>
-
-                            {possibleSeeds.length
-                              ? possibleSeeds
-                                  .map(
-                                    (
-                                      seed
-                                    ) =>
-                                      `#${seed}`
-                                  )
-                                  .join(
-                                    "/"
-                                  )
-                              : "NONE"}
-
-                          </strong>
-
-                          <span>
-                            POSSIBLE SEEDS
-                          </span>
-
-                        </div>
-
-                        <div>
-
-                          <strong>
-                            {formatPercent(
-                              nextWinPercent
-                            )}
-                          </strong>
-
-                          <span>
-                            IF WIN NEXT
-                          </span>
-
-                        </div>
-
-                        <div>
-
-                          <strong>
-                            {formatPercent(
-                              nextLossPercent
-                            )}
-                          </strong>
-
-                          <span>
-                            IF LOSE NEXT
-                          </span>
-
-                        </div>
-
-                        <div>
-
-                          <strong>
-
-                            {exactStats
-                              .minFutureWinsInPlayoff ===
-                            Infinity
-                              ? "—"
-                              : exactStats
-                                  .minFutureWinsInPlayoff}
-
-                          </strong>
-
-                          <span>
-                            MIN WINS NEEDED
-                          </span>
-
-                        </div>
-
-                      </div>
-
-                    </>
-                  )}
 
                   {/* BOTTOM */}
 
                   <div className="owner-card-bottom">
 
                     <span>
-                      {nextGameText}
+
+                      {nextGame
+                        ? `vs. ${nextGame.opponent}`
+                        : "Regular season complete"}
+
                     </span>
 
                     <strong>
-                      {scenarioLabel}
+
+                      {scenarioEngine
+                        ? `WIN → ${winGuaranteed} · LOSS → ${lossGuaranteed}`
+                        : "SCENARIOS AT 4 WEEKS"}
+
                     </strong>
 
                   </div>
@@ -2713,126 +3385,6 @@ export default async function PlayoffScenariosPage() {
               );
             }
           )}
-
-        </div>
-
-      </section>
-
-      {/* =====================================================
-          REMAINING SCHEDULE
-          ===================================================== */}
-
-      <section className="owners-section">
-
-        <div className="section-heading">
-
-          <div>
-
-            <p className="eyebrow">
-              ROAD TO THE POSTSEASON
-            </p>
-
-            <h2>
-              Remaining Schedule
-            </h2>
-
-          </div>
-
-          <span>
-            Regular season ends Week{" "}
-            {regularSeasonEndWeek ||
-              "—"}
-          </span>
-
-        </div>
-
-        <div className="profile-table-wrap">
-
-          <table className="profile-table">
-
-            <thead>
-
-              <tr>
-
-                <th>
-                  OWNER
-                </th>
-
-                {remainingWeeks.map(
-                  (week) => (
-                    <th
-                      key={
-                        week
-                      }
-                    >
-                      WEEK {week}
-                    </th>
-                  )
-                )}
-
-              </tr>
-
-            </thead>
-
-            <tbody>
-
-              {standings.map(
-                (team) => {
-
-                  const schedule =
-                    scheduleByOwner.get(
-                      team.ownerId
-                    ) || [];
-
-                  return (
-                    <tr
-                      key={
-                        team.ownerId
-                      }
-                    >
-
-                      <td>
-
-                        <strong>
-                          {team.ownerName}
-                        </strong>
-
-                      </td>
-
-                      {remainingWeeks.map(
-                        (week) => {
-
-                          const game =
-                            schedule.find(
-                              (
-                                item
-                              ) =>
-                                item.week ===
-                                week
-                            );
-
-                          return (
-                            <td
-                              key={`${team.ownerId}-${week}`}
-                            >
-
-                              {game
-                                ? `vs. ${game.opponent}`
-                                : "—"}
-
-                            </td>
-                          );
-                        }
-                      )}
-
-                    </tr>
-                  );
-                }
-              )}
-
-            </tbody>
-
-          </table>
 
         </div>
 
@@ -2847,15 +3399,14 @@ export default async function PlayoffScenariosPage() {
         </strong>
 
         <span>
-          The League Archive · Est. 2014
+          ESPN Tiebreak: {tiebreakLabel}
         </span>
 
         <p>
-
-          {exact
-            ? `${exact.totalScenarios.toLocaleString()} remaining W/L combinations analyzed.`
-            : "Exact playoff scenarios activate with four regular-season weeks remaining."}
-
+          Scenario percentages are shares of possible W/L outcomes,
+          not betting probabilities. Future Points For and Points
+          Against are never guessed; any scenario that reaches an
+          unknown points-based tiebreak is labeled Tiebreak.
         </p>
 
       </footer>
