@@ -1,25 +1,12 @@
 import { NextResponse } from "next/server";
 
-import {
-  supabaseAdmin,
-} from "../../../../lib/supabaseAdmin";
-
-import {
-  sendPush,
-} from "../../../../lib/push";
-
-import {
-  getLeagueData,
-} from "../../../../lib/leagueData";
-
-import {
-  getMatchupIntel,
-} from "../../../../lib/matchupIntel";
-
+import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
+import { sendPush } from "../../../../lib/push";
+import { getLeagueData } from "../../../../lib/leagueData";
+import { getMatchupIntel } from "../../../../lib/matchupIntel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
 
 const NFL_SCOREBOARD =
   "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
@@ -34,61 +21,36 @@ const NFL_SUMMARY =
 
 function num(value) {
   const parsed = Number(value);
-
-  return Number.isFinite(parsed)
-    ? parsed
-    : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
 }
-
 
 function score(value) {
   return num(value).toFixed(2);
 }
 
-
 function firstName(name = "") {
-  return (
-    String(name)
-      .trim()
-      .split(" ")[0] ||
-    name
-  );
+  return String(name).trim().split(" ")[0] || name;
 }
-
 
 function normalize(value = "") {
   return String(value)
     .toLowerCase()
     .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-    .replace(
-      /[^a-z0-9]/g,
-      ""
-    );
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
 }
 
+function normalizeStatKey(value = "") {
+  return String(value)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
 
 function matchupKey(game) {
-  const away =
-    Number(
-      game.away_owner_id
-    );
+  const away = Number(game.away_owner_id);
+  const home = Number(game.home_owner_id);
 
-  const home =
-    Number(
-      game.home_owner_id
-    );
-
-  return `${Math.min(
-    away,
-    home
-  )}-${Math.max(
-    away,
-    home
-  )}`;
+  return `${Math.min(away, home)}-${Math.max(away, home)}`;
 }
 
 
@@ -96,68 +58,39 @@ function matchupKey(game) {
 // NOTIFICATION STATE
 // =========================================================
 
-async function getState(
-  stateKey
-) {
-  const {
-    data,
-    error,
-  } =
+async function getState(stateKey) {
+  const { data, error } =
     await supabaseAdmin
-      .from(
-        "notification_state"
-      )
-      .select(
-        "state_value"
-      )
-      .eq(
-        "state_key",
-        stateKey
-      )
+      .from("notification_state")
+      .select("state_value")
+      .eq("state_key", stateKey)
       .maybeSingle();
-
 
   if (error) {
     throw error;
   }
 
-
-  return (
-    data?.state_value ||
-    null
-  );
+  return data?.state_value || null;
 }
-
 
 async function setState(
   stateKey,
   stateValue
 ) {
-  const {
-    error,
-  } =
+  const { error } =
     await supabaseAdmin
-      .from(
-        "notification_state"
-      )
+      .from("notification_state")
       .upsert(
         {
-          state_key:
-            stateKey,
-
-          state_value:
-            stateValue,
-
+          state_key: stateKey,
+          state_value: stateValue,
           updated_at:
-            new Date()
-              .toISOString(),
+            new Date().toISOString(),
         },
         {
-          onConflict:
-            "state_key",
+          onConflict: "state_key",
         }
       );
-
 
   if (error) {
     throw error;
@@ -170,70 +103,39 @@ async function setState(
 // =========================================================
 
 async function loadSubscriptions() {
-  const {
-    data,
-    error,
-  } =
+  const { data, error } =
     await supabaseAdmin
-      .from(
-        "push_subscriptions"
-      )
+      .from("push_subscriptions")
       .select(
         "id, owner_id, endpoint, p256dh, auth"
       )
-      .eq(
-        "enabled",
-        true
-      );
-
+      .eq("enabled", true);
 
   if (error) {
     throw error;
   }
 
+  const byOwner = new Map();
 
-  const byOwner =
-    new Map();
-
-
-  for (
-    const subscription of
-    data || []
-  ) {
+  for (const subscription of data || []) {
     const ownerId =
-      Number(
-        subscription.owner_id
-      );
-
+      Number(subscription.owner_id);
 
     if (!ownerId) {
       continue;
     }
 
-
-    if (
-      !byOwner.has(
-        ownerId
-      )
-    ) {
-      byOwner.set(
-        ownerId,
-        []
-      );
+    if (!byOwner.has(ownerId)) {
+      byOwner.set(ownerId, []);
     }
-
 
     byOwner
       .get(ownerId)
-      .push(
-        subscription
-      );
+      .push(subscription);
   }
-
 
   return byOwner;
 }
-
 
 async function pushToOwner(
   subscriptionsByOwner,
@@ -245,14 +147,9 @@ async function pushToOwner(
       Number(ownerId)
     ) || [];
 
-
   let sent = 0;
 
-
-  for (
-    const subscription of
-    subscriptions
-  ) {
+  for (const subscription of subscriptions) {
     try {
       await sendPush(
         subscription,
@@ -260,22 +157,18 @@ async function pushToOwner(
       );
 
       sent += 1;
-
     } catch (error) {
       console.error(
         "Push failed:",
         error
       );
 
-
       if (
         error?.statusCode === 404 ||
         error?.statusCode === 410
       ) {
         await supabaseAdmin
-          .from(
-            "push_subscriptions"
-          )
+          .from("push_subscriptions")
           .delete()
           .eq(
             "id",
@@ -284,7 +177,6 @@ async function pushToOwner(
       }
     }
   }
-
 
   return sent;
 }
@@ -302,20 +194,16 @@ async function getJson(
     await fetch(
       url,
       {
-        cache:
-          "no-store",
-
+        cache: "no-store",
         ...options,
       }
     );
-
 
   if (!response.ok) {
     throw new Error(
       `ESPN request failed: ${response.status}`
     );
   }
-
 
   return response.json();
 }
@@ -336,58 +224,37 @@ async function getNflEvents(
     `&week=${week}` +
     `&limit=100`;
 
-
   const data =
     await getJson(url);
 
-
-  return Array.isArray(
-    data?.events
-  )
+  return Array.isArray(data?.events)
     ? data.events
     : [];
 }
 
-
-function eventState(
-  event
-) {
+function eventState(event) {
   return (
-    event
-      ?.status
-      ?.type
-      ?.state ||
+    event?.status?.type?.state ||
     ""
   );
 }
 
-
-function eventDay(
-  event
-) {
+function eventDay(event) {
   if (!event?.date) {
     return "";
   }
 
-
   try {
-    return new Intl
-      .DateTimeFormat(
-        "en-US",
-        {
-          timeZone:
-            "America/Chicago",
-
-          weekday:
-            "long",
-        }
-      )
-      .format(
-        new Date(
-          event.date
-        )
-      );
-
+    return new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          "America/Chicago",
+        weekday: "long",
+      }
+    ).format(
+      new Date(event.date)
+    );
   } catch {
     return "";
   }
@@ -395,7 +262,7 @@ function eventDay(
 
 
 // =========================================================
-// NFL SUMMARY CACHE
+// NFL SUMMARY
 // =========================================================
 
 async function getNflSummary(
@@ -406,33 +273,24 @@ async function getNflSummary(
   const state =
     eventState(event);
 
-
   const cacheKey =
     `nfl-summary:${season}:${week}:${event.id}`;
 
-
-  if (
-    state === "post"
-  ) {
+  // Once a game is final, its stats no longer
+  // need to be downloaded every minute.
+  if (state === "post") {
     const cached =
-      await getState(
-        cacheKey
-      );
+      await getState(cacheKey);
 
-
-    if (
-      cached?.summary
-    ) {
+    if (cached?.summary) {
       return cached.summary;
     }
   }
-
 
   const data =
     await getJson(
       `${NFL_SUMMARY}?event=${event.id}`
     );
-
 
   const compact = {
     scoringPlays:
@@ -445,35 +303,28 @@ async function getNflSummary(
     boxscore: {
       players:
         Array.isArray(
-          data
-            ?.boxscore
-            ?.players
+          data?.boxscore?.players
         )
           ? data.boxscore.players
           : [],
     },
   };
 
-
-  if (
-    state === "post"
-  ) {
+  if (state === "post") {
     await setState(
       cacheKey,
       {
-        summary:
-          compact,
+        summary: compact,
       }
     );
   }
-
 
   return compact;
 }
 
 
 // =========================================================
-// ESPN FANTASY PLAYER POINTS
+// ESPN FANTASY POINTS
 // =========================================================
 
 async function getFantasyPointsByTeam(
@@ -481,40 +332,31 @@ async function getFantasyPointsByTeam(
   week
 ) {
   const leagueId =
-    process.env
-      .ESPN_LEAGUE_ID;
+    process.env.ESPN_LEAGUE_ID;
 
   const espnS2 =
-    process.env
-      .ESPN_S2;
+    process.env.ESPN_S2;
 
   const espnSwid =
-    process.env
-      .ESPN_SWID;
-
+    process.env.ESPN_SWID;
 
   if (!leagueId) {
     return new Map();
   }
 
-
-  const cookieParts =
-    [];
-
+  const cookies = [];
 
   if (espnS2) {
-    cookieParts.push(
+    cookies.push(
       `espn_s2=${espnS2}`
     );
   }
 
-
   if (espnSwid) {
-    cookieParts.push(
+    cookies.push(
       `SWID=${espnSwid}`
     );
   }
-
 
   const url =
     `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/` +
@@ -523,42 +365,31 @@ async function getFantasyPointsByTeam(
     `&view=mRoster` +
     `&view=mTeam`;
 
-
   try {
     const data =
       await getJson(
         url,
         {
           headers:
-            cookieParts.length
+            cookies.length
               ? {
                   Cookie:
-                    cookieParts.join(
-                      "; "
-                    ),
+                    cookies.join("; "),
                 }
               : {},
         }
       );
 
-
     const result =
       new Map();
 
-
-    for (
-      const team of
-      data?.teams || []
-    ) {
+    for (const team of data?.teams || []) {
       const playerMap =
         new Map();
 
-
       for (
         const entry of
-        team
-          ?.roster
-          ?.entries || []
+        team?.roster?.entries || []
       ) {
         const playerId =
           String(
@@ -569,17 +400,14 @@ async function getFantasyPointsByTeam(
             ""
           );
 
-
         if (!playerId) {
           continue;
         }
-
 
         let points =
           entry
             ?.playerPoolEntry
             ?.appliedStatTotal;
-
 
         if (
           points === null ||
@@ -592,37 +420,25 @@ async function getFantasyPointsByTeam(
               ?.stats ||
             [];
 
-
           const weekStat =
             stats.find(
               (stat) =>
                 Number(
-                  stat
-                    ?.seasonId
+                  stat?.seasonId
                 ) ===
-                  Number(
-                    season
-                  ) &&
+                  Number(season) &&
                 Number(
-                  stat
-                    ?.scoringPeriodId
+                  stat?.scoringPeriodId
                 ) ===
-                  Number(
-                    week
-                  ) &&
+                  Number(week) &&
                 Number(
-                  stat
-                    ?.statSourceId
-                ) ===
-                  0
+                  stat?.statSourceId
+                ) === 0
             );
 
-
           points =
-            weekStat
-              ?.appliedTotal;
+            weekStat?.appliedTotal;
         }
-
 
         if (
           points !== null &&
@@ -638,13 +454,11 @@ async function getFantasyPointsByTeam(
         }
       }
 
-
       result.set(
         Number(team.id),
         playerMap
       );
     }
-
 
     return result;
 
@@ -667,35 +481,28 @@ function scoringPlaysFromSummary(
   summary,
   eventId
 ) {
-  const scoringPlays =
+  const plays =
     Array.isArray(
       summary?.scoringPlays
     )
       ? summary.scoringPlays
       : [];
 
-
-  return scoringPlays
+  return plays
     .filter(
       (play) => {
         const type =
           String(
-            play
-              ?.type
-              ?.text ||
+            play?.type?.text ||
             ""
-          )
-            .toLowerCase();
-
+          ).toLowerCase();
 
         const text =
           String(
             play?.text ||
             play?.shortText ||
             ""
-          )
-            .toLowerCase();
-
+          ).toLowerCase();
 
         return (
           type.includes(
@@ -714,12 +521,10 @@ function scoringPlaysFromSummary(
       ) => {
         const participants =
           Array.isArray(
-            play
-              ?.participants
+            play?.participants
           )
             ? play.participants
             : [];
-
 
         const ids =
           participants
@@ -736,7 +541,6 @@ function scoringPlaysFromSummary(
             )
             .filter(Boolean);
 
-
         return {
           key:
             `${eventId}:${
@@ -751,13 +555,11 @@ function scoringPlaysFromSummary(
             play?.shortText ||
             "Touchdown",
 
-          participantIds:
-            ids,
+          participantIds: ids,
         };
       }
     );
 }
-
 
 function starterMatchesPlay(
   starter,
@@ -770,35 +572,28 @@ function starterMatchesPlay(
       ""
     );
 
-
   if (
     playerId &&
-    play
-      .participantIds
-      .includes(
-        playerId
-      )
+    play.participantIds.includes(
+      playerId
+    )
   ) {
     return true;
   }
-
 
   const fullName =
     normalize(
       starter?.name
     );
 
-
   if (!fullName) {
     return false;
   }
-
 
   const playText =
     normalize(
       play.text
     );
-
 
   if (
     playText.includes(
@@ -808,7 +603,6 @@ function starterMatchesPlay(
     return true;
   }
 
-
   const pieces =
     String(
       starter?.name ||
@@ -817,18 +611,15 @@ function starterMatchesPlay(
       .trim()
       .split(/\s+/);
 
-
   if (
     pieces.length >= 2
   ) {
     const lastName =
       normalize(
         pieces[
-          pieces.length -
-          1
+          pieces.length - 1
         ]
       );
-
 
     if (
       lastName.length >= 4 &&
@@ -840,13 +631,12 @@ function starterMatchesPlay(
     }
   }
 
-
   return false;
 }
 
 
 // =========================================================
-// PLAYER BOX SCORE HELPERS
+// PLAYER BOX SCORE MATCHING
 // =========================================================
 
 function athleteMatchesStarter(
@@ -859,7 +649,6 @@ function athleteMatchesStarter(
       ""
     );
 
-
   const starterId =
     String(
       starter?.playerId ||
@@ -867,16 +656,13 @@ function athleteMatchesStarter(
       ""
     );
 
-
   if (
     athleteId &&
     starterId &&
-    athleteId ===
-      starterId
+    athleteId === starterId
   ) {
     return true;
   }
-
 
   const athleteName =
     normalize(
@@ -885,12 +671,10 @@ function athleteMatchesStarter(
       athlete?.shortName
     );
 
-
   const starterName =
     normalize(
       starter?.name
     );
-
 
   return Boolean(
     athleteName &&
@@ -909,39 +693,29 @@ function athleteMatchesStarter(
 }
 
 
-function cleanStatLabel(
-  value = ""
-) {
-  return String(value)
-    .trim()
-    .toUpperCase();
-}
-
+// =========================================================
+// EXTRACT PLAYER STATS
+// =========================================================
 
 function extractPlayerBoxStats(
   summary,
   starter
 ) {
-  const result =
-    {};
+  const result = {};
 
-
-  const teams =
+  const teamBlocks =
     summary
       ?.boxscore
       ?.players ||
     [];
 
-
   for (
     const teamBlock of
-    teams
+    teamBlocks
   ) {
     const categories =
-      teamBlock
-        ?.statistics ||
+      teamBlock?.statistics ||
       [];
-
 
     for (
       const category of
@@ -950,23 +724,18 @@ function extractPlayerBoxStats(
       const categoryName =
         String(
           category?.name ||
-          category
-            ?.displayName ||
+          category?.displayName ||
           ""
-        )
-          .toLowerCase();
-
+        ).toLowerCase();
 
       const labels =
         category?.labels ||
         category?.names ||
         [];
 
-
       const athletes =
         category?.athletes ||
         [];
-
 
       for (
         const row of
@@ -976,7 +745,6 @@ function extractPlayerBoxStats(
           row?.athlete ||
           {};
 
-
         if (
           !athleteMatchesStarter(
             athlete,
@@ -985,7 +753,6 @@ function extractPlayerBoxStats(
         ) {
           continue;
         }
-
 
         if (
           !result[
@@ -997,11 +764,9 @@ function extractPlayerBoxStats(
           ] = {};
         }
 
-
         const values =
           row?.stats ||
           [];
-
 
         for (
           let i = 0;
@@ -1013,11 +778,8 @@ function extractPlayerBoxStats(
           i++
         ) {
           const label =
-            cleanStatLabel(
-              labels[i] ||
-              `STAT${i}`
-            );
-
+            labels[i] ||
+            `STAT${i}`;
 
           result[
             categoryName
@@ -1028,25 +790,22 @@ function extractPlayerBoxStats(
     }
   }
 
-
   return result;
 }
 
-
 function findCategory(
   stats,
-  search
+  contains
 ) {
   const key =
-    Object
-      .keys(stats || {})
-      .find(
-        (name) =>
-          name.includes(
-            search
-          )
-      );
-
+    Object.keys(
+      stats || {}
+    ).find(
+      (name) =>
+        name.includes(
+          contains
+        )
+    );
 
   return key
     ? stats[key]
@@ -1054,9 +813,49 @@ function findCategory(
 }
 
 
-function statExists(
-  value
+// =========================================================
+// STAT VALUE HELPERS
+// =========================================================
+
+function getStat(
+  category,
+  aliases
 ) {
+  if (!category) {
+    return undefined;
+  }
+
+  const wanted =
+    aliases.map(
+      normalizeStatKey
+    );
+
+  for (
+    const [
+      label,
+      value,
+    ] of Object.entries(
+      category
+    )
+  ) {
+    const normalized =
+      normalizeStatKey(
+        label
+      );
+
+    if (
+      wanted.includes(
+        normalized
+      )
+    ) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function hasStat(value) {
   return (
     value !== undefined &&
     value !== null &&
@@ -1064,24 +863,16 @@ function statExists(
   );
 }
 
-
-function numericStat(
-  value
-) {
-  if (!statExists(value)) {
+function numericStat(value) {
+  if (!hasStat(value)) {
     return 0;
   }
-
 
   const parsed =
     Number(
       String(value)
-        .replace(
-          /,/g,
-          ""
-        )
+        .replace(/,/g, "")
     );
-
 
   return Number.isFinite(
     parsed
@@ -1090,6 +881,77 @@ function numericStat(
     : 0;
 }
 
+function addStat(
+  parts,
+  value,
+  label,
+  options = {}
+) {
+  if (!hasStat(value)) {
+    return;
+  }
+
+  if (
+    options.onlyPositive &&
+    numericStat(value) <= 0
+  ) {
+    return;
+  }
+
+  parts.push(
+    `${value} ${label}`
+  );
+}
+
+
+// =========================================================
+// FUMBLES
+// =========================================================
+
+function addFumbles(
+  parts,
+  fumbles
+) {
+  const fum =
+    getStat(
+      fumbles,
+      [
+        "FUM",
+        "FUMBLES",
+      ]
+    );
+
+  const lost =
+    getStat(
+      fumbles,
+      [
+        "LOST",
+        "FUMLOST",
+        "FUMBLESLOST",
+      ]
+    );
+
+  if (
+    numericStat(fum) > 0
+  ) {
+    parts.push(
+      `${fum} FUM`
+    );
+  }
+
+  if (
+    numericStat(lost) > 0
+  ) {
+    parts.push(
+      `${lost} LOST`
+    );
+  }
+}
+
+
+// =========================================================
+// BUILD PLAYER STAT LINE
+// =========================================================
 
 function buildPlayerStatLine(
   starter,
@@ -1099,9 +961,7 @@ function buildPlayerStatLine(
     String(
       starter?.position ||
       ""
-    )
-      .toUpperCase();
-
+    ).toUpperCase();
 
   const passing =
     findCategory(
@@ -1109,13 +969,11 @@ function buildPlayerStatLine(
       "pass"
     );
 
-
   const rushing =
     findCategory(
       boxStats,
       "rush"
     );
-
 
   const receiving =
     findCategory(
@@ -1123,6 +981,11 @@ function buildPlayerStatLine(
       "receiv"
     );
 
+  const fumbles =
+    findCategory(
+      boxStats,
+      "fum"
+    );
 
   const kicking =
     findCategory(
@@ -1130,83 +993,223 @@ function buildPlayerStatLine(
       "kick"
     );
 
+  const parts = [];
 
-  const parts =
-    [];
+
+  // =======================================================
+  // COMMON VALUES
+  // =======================================================
+
+  const passCompAtt =
+    getStat(
+      passing,
+      [
+        "C/ATT",
+        "COMP/ATT",
+        "CMP/ATT",
+      ]
+    );
+
+  const passYds =
+    getStat(
+      passing,
+      [
+        "YDS",
+        "PASS YDS",
+      ]
+    );
+
+  const passTd =
+    getStat(
+      passing,
+      [
+        "TD",
+        "PASS TD",
+      ]
+    );
+
+  const interceptions =
+    getStat(
+      passing,
+      [
+        "INT",
+        "INTERCEPTIONS",
+      ]
+    );
+
+
+  const carries =
+    getStat(
+      rushing,
+      [
+        "CAR",
+        "ATT",
+        "RUSH ATT",
+      ]
+    );
+
+  const rushYds =
+    getStat(
+      rushing,
+      [
+        "YDS",
+        "RUSH YDS",
+      ]
+    );
+
+  const rushTd =
+    getStat(
+      rushing,
+      [
+        "TD",
+        "RUSH TD",
+      ]
+    );
+
+
+  const receptions =
+    getStat(
+      receiving,
+      [
+        "REC",
+        "RECEPTIONS",
+      ]
+    );
+
+  const targets =
+    getStat(
+      receiving,
+      [
+        "TGTS",
+        "TGT",
+        "TARGETS",
+      ]
+    );
+
+  const recYds =
+    getStat(
+      receiving,
+      [
+        "YDS",
+        "REC YDS",
+        "RECEIVING YDS",
+      ]
+    );
+
+  const recTd =
+    getStat(
+      receiving,
+      [
+        "TD",
+        "REC TD",
+        "RECEIVING TD",
+      ]
+    );
 
 
   // =======================================================
   // QB
   // =======================================================
 
-  if (
-    position === "QB"
-  ) {
+  if (position === "QB") {
+    addStat(
+      parts,
+      passCompAtt,
+      "CMP/ATT"
+    );
+
+    addStat(
+      parts,
+      passYds,
+      "PASS YDS"
+    );
+
+    addStat(
+      parts,
+      passTd,
+      "PASS TD",
+      {
+        onlyPositive:
+          true,
+      }
+    );
+
+    addStat(
+      parts,
+      interceptions,
+      "INT",
+      {
+        onlyPositive:
+          true,
+      }
+    );
+
+    addStat(
+      parts,
+      carries,
+      "CAR",
+      {
+        onlyPositive:
+          true,
+      }
+    );
+
     if (
-      statExists(
-        passing["C/ATT"]
-      )
+      numericStat(carries) > 0 ||
+      numericStat(rushYds) !== 0
     ) {
-      parts.push(
-        `${passing["C/ATT"]} CMP/ATT`
+      addStat(
+        parts,
+        rushYds,
+        "RUSH YDS"
       );
     }
 
+    addStat(
+      parts,
+      rushTd,
+      "RUSH TD",
+      {
+        onlyPositive:
+          true,
+      }
+    );
+
+    // Rare QB reception/trick play
+    addStat(
+      parts,
+      receptions,
+      "REC",
+      {
+        onlyPositive:
+          true,
+      }
+    );
 
     if (
-      statExists(
-        passing.YDS
-      )
+      numericStat(receptions) > 0
     ) {
-      parts.push(
-        `${passing.YDS} PASS YDS`
+      addStat(
+        parts,
+        recYds,
+        "REC YDS"
+      );
+
+      addStat(
+        parts,
+        recTd,
+        "REC TD",
+        {
+          onlyPositive:
+            true,
+        }
       );
     }
 
-
-    if (
-      statExists(
-        passing.TD
-      )
-    ) {
-      parts.push(
-        `${passing.TD} PASS TD`
-      );
-    }
-
-
-    if (
-      statExists(
-        passing.INT
-      )
-    ) {
-      parts.push(
-        `${passing.INT} INT`
-      );
-    }
-
-
-    if (
-      numericStat(
-        rushing.YDS
-      ) !== 0
-    ) {
-      parts.push(
-        `${rushing.YDS} RUSH YDS`
-      );
-    }
-
-
-    if (
-      numericStat(
-        rushing.TD
-      ) > 0
-    ) {
-      parts.push(
-        `${rushing.TD} RUSH TD`
-      );
-    }
-
+    addFumbles(
+      parts,
+      fumbles
+    );
 
     return parts.join(
       " · "
@@ -1216,76 +1219,65 @@ function buildPlayerStatLine(
 
   // =======================================================
   // RB
+  // Gibbs-style complete line:
+  // rushing + receiving + targets + fumbles
   // =======================================================
 
-  if (
-    position === "RB"
-  ) {
-    if (
-      statExists(
-        rushing.CAR
-      )
-    ) {
-      parts.push(
-        `${rushing.CAR} CAR`
-      );
-    }
+  if (position === "RB") {
+    addStat(
+      parts,
+      carries,
+      "CAR"
+    );
 
+    addStat(
+      parts,
+      rushYds,
+      "RUSH YDS"
+    );
 
-    if (
-      statExists(
-        rushing.YDS
-      )
-    ) {
-      parts.push(
-        `${rushing.YDS} RUSH YDS`
-      );
-    }
+    addStat(
+      parts,
+      rushTd,
+      "RUSH TD",
+      {
+        onlyPositive:
+          true,
+      }
+    );
 
+    addStat(
+      parts,
+      receptions,
+      "REC"
+    );
 
-    if (
-      statExists(
-        rushing.TD
-      )
-    ) {
-      parts.push(
-        `${rushing.TD} RUSH TD`
-      );
-    }
+    addStat(
+      parts,
+      recYds,
+      "REC YDS"
+    );
 
+    addStat(
+      parts,
+      targets,
+      "TGTS"
+    );
 
-    if (
-      statExists(
-        receiving.REC
-      )
-    ) {
-      parts.push(
-        `${receiving.REC} REC`
-      );
-    }
+    addStat(
+      parts,
+      recTd,
+      "REC TD",
+      {
+        onlyPositive:
+          true,
+      }
+    );
 
-
-    if (
-      statExists(
-        receiving.YDS
-      )
-    ) {
-      parts.push(
-        `${receiving.YDS} REC YDS`
-      );
-    }
-
-
-    if (
-      numericStat(
-        receiving.TD
-      ) > 0
-    ) {
-      parts.push(
-        `${receiving.TD} REC TD`
-      );
-    }
-
+    addFumbles(
+      parts,
+      fumbles
+    );
 
     return parts.join(
       " · "
@@ -1295,77 +1287,99 @@ function buildPlayerStatLine(
 
   // =======================================================
   // WR / TE
+  // Receiving + rushing + fumbles
   // =======================================================
 
   if (
     position === "WR" ||
     position === "TE"
   ) {
+    addStat(
+      parts,
+      receptions,
+      "REC"
+    );
+
+    addStat(
+      parts,
+      recYds,
+      "REC YDS"
+    );
+
+    addStat(
+      parts,
+      targets,
+      "TGTS"
+    );
+
+    addStat(
+      parts,
+      recTd,
+      "REC TD",
+      {
+        onlyPositive:
+          true,
+      }
+    );
+
+    // Jet sweeps / designed carries
     if (
-      statExists(
-        receiving.REC
-      )
+      numericStat(carries) > 0
     ) {
-      parts.push(
-        `${receiving.REC} REC`
+      addStat(
+        parts,
+        carries,
+        "CAR"
+      );
+
+      addStat(
+        parts,
+        rushYds,
+        "RUSH YDS"
       );
     }
 
+    addStat(
+      parts,
+      rushTd,
+      "RUSH TD",
+      {
+        onlyPositive:
+          true,
+      }
+    );
 
+    // Rare passing play by WR
     if (
-      statExists(
-        receiving.YDS
-      )
+      hasStat(passCompAtt)
     ) {
-      parts.push(
-        `${receiving.YDS} YDS`
+      addStat(
+        parts,
+        passCompAtt,
+        "CMP/ATT"
+      );
+
+      addStat(
+        parts,
+        passYds,
+        "PASS YDS"
+      );
+
+      addStat(
+        parts,
+        passTd,
+        "PASS TD",
+        {
+          onlyPositive:
+            true,
+        }
       );
     }
 
-
-    if (
-      statExists(
-        receiving.TD
-      )
-    ) {
-      parts.push(
-        `${receiving.TD} TD`
-      );
-    }
-
-
-    if (
-      statExists(
-        receiving.TGTS
-      )
-    ) {
-      parts.push(
-        `${receiving.TGTS} TGTS`
-      );
-    }
-
-
-    if (
-      numericStat(
-        rushing.YDS
-      ) !== 0
-    ) {
-      parts.push(
-        `${rushing.YDS} RUSH YDS`
-      );
-    }
-
-
-    if (
-      numericStat(
-        rushing.TD
-      ) > 0
-    ) {
-      parts.push(
-        `${rushing.TD} RUSH TD`
-      );
-    }
-
+    addFumbles(
+      parts,
+      fumbles
+    );
 
     return parts.join(
       " · "
@@ -1377,52 +1391,72 @@ function buildPlayerStatLine(
   // KICKER
   // =======================================================
 
-  if (
-    position === "K"
-  ) {
+  if (position === "K") {
+    const fg =
+      getStat(
+        kicking,
+        [
+          "FG",
+          "FGM/A",
+          "FGM-FGA",
+          "FGM/FGA",
+        ]
+      );
+
+    const xp =
+      getStat(
+        kicking,
+        [
+          "XP",
+          "XPM/A",
+          "XPM-XPA",
+          "XPM/XPA",
+        ]
+      );
+
+    const long =
+      getStat(
+        kicking,
+        [
+          "LONG",
+          "LNG",
+        ]
+      );
+
+    const pts =
+      getStat(
+        kicking,
+        [
+          "PTS",
+          "POINTS",
+        ]
+      );
+
+    addStat(
+      parts,
+      fg,
+      "FG"
+    );
+
+    addStat(
+      parts,
+      xp,
+      "XP"
+    );
+
     if (
-      statExists(
-        kicking.FG
-      )
+      hasStat(long)
     ) {
       parts.push(
-        `${kicking.FG} FG`
+        `LONG ${long}`
       );
     }
 
-
-    if (
-      statExists(
-        kicking.XP
-      )
-    ) {
-      parts.push(
-        `${kicking.XP} XP`
-      );
-    }
-
-
-    if (
-      statExists(
-        kicking.LONG
-      )
-    ) {
-      parts.push(
-        `LONG ${kicking.LONG}`
-      );
-    }
-
-
-    if (
-      statExists(
-        kicking.PTS
-      )
-    ) {
-      parts.push(
-        `${kicking.PTS} PTS`
-      );
-    }
-
+    addStat(
+      parts,
+      pts,
+      "NFL PTS"
+    );
 
     return parts.join(
       " · "
@@ -1434,82 +1468,96 @@ function buildPlayerStatLine(
   // GENERIC FALLBACK
   // =======================================================
 
+  addStat(
+    parts,
+    carries,
+    "CAR",
+    {
+      onlyPositive:
+        true,
+    }
+  );
+
   if (
-    statExists(
-      receiving.REC
-    )
+    numericStat(carries) > 0
   ) {
-    parts.push(
-      `${receiving.REC} REC`
+    addStat(
+      parts,
+      rushYds,
+      "RUSH YDS"
     );
   }
 
+  addStat(
+    parts,
+    rushTd,
+    "RUSH TD",
+    {
+      onlyPositive:
+        true,
+    }
+  );
+
+  addStat(
+    parts,
+    receptions,
+    "REC",
+    {
+      onlyPositive:
+        true,
+    }
+  );
 
   if (
-    statExists(
-      receiving.YDS
-    )
+    numericStat(receptions) > 0
   ) {
-    parts.push(
-      `${receiving.YDS} REC YDS`
+    addStat(
+      parts,
+      recYds,
+      "REC YDS"
+    );
+
+    addStat(
+      parts,
+      targets,
+      "TGTS"
     );
   }
 
+  addStat(
+    parts,
+    recTd,
+    "REC TD",
+    {
+      onlyPositive:
+        true,
+    }
+  );
 
-  if (
-    statExists(
-      receiving.TD
-    )
-  ) {
-    parts.push(
-      `${receiving.TD} REC TD`
-    );
-  }
+  addStat(
+    parts,
+    passYds,
+    "PASS YDS",
+    {
+      onlyPositive:
+        true,
+    }
+  );
 
+  addStat(
+    parts,
+    passTd,
+    "PASS TD",
+    {
+      onlyPositive:
+        true,
+    }
+  );
 
-  if (
-    statExists(
-      rushing.YDS
-    )
-  ) {
-    parts.push(
-      `${rushing.YDS} RUSH YDS`
-    );
-  }
-
-
-  if (
-    statExists(
-      rushing.TD
-    )
-  ) {
-    parts.push(
-      `${rushing.TD} RUSH TD`
-    );
-  }
-
-
-  if (
-    statExists(
-      passing.YDS
-    )
-  ) {
-    parts.push(
-      `${passing.YDS} PASS YDS`
-    );
-  }
-
-
-  if (
-    statExists(
-      passing.TD
-    )
-  ) {
-    parts.push(
-      `${passing.TD} PASS TD`
-    );
-  }
-
+  addFumbles(
+    parts,
+    fumbles
+  );
 
   return parts.join(
     " · "
@@ -1518,7 +1566,7 @@ function buildPlayerStatLine(
 
 
 // =========================================================
-// FIND PLAYER IN NFL SUMMARIES
+// FIND PLAYER BOX STATS
 // =========================================================
 
 function findPlayerBoxStats(
@@ -1535,7 +1583,6 @@ function findPlayerBoxStats(
         starter
       );
 
-
     if (
       Object.keys(
         stats
@@ -1545,41 +1592,35 @@ function findPlayerBoxStats(
     }
   }
 
-
   return {};
 }
 
 
 // =========================================================
-// RUN NOTIFICATIONS
+// MAIN RUNNER
 // =========================================================
 
 async function runNotifications() {
   const league =
     await getLeagueData();
 
-
   const season =
     Number(
       league.currentSeason
     );
-
 
   const week =
     Number(
       league.currentWeek
     );
 
-
   const owners =
     league.owners ||
     [];
 
-
   const teams =
     league.currentTeams ||
     [];
-
 
   const matchups =
     (
@@ -1597,7 +1638,6 @@ async function runNotifications() {
   if (!matchups.length) {
     return {
       ok: true,
-
       message:
         "No current matchups.",
     };
@@ -1608,10 +1648,7 @@ async function runNotifications() {
     new Map(
       owners.map(
         (owner) => [
-          Number(
-            owner.id
-          ),
-
+          Number(owner.id),
           owner.name,
         ]
       )
@@ -1622,17 +1659,13 @@ async function runNotifications() {
     new Map();
 
 
-  for (
-    const team of
-    teams
-  ) {
+  for (const team of teams) {
     const ownerId =
       Number(
         team.owner_id ??
         team.ownerId ??
         0
       );
-
 
     if (ownerId) {
       teamByOwner.set(
@@ -1647,8 +1680,7 @@ async function runNotifications() {
     await loadSubscriptions();
 
 
-  let intel =
-    null;
+  let intel = null;
 
 
   try {
@@ -1656,7 +1688,6 @@ async function runNotifications() {
       await getMatchupIntel(
         week
       );
-
   } catch (error) {
     console.error(
       "Matchup intel error:",
@@ -1673,14 +1704,12 @@ async function runNotifications() {
         Number(ownerId)
       );
 
-
     if (
       !team ||
       !intel
     ) {
       return null;
     }
-
 
     const espnTeamId =
       Number(
@@ -1690,13 +1719,10 @@ async function runNotifications() {
         0
       );
 
-
     return (
       intel
         ?.teamMap
-        ?.get(
-          espnTeamId
-        ) ||
+        ?.get(espnTeamId) ||
       null
     );
   }
@@ -1710,7 +1736,6 @@ async function runNotifications() {
         Number(ownerId)
       );
 
-
     return Number(
       team?.espnTeamId ??
       team?.espn_team_id ??
@@ -1720,8 +1745,7 @@ async function runNotifications() {
   }
 
 
-  let pushesSent =
-    0;
+  let pushesSent = 0;
 
 
   // =======================================================
@@ -1735,10 +1759,7 @@ async function runNotifications() {
     );
 
 
-  const summaries =
-    [];
-
-
+  const summaries = [];
   const summaryByEvent =
     new Map();
 
@@ -1748,13 +1769,11 @@ async function runNotifications() {
     nflEvents
   ) {
     if (
-      eventState(
-        event
-      ) === "pre"
+      eventState(event) ===
+      "pre"
     ) {
       continue;
     }
-
 
     try {
       const summary =
@@ -1764,16 +1783,12 @@ async function runNotifications() {
           week
         );
 
-
       summaries.push(
         summary
       );
 
-
       summaryByEvent.set(
-        String(
-          event.id
-        ),
+        String(event.id),
         summary
       );
 
@@ -1807,19 +1822,16 @@ async function runNotifications() {
         game.away_owner_id
       );
 
-
     const homeId =
       Number(
         game.home_owner_id
       );
-
 
     const awayName =
       ownerMap.get(
         awayId
       ) ||
       "Away";
-
 
     const homeName =
       ownerMap.get(
@@ -1848,11 +1860,9 @@ async function runNotifications() {
     const started =
       starters.some(
         (player) =>
-          player
-            ?.nflGameState ===
+          player?.nflGameState ===
             "in" ||
-          player
-            ?.nflGameState ===
+          player?.nflGameState ===
             "post"
       );
 
@@ -1869,9 +1879,7 @@ async function runNotifications() {
 
 
     if (
-      await getState(
-        key
-      )
+      await getState(key)
     ) {
       continue;
     }
@@ -1894,11 +1902,8 @@ async function runNotifications() {
               game.home_score
             )}`,
 
-          tag:
-            key,
-
-          url:
-            "/",
+          tag: key,
+          url: "/",
         }
       );
 
@@ -1920,11 +1925,8 @@ async function runNotifications() {
               game.away_score
             )}`,
 
-          tag:
-            key,
-
-          url:
-            "/",
+          tag: key,
+          url: "/",
         }
       );
 
@@ -1932,8 +1934,7 @@ async function runNotifications() {
     await setState(
       key,
       {
-        sent:
-          true,
+        sent: true,
       }
     );
   }
@@ -1953,16 +1954,12 @@ async function runNotifications() {
   ) {
     const summary =
       summaryByEvent.get(
-        String(
-          event.id
-        )
+        String(event.id)
       );
-
 
     if (!summary) {
       continue;
     }
-
 
     touchdownPlays.push(
       ...scoringPlaysFromSummary(
@@ -1990,6 +1987,7 @@ async function runNotifications() {
     );
 
 
+  // First run establishes baseline.
   if (!oldTdState) {
     await setState(
       tdStateKey,
@@ -2029,7 +2027,6 @@ async function runNotifications() {
             game.away_owner_id
           );
 
-
         const homeId =
           Number(
             game.home_owner_id
@@ -2043,15 +2040,10 @@ async function runNotifications() {
             homeId,
           ]
         ) {
-          const ownerTeam =
+          const starters =
             ownerIntel(
               ownerId
-            );
-
-
-          const starters =
-            ownerTeam
-              ?.starters ||
+            )?.starters ||
             [];
 
 
@@ -2065,9 +2057,7 @@ async function runNotifications() {
             );
 
 
-          if (
-            !matched.length
-          ) {
+          if (!matched.length) {
             continue;
           }
 
@@ -2137,13 +2127,11 @@ async function runNotifications() {
                 tag:
                   `td:${play.key}:${ownerId}`,
 
-                url:
-                  "/",
+                url: "/",
               }
             );
         }
       }
-
 
       seen.add(
         play.key
@@ -2156,9 +2144,7 @@ async function runNotifications() {
       {
         seen:
           [...seen]
-            .slice(
-              -250
-            ),
+            .slice(-250),
       }
     );
   }
@@ -2168,19 +2154,20 @@ async function runNotifications() {
   // PLAYER FINALS
   // =======================================================
 
-  const playerFinalBaselineKey =
+  const playerBaselineKey =
     `player-final-baseline:${season}:${week}`;
 
 
-  const playerFinalBaseline =
+  const playerBaseline =
     await getState(
-      playerFinalBaselineKey
+      playerBaselineKey
     );
 
 
-  // First deployment establishes a baseline so an old
-  // completed week cannot suddenly send every player final.
-  if (!playerFinalBaseline) {
+  // Protects against sending old finals immediately
+  // when this feature is first deployed.
+  if (!playerBaseline) {
+
     for (
       const game of
       matchups
@@ -2209,8 +2196,7 @@ async function runNotifications() {
           starters
         ) {
           if (
-            player
-              ?.nflGameState !==
+            player?.nflGameState !==
             "post"
           ) {
             continue;
@@ -2235,8 +2221,7 @@ async function runNotifications() {
           await setState(
             `player-final:${season}:${week}:${ownerId}:${playerId}`,
             {
-              baseline:
-                true,
+              baseline: true,
             }
           );
         }
@@ -2245,10 +2230,9 @@ async function runNotifications() {
 
 
     await setState(
-      playerFinalBaselineKey,
+      playerBaselineKey,
       {
-        initialized:
-          true,
+        initialized: true,
       }
     );
 
@@ -2263,7 +2247,6 @@ async function runNotifications() {
           game.away_owner_id
         );
 
-
       const homeId =
         Number(
           game.home_owner_id
@@ -2277,15 +2260,10 @@ async function runNotifications() {
           homeId,
         ]
       ) {
-        const teamIntel =
+        const starters =
           ownerIntel(
             ownerId
-          );
-
-
-        const starters =
-          teamIntel
-            ?.starters ||
+          )?.starters ||
           [];
 
 
@@ -2295,7 +2273,7 @@ async function runNotifications() {
           );
 
 
-        const teamPointMap =
+        const teamPoints =
           fantasyPoints.get(
             fantasyTeamId
           ) ||
@@ -2307,8 +2285,7 @@ async function runNotifications() {
           starters
         ) {
           if (
-            player
-              ?.nflGameState !==
+            player?.nflGameState !==
             "post"
           ) {
             continue;
@@ -2344,10 +2321,10 @@ async function runNotifications() {
 
 
           const actualPoints =
-            teamPointMap.has(
+            teamPoints.has(
               playerId
             )
-              ? teamPointMap.get(
+              ? teamPoints.get(
                   playerId
                 )
               : null;
@@ -2373,7 +2350,7 @@ async function runNotifications() {
             );
 
 
-          let firstLine =
+          let body =
             `${player?.name || "Your starter"}`;
 
 
@@ -2381,7 +2358,7 @@ async function runNotifications() {
             actualPoints !==
             null
           ) {
-            firstLine +=
+            body +=
               ` — ${actualPoints.toFixed(
                 1
               )} fantasy pts`;
@@ -2398,18 +2375,17 @@ async function runNotifications() {
               actualPoints !==
               null
             ) {
-              const diff =
+              const difference =
                 actualPoints -
                 projection;
 
-
-              firstLine +=
-                ` · ${diff >= 0 ? "+" : ""}${diff.toFixed(
+              body +=
+                ` · ${difference >= 0 ? "+" : ""}${difference.toFixed(
                   1
                 )} vs proj`;
 
             } else {
-              firstLine +=
+              body +=
                 ` · ${projection.toFixed(
                   1
                 )} projected`;
@@ -2417,13 +2393,7 @@ async function runNotifications() {
           }
 
 
-          let body =
-            firstLine;
-
-
-          if (
-            statLine
-          ) {
+          if (statLine) {
             body +=
               `\n${statLine}`;
           }
@@ -2442,8 +2412,7 @@ async function runNotifications() {
                 tag:
                   stateKey,
 
-                url:
-                  "/",
+                url: "/",
               }
             );
 
@@ -2451,8 +2420,7 @@ async function runNotifications() {
           await setState(
             stateKey,
             {
-              sent:
-                true,
+              sent: true,
 
               player:
                 player?.name ||
@@ -2474,7 +2442,7 @@ async function runNotifications() {
 
   // =======================================================
   // LEAD CHANGES
-  // Only after BOTH fantasy teams have 50+.
+  // Only after BOTH teams reach 50 points.
   // =======================================================
 
   for (
@@ -2486,18 +2454,15 @@ async function runNotifications() {
         game.away_owner_id
       );
 
-
     const homeId =
       Number(
         game.home_owner_id
       );
 
-
     const awayScore =
       num(
         game.away_score
       );
-
 
     const homeScore =
       num(
@@ -2568,13 +2533,11 @@ async function runNotifications() {
         ) ||
         "A team";
 
-
       const awayName =
         ownerMap.get(
           awayId
         ) ||
         "Away";
-
 
       const homeName =
         ownerMap.get(
@@ -2614,8 +2577,7 @@ async function runNotifications() {
                 game
               )}:${currentLeader}`,
 
-            url:
-              "/",
+            url: "/",
           }
         );
 
@@ -2635,8 +2597,7 @@ async function runNotifications() {
                 game
               )}:${currentLeader}`,
 
-            url:
-              "/",
+            url: "/",
           }
         );
     }
@@ -2653,28 +2614,22 @@ async function runNotifications() {
 
 
   // =======================================================
-  // THURSDAY / SUNDAY UPDATES
+  // THURSDAY + SUNDAY UPDATES
   // =======================================================
 
   const dayGroups = [
     {
-      day:
-        "Thursday",
-
+      day: "Thursday",
       title:
         "🏈 THURSDAY UPDATE",
-
       slug:
         "thursday",
     },
 
     {
-      day:
-        "Sunday",
-
+      day: "Sunday",
       title:
         "🏈 SUNDAY UPDATE",
-
       slug:
         "sunday",
     },
@@ -2695,9 +2650,7 @@ async function runNotifications() {
       );
 
 
-    if (
-      !dayEvents.length
-    ) {
+    if (!dayEvents.length) {
       continue;
     }
 
@@ -2726,7 +2679,6 @@ async function runNotifications() {
           game.away_owner_id
         );
 
-
       const homeId =
         Number(
           game.home_owner_id
@@ -2738,7 +2690,6 @@ async function runNotifications() {
           awayId
         ) ||
         "Away";
-
 
       const homeName =
         ownerMap.get(
@@ -2788,8 +2739,7 @@ async function runNotifications() {
             tag:
               stateKey,
 
-            url:
-              "/",
+            url: "/",
           }
         );
 
@@ -2807,8 +2757,7 @@ async function runNotifications() {
             tag:
               stateKey,
 
-            url:
-              "/",
+            url: "/",
           }
         );
 
@@ -2816,8 +2765,7 @@ async function runNotifications() {
       await setState(
         stateKey,
         {
-          sent:
-            true,
+          sent: true,
         }
       );
     }
@@ -2833,8 +2781,7 @@ async function runNotifications() {
     matchups
   ) {
     if (
-      game.completed !==
-      true
+      game.completed !== true
     ) {
       continue;
     }
@@ -2844,7 +2791,6 @@ async function runNotifications() {
       Number(
         game.away_owner_id
       );
-
 
     const homeId =
       Number(
@@ -2858,7 +2804,6 @@ async function runNotifications() {
       ) ||
       "Away";
 
-
     const homeName =
       ownerMap.get(
         homeId
@@ -2870,7 +2815,6 @@ async function runNotifications() {
       num(
         game.away_score
       );
-
 
     const homeScore =
       num(
@@ -2968,8 +2912,7 @@ async function runNotifications() {
           tag:
             stateKey,
 
-          url:
-            "/",
+          url: "/",
         }
       );
 
@@ -2987,8 +2930,7 @@ async function runNotifications() {
           tag:
             stateKey,
 
-          url:
-            "/",
+          url: "/",
         }
       );
 
@@ -2996,24 +2938,18 @@ async function runNotifications() {
     await setState(
       stateKey,
       {
-        sent:
-          true,
+        sent: true,
       }
     );
   }
 
 
   return {
-    ok:
-      true,
-
+    ok: true,
     season,
-
     week,
-
     matchups:
       matchups.length,
-
     pushesSent,
   };
 }
@@ -3028,7 +2964,6 @@ export async function GET() {
     const result =
       await runNotifications();
 
-
     return NextResponse.json(
       result
     );
@@ -3039,19 +2974,16 @@ export async function GET() {
       error
     );
 
-
     return NextResponse.json(
       {
-        ok:
-          false,
+        ok: false,
 
         error:
           error?.message ||
           "Notification runner failed.",
       },
       {
-        status:
-          500,
+        status: 500,
       }
     );
   }
