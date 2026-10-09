@@ -1,4 +1,5 @@
 import "./globals.css";
+import AppNavigation from "./components/AppNavigation";
 
 export const metadata = {
   title: "Dirty P Fantasy Football",
@@ -16,10 +17,20 @@ export const metadata = {
   },
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0b0d10",
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <AppNavigation />
+      </body>
     </html>
   );
 }
