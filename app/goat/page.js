@@ -4,7 +4,7 @@ import { getLeagueData } from "../../lib/leagueData";
 export const dynamic = "force-dynamic";
 
 // ======================================================
-// GOAT SCORING SYSTEM
+// GOAT SCORING
 // ======================================================
 
 const GOAT_POINTS = {
@@ -20,16 +20,14 @@ const GOAT_POINTS = {
 // ======================================================
 
 function num(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+  const valueAsNumber = Number(value);
+  return Number.isFinite(valueAsNumber) ? valueAsNumber : 0;
 }
 
 function formatRecord(wins, losses, ties = 0) {
-  const w = num(wins);
-  const l = num(losses);
-  const t = num(ties);
-
-  return t > 0 ? `${w}-${l}-${t}` : `${w}-${l}`;
+  return num(ties) > 0
+    ? `${num(wins)}-${num(losses)}-${num(ties)}`
+    : `${num(wins)}-${num(losses)}`;
 }
 
 function formatNumber(value) {
@@ -39,28 +37,41 @@ function formatNumber(value) {
 }
 
 function getWinPct(wins, losses, ties = 0) {
-  const games = num(wins) + num(losses) + num(ties);
+  const total = num(wins) + num(losses) + num(ties);
 
-  if (!games) return 0;
+  if (!total) return 0;
 
-  return ((num(wins) + num(ties) * 0.5) / games) * 100;
+  return ((num(wins) + num(ties) * 0.5) / total) * 100;
 }
 
 // ======================================================
-// GAME CLASSIFICATION
+// PLAYOFF CLASSIFICATION FOR GOAT POINTS
+//
+// IMPORTANT:
+// Only championship-bracket wins earn +4.
+//
+// INCLUDED:
+// - Semifinal victories
+// - Championship victories
+//
+// EXCLUDED:
+// - Third-place victories
+// - Consolation victories
+//
+// The historical Owners page can still count
+// third-place games in playoff W-L records.
 // ======================================================
 
-function getGameType(game) {
-  const type = String(
-    game.matchup_type || ""
-  ).trim().toLowerCase();
+function getGoatGameType(game) {
+  const type = String(game.matchup_type || "")
+    .trim()
+    .toLowerCase();
 
-  const tier = String(
-    game.playoff_tier || ""
-  ).trim().toLowerCase();
+  const tier = String(game.playoff_tier || "")
+    .trim()
+    .toLowerCase();
 
-  // Third-place games always count as playoff games,
-  // even when ESPN calls their tier a consolation ladder.
+  // Third-place games never earn GOAT playoff-win points.
 
   if (
     game.is_third_place === true ||
@@ -68,10 +79,10 @@ function getGameType(game) {
     type.includes("third place") ||
     type.includes("third-place")
   ) {
-    return "playoff";
+    return "third_place";
   }
 
-  // Actual consolation games do not earn GOAT points.
+  // Actual consolation bracket games.
 
   if (
     game.is_consolation === true ||
@@ -84,15 +95,18 @@ function getGameType(game) {
     return "consolation";
   }
 
+  // Championship game or semifinal.
+
   if (
-    game.is_playoff === true ||
     game.is_championship === true ||
-    type.includes("playoff") ||
     type.includes("championship") ||
     type.includes("semifinal") ||
+    type.includes("semi_final") ||
+    type.includes("semi-final") ||
+    type.includes("playoff") ||
     tier.includes("winners_bracket") ||
     tier.includes("winner") ||
-    tier.includes("championship")
+    game.is_playoff === true
   ) {
     return "playoff";
   }
@@ -101,7 +115,7 @@ function getGameType(game) {
 }
 
 // ======================================================
-// VALID GAME RESULTS
+// COMPLETED GAME HELPERS
 // ======================================================
 
 function hasValidScores(game) {
@@ -131,19 +145,25 @@ function isCompletedGame(
   currentSeason,
   completedKeys
 ) {
+  const winner = String(game.winner || "")
+    .trim()
+    .toUpperCase();
+
+  // An official result is sufficient, even when the
+  // imported historical record has no scores.
+
+  if (["HOME", "AWAY", "TIE"].includes(winner)) {
+    return true;
+  }
+
   if (!hasValidScores(game)) {
     return false;
   }
 
-  const winner = String(
-    game.winner || ""
-  ).trim().toUpperCase();
-
   if (
     game.completed === true ||
     game.is_final === true ||
-    String(game.status || "").toUpperCase() === "FINAL" ||
-    ["HOME", "AWAY", "TIE"].includes(winner)
+    String(game.status || "").toUpperCase() === "FINAL"
   ) {
     return true;
   }
@@ -152,8 +172,7 @@ function isCompletedGame(
     return true;
   }
 
-  // Historical imported games may not have
-  // explicit completion fields.
+  // Historical imports may not have a completion flag.
 
   if (num(game.season_year) < num(currentSeason)) {
     return (
@@ -166,21 +185,16 @@ function isCompletedGame(
 }
 
 function getWinnerOwnerId(game) {
-  const winner = String(
-    game.winner || ""
-  ).trim().toUpperCase();
+  const homeId = Number(game.home_owner_id);
+  const awayId = Number(game.away_owner_id);
 
-  if (winner === "HOME") {
-    return Number(game.home_owner_id);
-  }
+  const winner = String(game.winner || "")
+    .trim()
+    .toUpperCase();
 
-  if (winner === "AWAY") {
-    return Number(game.away_owner_id);
-  }
-
-  if (winner === "TIE") {
-    return null;
-  }
+  if (winner === "HOME") return homeId;
+  if (winner === "AWAY") return awayId;
+  if (winner === "TIE") return null;
 
   if (!hasValidScores(game)) {
     return null;
@@ -189,41 +203,30 @@ function getWinnerOwnerId(game) {
   const homeScore = num(game.home_score);
   const awayScore = num(game.away_score);
 
-  if (homeScore > awayScore) {
-    return Number(game.home_owner_id);
-  }
-
-  if (awayScore > homeScore) {
-    return Number(game.away_owner_id);
-  }
+  if (homeScore > awayScore) return homeId;
+  if (awayScore > homeScore) return awayId;
 
   return null;
 }
 
 // ======================================================
-// GOAT OWNER CARD
+// OWNER CARD
 // ======================================================
 
-function GoatOwnerCard({
-  owner,
-  rank,
-  currentSeason,
-}) {
+function GoatOwnerCard({ owner, rank, currentSeason }) {
   const limitedHistory = owner.seasons <= 2;
 
   const historyText =
     owner.seasons === 0
       ? "No league history"
       : limitedHistory
-        ? `${owner.seasons} season${
-            owner.seasons === 1 ? "" : "s"
-          } · Limited league history`
-        : `${owner.firstSeason}–${owner.lastSeason}`;
+      ? `${owner.seasons} season${
+          owner.seasons === 1 ? "" : "s"
+        } · Limited league history`
+      : `${owner.firstSeason}–${owner.lastSeason}`;
 
   return (
     <article className="owner-card">
-      {/* HEADER */}
-
       <div className="owner-card-top">
         <div>
           <span className="owner-status">
@@ -245,8 +248,6 @@ function GoatOwnerCard({
         </div>
       </div>
 
-      {/* REGULAR-SEASON RECORD */}
-
       <div className="owner-record">
         <div>
           <strong>
@@ -256,20 +257,14 @@ function GoatOwnerCard({
               owner.ties
             )}
           </strong>
-
           <span>CAREER RECORD</span>
         </div>
 
         <div>
-          <strong>
-            {owner.winPct.toFixed(1)}%
-          </strong>
-
+          <strong>{owner.winPct.toFixed(1)}%</strong>
           <span>WIN %</span>
         </div>
       </div>
-
-      {/* POSTSEASON RESUME */}
 
       <div className="owner-stats-grid">
         <div>
@@ -288,12 +283,10 @@ function GoatOwnerCard({
         </div>
 
         <div>
-          <strong>{owner.playoffGameWins}</strong>
+          <strong>{owner.qualifyingPlayoffWins}</strong>
           <span>Playoff Wins</span>
         </div>
       </div>
-
-      {/* LONGEVITY */}
 
       <div className="owner-record">
         <div>
@@ -302,15 +295,10 @@ function GoatOwnerCard({
         </div>
 
         <div>
-          <strong>
-            {formatNumber(owner.pointsFor)}
-          </strong>
-
+          <strong>{formatNumber(owner.pointsFor)}</strong>
           <span>CAREER POINTS</span>
         </div>
       </div>
-
-      {/* FOOTER */}
 
       <div className="owner-card-bottom">
         <span>
@@ -328,10 +316,29 @@ function GoatOwnerCard({
 }
 
 // ======================================================
-// GOAT SCORING FORMULA CARD
+// GOAT FORMULA CARD
 // ======================================================
 
 function ScoringCard() {
+  const items = [
+    {
+      points: GOAT_POINTS.REGULAR_WIN,
+      label: "Reg. Win",
+    },
+    {
+      points: GOAT_POINTS.PLAYOFF_APPEARANCE,
+      label: "Playoff App.",
+    },
+    {
+      points: GOAT_POINTS.PLAYOFF_WIN,
+      label: "Playoff Win",
+    },
+    {
+      points: GOAT_POINTS.CHAMPIONSHIP_APPEARANCE,
+      label: "Finals App.",
+    },
+  ];
+
   return (
     <article className="owner-card">
       <div className="owner-card-top">
@@ -343,43 +350,20 @@ function ScoringCard() {
           <h3>GOAT Score</h3>
 
           <p className="owner-team-name">
-            GOAT status is subjective. This formula
-            rewards sustained regular-season success
-            while placing greater value on winning in
-            the postseason and competing for
-            championships.
+            GOAT Rankings reward regular-season success,
+            playoff appearances, championship-bracket
+            victories, finals appearances, and titles.
           </p>
         </div>
       </div>
 
       <div className="owner-stats-grid">
-        <div>
-          <strong>
-            +{GOAT_POINTS.REGULAR_WIN}
-          </strong>
-          <span>Reg. Win</span>
-        </div>
-
-        <div>
-          <strong>
-            +{GOAT_POINTS.PLAYOFF_APPEARANCE}
-          </strong>
-          <span>Playoff App.</span>
-        </div>
-
-        <div>
-          <strong>
-            +{GOAT_POINTS.PLAYOFF_WIN}
-          </strong>
-          <span>Playoff Win</span>
-        </div>
-
-        <div>
-          <strong>
-            +{GOAT_POINTS.CHAMPIONSHIP_APPEARANCE}
-          </strong>
-          <span>Finals App.</span>
-        </div>
+        {items.map((item) => (
+          <div key={item.label}>
+            <strong>+{item.points}</strong>
+            <span>{item.label}</span>
+          </div>
+        ))}
       </div>
 
       <div className="owner-record">
@@ -398,9 +382,10 @@ function ScoringCard() {
 
       <div className="owner-card-bottom">
         <span>
-          Consolation wins do not earn GOAT points.
-          Championship-bracket victories earn four
-          points each, including third-place games.
+          Only semifinal and championship victories
+          earn playoff-win points. Third-place and
+          consolation victories earn zero GOAT
+          playoff-win points.
         </span>
 
         <strong>TRANSPARENT FORMULA</strong>
@@ -410,7 +395,7 @@ function ScoringCard() {
 }
 
 // ======================================================
-// GOAT PAGE
+// MAIN GOAT PAGE
 // ======================================================
 
 export default async function GoatPage() {
@@ -424,11 +409,8 @@ export default async function GoatPage() {
         <header className="site-header">
           <div className="site-title">
             <Link href="/">
-              <strong>
-                DIRTY P FANTASY FOOTBALL
-              </strong>
+              <strong>DIRTY P FANTASY FOOTBALL</strong>
             </Link>
-
             <span>
               THE LEAGUE ARCHIVE · EST. 2014
             </span>
@@ -467,86 +449,69 @@ export default async function GoatPage() {
   } = leagueData;
 
   // ====================================================
-  // CURRENT WEEK
+  // CURRENT COMPLETED WEEK
   // ====================================================
 
-  const currentCompletedWeeks =
-    completedCurrentMatchups
-      .map((game) => Number(game.matchup_period))
-      .filter(
-        (week) => Number.isFinite(week) && week > 0
-      );
+  const completedWeeks = completedCurrentMatchups
+    .filter(
+      (game) =>
+        game.completed === true ||
+        game.is_final === true
+    )
+    .map((game) => Number(game.matchup_period))
+    .filter(
+      (week) =>
+        Number.isFinite(week) && week > 0
+    );
 
-  const latestCompletedWeek =
-    currentCompletedWeeks.length
-      ? Math.max(...currentCompletedWeeks)
-      : 0;
+  const latestCompletedWeek = completedWeeks.length
+    ? Math.max(...completedWeeks)
+    : 0;
 
   // ====================================================
-  // VERIFIED COMPLETED MATCHUPS
+  // COMPLETED MATCHUPS
   // ====================================================
 
   const completedKeys = new Set(
     completedCurrentMatchups.map(getGameKey)
   );
 
-  const completedGames = matchups.filter(
-    (game) =>
-      isCompletedGame(
-        game,
-        currentSeason,
-        completedKeys
-      )
+  const completedGames = matchups.filter((game) =>
+    isCompletedGame(
+      game,
+      currentSeason,
+      completedKeys
+    )
   );
 
   // ====================================================
-  // CHAMPIONSHIP-BRACKET WINS
+  // QUALIFYING PLAYOFF WINS
+  //
+  // Only semifinal + championship-bracket wins.
+  // Third place and consolation excluded.
   // ====================================================
 
-  const playoffWins = new Map();
-  const playoffLosses = new Map();
-  const playoffTies = new Map();
+  const qualifyingPlayoffWins = new Map();
 
   for (const game of completedGames) {
-    if (getGameType(game) !== "playoff") {
+    if (getGoatGameType(game) !== "playoff") {
       continue;
     }
-
-    const homeId = Number(game.home_owner_id);
-    const awayId = Number(game.away_owner_id);
 
     const winnerId = getWinnerOwnerId(game);
 
     if (!winnerId) {
-      playoffTies.set(
-        homeId,
-        (playoffTies.get(homeId) || 0) + 1
-      );
-
-      playoffTies.set(
-        awayId,
-        (playoffTies.get(awayId) || 0) + 1
-      );
-
       continue;
     }
 
-    const loserId =
-      winnerId === homeId ? awayId : homeId;
-
-    playoffWins.set(
+    qualifyingPlayoffWins.set(
       winnerId,
-      (playoffWins.get(winnerId) || 0) + 1
-    );
-
-    playoffLosses.set(
-      loserId,
-      (playoffLosses.get(loserId) || 0) + 1
+      (qualifyingPlayoffWins.get(winnerId) || 0) + 1
     );
   }
 
   // ====================================================
-  // BUILD OWNER GOAT RESUMES
+  // OWNER GOAT STATISTICS
   // ====================================================
 
   const rankings = owners.map((owner) => {
@@ -557,7 +522,7 @@ export default async function GoatPage() {
         Number(season.owner_id) === ownerId
     );
 
-    // REGULAR-SEASON CAREER RECORD
+    // REGULAR SEASON
 
     const wins = ownerSeasons.reduce(
       (total, season) =>
@@ -583,71 +548,39 @@ export default async function GoatPage() {
       0
     );
 
-    const pointsAgainst = ownerSeasons.reduce(
-      (total, season) =>
-        total + num(season.points_against),
-      0
-    );
-
     // POSTSEASON ACCOMPLISHMENTS
 
-    const playoffAppearances =
-      ownerSeasons.filter(
-        (season) =>
-          Boolean(season.playoff_appearance)
-      ).length;
+    const playoffAppearances = ownerSeasons.filter(
+      (season) =>
+        Boolean(season.playoff_appearance)
+    ).length;
 
-    const finalsAppearances =
-      ownerSeasons.filter(
-        (season) =>
-          Boolean(season.championship_appearance)
-      ).length;
+    const finalsAppearances = ownerSeasons.filter(
+      (season) =>
+        Boolean(season.championship_appearance)
+    ).length;
 
-    const championships =
-      ownerSeasons.filter(
-        (season) =>
-          Boolean(season.champion)
-      ).length;
+    const championships = ownerSeasons.filter(
+      (season) =>
+        Boolean(season.champion)
+    ).length;
 
-    const playoffGameWins =
-      playoffWins.get(ownerId) || 0;
-
-    const playoffGameLosses =
-      playoffLosses.get(ownerId) || 0;
-
-    const playoffGameTies =
-      playoffTies.get(ownerId) || 0;
-
-    // CHAMPIONSHIP YEARS
-
-    const championshipYears = ownerSeasons
-      .filter(
-        (season) =>
-          Boolean(season.champion)
-      )
-      .map(
-        (season) =>
-          Number(season.season_year)
-      )
-      .sort((a, b) => a - b);
+    const ownerPlayoffWins =
+      qualifyingPlayoffWins.get(ownerId) || 0;
 
     // CAREER LENGTH
 
     const seasonYears = ownerSeasons
-      .map(
-        (season) =>
-          Number(season.season_year)
+      .map((season) =>
+        Number(season.season_year)
       )
       .filter(Number.isFinite);
 
-    const seasons = new Set(
-      seasonYears
-    ).size;
+    const seasons = new Set(seasonYears).size;
 
-    const hasCurrentSeason =
-      seasonYears.includes(
-        Number(currentSeason)
-      );
+    const hasCurrentSeason = seasonYears.includes(
+      Number(currentSeason)
+    );
 
     const firstSeason = seasonYears.length
       ? Math.min(...seasonYears)
@@ -657,13 +590,11 @@ export default async function GoatPage() {
       ? Math.max(...seasonYears)
       : null;
 
-    const winPct = getWinPct(
-      wins,
-      losses,
-      ties
-    );
+    const winPct = getWinPct(wins, losses, ties);
 
+    // ==================================================
     // GOAT POINTS
+    // ==================================================
 
     const regularWinPoints =
       wins * GOAT_POINTS.REGULAR_WIN;
@@ -673,7 +604,7 @@ export default async function GoatPage() {
       GOAT_POINTS.PLAYOFF_APPEARANCE;
 
     const playoffWinPoints =
-      playoffGameWins *
+      ownerPlayoffWins *
       GOAT_POINTS.PLAYOFF_WIN;
 
     const finalsPoints =
@@ -695,27 +626,21 @@ export default async function GoatPage() {
       id: owner.id,
       name: owner.name,
 
+      wins,
+      losses,
+      ties,
+      pointsFor,
+      winPct,
+
+      playoffAppearances,
+      finalsAppearances,
+      championships,
+      qualifyingPlayoffWins: ownerPlayoffWins,
+
       seasons,
       hasCurrentSeason,
       firstSeason,
       lastSeason,
-
-      wins,
-      losses,
-      ties,
-
-      pointsFor,
-      pointsAgainst,
-      winPct,
-
-      playoffAppearances,
-      playoffGameWins,
-      playoffGameLosses,
-      playoffGameTies,
-
-      finalsAppearances,
-      championships,
-      championshipYears,
 
       regularWinPoints,
       playoffAppearancePoints,
@@ -728,7 +653,7 @@ export default async function GoatPage() {
   });
 
   // ====================================================
-  // RANKING ORDER
+  // SORT GOAT RANKINGS
   // ====================================================
 
   rankings.sort((a, b) => {
@@ -740,23 +665,17 @@ export default async function GoatPage() {
       return b.championships - a.championships;
     }
 
-    if (
-      b.finalsAppearances !==
-      a.finalsAppearances
-    ) {
-      return (
-        b.finalsAppearances -
-        a.finalsAppearances
-      );
+    if (b.finalsAppearances !== a.finalsAppearances) {
+      return b.finalsAppearances - a.finalsAppearances;
     }
 
     if (
-      b.playoffGameWins !==
-      a.playoffGameWins
+      b.qualifyingPlayoffWins !==
+      a.qualifyingPlayoffWins
     ) {
       return (
-        b.playoffGameWins -
-        a.playoffGameWins
+        b.qualifyingPlayoffWins -
+        a.qualifyingPlayoffWins
       );
     }
 
@@ -764,14 +683,8 @@ export default async function GoatPage() {
       return b.wins - a.wins;
     }
 
-    if (
-      b.playoffAppearances !==
-      a.playoffAppearances
-    ) {
-      return (
-        b.playoffAppearances -
-        a.playoffAppearances
-      );
+    if (b.playoffAppearances !== a.playoffAppearances) {
+      return b.playoffAppearances - a.playoffAppearances;
     }
 
     if (b.winPct !== a.winPct) {
@@ -792,7 +705,7 @@ export default async function GoatPage() {
   return (
     <main className="page-shell">
 
-      {/* HEADER */}
+      {/* SITE HEADER */}
 
       <header className="site-header">
         <div className="site-title">
@@ -821,7 +734,7 @@ export default async function GoatPage() {
           <p>
             Every Dirty P owner ranked by career
             success, championships, postseason
-            performance and sustained winning.
+            performance, and sustained winning.
           </p>
         </div>
 
@@ -831,7 +744,7 @@ export default async function GoatPage() {
         </div>
       </section>
 
-      {/* NAVIGATION */}
+      {/* PAGE NAVIGATION */}
 
       <nav className="page-nav">
         <Link href="/">
@@ -845,7 +758,7 @@ export default async function GoatPage() {
         </span>
       </nav>
 
-      {/* ESPN OWNER MAPPING WARNING */}
+      {/* OWNER MAPPING WARNING */}
 
       {unmatchedEspnOwners.length > 0 && (
         <section className="owners-section">
@@ -874,7 +787,7 @@ export default async function GoatPage() {
         </section>
       )}
 
-      {/* GOAT SCORING FORMULA - FIRST */}
+      {/* GOAT FORMULA - FIRST */}
 
       <section className="owners-section">
         <div className="section-heading">
@@ -886,15 +799,13 @@ export default async function GoatPage() {
             <h2>GOAT Scoring System</h2>
           </div>
 
-          <span>
-            Résumé Based
-          </span>
+          <span>Résumé Based</span>
         </div>
 
         <ScoringCard />
       </section>
 
-      {/* COMPLETE GOAT RANKINGS - SECOND */}
+      {/* COMPLETE RANKINGS - SECOND */}
 
       <section className="owners-section">
         <div className="section-heading">
