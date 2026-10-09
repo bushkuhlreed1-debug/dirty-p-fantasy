@@ -1026,4 +1026,847 @@ export default async function Home() {
           <h1>Dirty P Fantasy Football</h1>
 
           <p className="hero-copy">
-            Championships, rivalries, heartbreak, dominance
+            Championships, rivalries, heartbreak, dominance and
+            questionable fantasy decisions.
+          </p>
+        </div>
+      </section>
+
+      {/* DEFENDING CHAMPION */}
+
+      {defendingSeason && (
+        <section className="champion-strip">
+          <div className="champion-strip-title">
+            <span className="card-label">
+              DEFENDING CHAMPION
+            </span>
+
+            <strong>
+              {defendingSeason.champion?.name || "Unknown"}
+            </strong>
+          </div>
+
+          <div className="champion-strip-result">
+            <span>
+              {defendingSeason.year} Champion
+            </span>
+
+            <span className="champion-divider">•</span>
+
+            <span>
+              defeated{" "}
+              {defendingSeason.runner_up?.name || "Runner-Up"}
+            </span>
+
+            {defendingSeason.championship_score && (
+              <strong>
+                {defendingSeason.championship_score}
+              </strong>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ESPN OWNER MAPPING WARNING */}
+
+      {unmatchedEspnOwners?.length > 0 && (
+        <div className="home-warning">
+          ESPN owner mapping issue:{" "}
+          {unmatchedEspnOwners
+            .map((owner) => owner.ownerName)
+            .join(", ")}
+        </div>
+      )}
+
+      {/* =================================================
+          CURRENT STANDINGS
+      ================================================= */}
+
+      <section className="section-block">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">
+              {currentSeason} SEASON
+            </p>
+
+            <h2>Current Standings</h2>
+          </div>
+
+          <span>
+            ESPN Playoff Seeding · Through Week{" "}
+            {latestCompletedWeek || currentWeek}
+          </span>
+        </div>
+
+        <div className="profile-table-wrap">
+          <table className="profile-table home-standings">
+            <thead>
+              <tr>
+                <th>SEED</th>
+                <th>TEAM</th>
+                <th>RECORD</th>
+                <th>PF</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {standings.map((team) => {
+                const playoff =
+                  team.playoffSeed > 0 &&
+                  team.playoffSeed <= playoffCount;
+
+                const playoffLabel = playoff
+                  ? divisionsVerified
+                    ? divisionLeaders.has(team.ownerId)
+                      ? `DIVISION LEADER · #${team.playoffSeed}`
+                      : `WILD CARD · #${team.playoffSeed}`
+                    : `PLAYOFF SEED · #${team.playoffSeed}`
+                  : null;
+
+                return (
+                  <tr key={team.ownerId}>
+                    <td>
+                      <strong>
+                        #{team.playoffSeed || "—"}
+                      </strong>
+                    </td>
+
+                    <td>
+                      <Link
+                        href={`/owners/${team.ownerId}`}
+                        className="standing-team-link"
+                      >
+                        <strong>{team.ownerName}</strong>
+
+                        <span>{team.teamName}</span>
+                      </Link>
+                    </td>
+
+                    <td>
+                      {formatRecord(
+                        team.wins,
+                        team.losses,
+                        team.ties
+                      )}
+                    </td>
+
+                    <td>
+                      {formatScore(team.pointsFor)}
+                    </td>
+
+                    <td>
+                      {playoff ? (
+                        <span className="playoff-badge">
+                          {playoffLabel}
+                        </span>
+                      ) : (
+                        <span className="home-out">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* =================================================
+          AROUND THE LEAGUE
+      ================================================= */}
+
+      {!showLiveScoreboard && (
+        <section className="section-block">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">
+                WEEK {latestCompletedWeek || currentWeek}
+              </p>
+
+              <h2>Around the League</h2>
+            </div>
+
+            <span>Stories & Takeaways</span>
+          </div>
+
+          {aroundLeague.length > 0 ? (
+            <div className="around-league">
+              {aroundLeague.map((story, index) => (
+                <article
+                  className="around-league-story"
+                  key={`${story.headline}-${index}`}
+                >
+                  <h3>{story.headline}</h3>
+                  <p>{story.text}</p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="current-panel">
+              <div className="empty-current-state">
+                <strong>
+                  Weekly league coverage will appear after
+                  completed games.
+                </strong>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* =================================================
+          LIVE SCOREBOARD / WEEKLY MATCHUP PREVIEWS
+      ================================================= */}
+
+      <section className="section-block">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">
+              {showLiveScoreboard
+                ? `LIVE · WEEK ${previewWeek}`
+                : `WEEK ${previewWeek}`}
+            </p>
+
+            <h2>
+              {showLiveScoreboard
+                ? `Week ${previewWeek} Scoreboard`
+                : "This Week"}
+            </h2>
+          </div>
+
+          <span>
+            {showLiveScoreboard
+              ? "Refreshes Every 30 Seconds"
+              : "Matchup Preview · Refreshes Every 30 Seconds"}
+          </span>
+        </div>
+
+        {/* =============================================
+            LIVE FANTASY SCOREBOARD
+        ============================================= */}
+
+        {showLiveScoreboard ? (
+          <div className="matchup-grid">
+            {rankedMatchups.map((matchup, index) => {
+              const awayScore =
+                matchup.awayLive?.currentPoints ??
+                num(matchup.game.away_score);
+
+              const homeScore =
+                matchup.homeLive?.currentPoints ??
+                num(matchup.game.home_score);
+
+              const awayLiveProjection =
+                matchup.awayLive?.liveProjectedPoints;
+
+              const homeLiveProjection =
+                matchup.homeLive?.liveProjectedPoints;
+
+              const liveProjectionAvailable =
+                hasNumber(awayLiveProjection) &&
+                hasNumber(homeLiveProjection);
+
+              const espnLiveTotal = liveProjectionAvailable
+                ? formatOne(
+                    Number(awayLiveProjection) +
+                      Number(homeLiveProjection)
+                  )
+                : "—";
+
+              const status = matchupLiveStatus(matchup);
+
+              return (
+                <article
+                  className="matchup-card"
+                  key={`${matchup.awayId}-${matchup.homeId}`}
+                >
+                  <div className="matchup-card-top">
+                    <div className="scoreboard-card-labels">
+                      <span>
+                        {index === 0
+                          ? "GAME OF THE WEEK"
+                          : `WEEK ${previewWeek}`}
+                      </span>
+
+                      {matchup.assignedRivals && (
+                        <span className="small-rival-badge">
+                          {matchup.rivalryWeek
+                            ? "RIVALRY WEEK"
+                            : "ASSIGNED RIVALS"}
+                        </span>
+                      )}
+                    </div>
+
+                    <span className="matchup-status">
+                      {status}
+                    </span>
+                  </div>
+
+                  {/* AWAY TEAM */}
+
+                  <div
+                    className={`matchup-team-row ${
+                      awayScore > homeScore
+                        ? "matchup-leading"
+                        : ""
+                    }`}
+                  >
+                    <div className="matchup-team-info">
+                      <strong>{matchup.awayName}</strong>
+
+                      <span>
+                        {formatRecord(
+                          matchup.awayStanding?.wins,
+                          matchup.awayStanding?.losses,
+                          matchup.awayStanding?.ties
+                        )}
+                        {" · Seed #"}
+                        {matchup.awayStanding?.playoffSeed || "—"}
+                      </span>
+
+                      <span>
+                        ESPN Live Proj:{" "}
+                        {hasNumber(awayLiveProjection)
+                          ? formatOne(awayLiveProjection)
+                          : "—"}
+                      </span>
+                    </div>
+
+                    <strong className="matchup-score">
+                      {formatScore(awayScore)}
+                    </strong>
+                  </div>
+
+                  <div className="matchup-vs">
+                    <span>VS</span>
+                  </div>
+
+                  {/* HOME TEAM */}
+
+                  <div
+                    className={`matchup-team-row ${
+                      homeScore > awayScore
+                        ? "matchup-leading"
+                        : ""
+                    }`}
+                  >
+                    <div className="matchup-team-info">
+                      <strong>{matchup.homeName}</strong>
+
+                      <span>
+                        {formatRecord(
+                          matchup.homeStanding?.wins,
+                          matchup.homeStanding?.losses,
+                          matchup.homeStanding?.ties
+                        )}
+                        {" · Seed #"}
+                        {matchup.homeStanding?.playoffSeed || "—"}
+                      </span>
+
+                      <span>
+                        ESPN Live Proj:{" "}
+                        {hasNumber(homeLiveProjection)
+                          ? formatOne(homeLiveProjection)
+                          : "—"}
+                      </span>
+                    </div>
+
+                    <strong className="matchup-score">
+                      {formatScore(homeScore)}
+                    </strong>
+                  </div>
+
+                  {/* LIVE ODDS / PROJECTIONS */}
+
+                  <div className="scoreboard-market-strip">
+                    <div>
+                      <span>SPREAD</span>
+
+                      <strong>
+                        {matchup.fantasyLine.line}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>O/U</span>
+
+                      <strong>
+                        {matchup.fantasyLine.total}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>ESPN LIVE TOTAL</span>
+
+                      <strong>{espnLiveTotal}</strong>
+                    </div>
+                  </div>
+
+                  <div className="featured-meta">
+                    <span>
+                      <strong>SERIES</strong>
+
+                      {seriesText(
+                        matchup.series,
+                        matchup.awayName,
+                        matchup.homeName
+                      )}
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <>
+            {/* =========================================
+                GAME OF THE WEEK
+            ========================================= */}
+
+            {gameOfTheWeek && (
+              <article className="featured-matchup">
+                <div className="featured-matchup-labels">
+                  <span>GAME OF THE WEEK</span>
+
+                  {gameOfTheWeek.assignedRivals && (
+                    <strong>
+                      {gameOfTheWeek.rivalryWeek
+                        ? "RIVALRY WEEK"
+                        : "ASSIGNED RIVALS"}
+                    </strong>
+                  )}
+                </div>
+
+                <div className="featured-matchup-title">
+                  <div>
+                    <h3>{gameOfTheWeek.awayName}</h3>
+
+                    <span>
+                      {formatRecord(
+                        gameOfTheWeek.awayStanding?.wins,
+                        gameOfTheWeek.awayStanding?.losses,
+                        gameOfTheWeek.awayStanding?.ties
+                      )}
+                      {" · Seed #"}
+                      {gameOfTheWeek.awayStanding?.playoffSeed ||
+                        "—"}
+                    </span>
+                  </div>
+
+                  <strong className="featured-vs">
+                    VS
+                  </strong>
+
+                  <div className="right">
+                    <h3>{gameOfTheWeek.homeName}</h3>
+
+                    <span>
+                      {formatRecord(
+                        gameOfTheWeek.homeStanding?.wins,
+                        gameOfTheWeek.homeStanding?.losses,
+                        gameOfTheWeek.homeStanding?.ties
+                      )}
+                      {" · Seed #"}
+                      {gameOfTheWeek.homeStanding?.playoffSeed ||
+                        "—"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* GAME PREVIEW */}
+
+                <p className="featured-analysis">
+                  {matchupAnalysis(gameOfTheWeek)}
+                </p>
+
+                {/* FANTASY BETTING LINE */}
+
+                {gameOfTheWeek.fantasyLine.available && (
+                  <div className="scoreboard-market-strip">
+                    <div>
+                      <span>SPREAD</span>
+
+                      <strong>
+                        {gameOfTheWeek.fantasyLine.line}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>O/U</span>
+
+                      <strong>
+                        {gameOfTheWeek.fantasyLine.total}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>PROJECTED SCORE</span>
+
+                      <strong>
+                        {gameOfTheWeek.fantasyLine.projectedScore}
+                      </strong>
+                    </div>
+                  </div>
+                )}
+
+                {/* PLAYERS TO WATCH */}
+
+                <div
+                  style={{
+                    padding: "20px 24px",
+                    borderTop: "1px solid #222830",
+                  }}
+                >
+                  <span className="owner-status">
+                    PLAYERS TO WATCH
+                  </span>
+
+                  <div className="profile-table-wrap">
+                    <table className="profile-table">
+                      <thead>
+                        <tr>
+                          <th>OWNER</th>
+                          <th>PLAYER</th>
+                          <th>POS</th>
+                          <th>NFL MATCHUP</th>
+                          <th>PROJ</th>
+                          <th>AVG</th>
+                          <th>OUTLOOK</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {[
+                          ...topPlayers(
+                            gameOfTheWeek.awayIntel,
+                            3
+                          ).map((player) => ({
+                            ...player,
+                            owner: gameOfTheWeek.awayName,
+                          })),
+
+                          ...topPlayers(
+                            gameOfTheWeek.homeIntel,
+                            3
+                          ).map((player) => ({
+                            ...player,
+                            owner: gameOfTheWeek.homeName,
+                          })),
+                        ].map((player, index) => (
+                          <tr
+                            key={`${player.owner}-${
+                              player.playerId || index
+                            }`}
+                          >
+                            <td>
+                              <strong>
+                                {firstName(player.owner)}
+                              </strong>
+                            </td>
+
+                            <td>
+                              <strong>
+                                {player.name}
+                              </strong>
+                            </td>
+
+                            <td>{player.position}</td>
+
+                            <td>
+                              vs {player.opponent}
+                            </td>
+
+                            <td>
+                              <strong>
+                                {formatOne(player.projection)}
+                              </strong>
+                            </td>
+
+                            <td>
+                              {num(player.seasonAverage) > 0
+                                ? formatOne(
+                                    player.seasonAverage
+                                  )
+                                : "—"}
+                            </td>
+
+                            <td>
+                              {outlookWord(player)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* SERIES / STREAKS */}
+
+                <div className="featured-meta">
+                  <span>
+                    <strong>SERIES</strong>
+
+                    {seriesText(
+                      gameOfTheWeek.series,
+                      gameOfTheWeek.awayName,
+                      gameOfTheWeek.homeName
+                    )}
+                  </span>
+
+                  <span>
+                    <strong>PROJECTED WINNER</strong>
+
+                    {gameOfTheWeek.fantasyLine.projectedWinner ||
+                      "—"}
+                  </span>
+
+                  {gameOfTheWeek.awayStreak && (
+                    <span>
+                      <strong>
+                        {firstName(gameOfTheWeek.awayName)}
+                      </strong>
+
+                      {gameOfTheWeek.awayStreak.type}
+                      {gameOfTheWeek.awayStreak.count}
+                    </span>
+                  )}
+
+                  {gameOfTheWeek.homeStreak && (
+                    <span>
+                      <strong>
+                        {firstName(gameOfTheWeek.homeName)}
+                      </strong>
+
+                      {gameOfTheWeek.homeStreak.type}
+                      {gameOfTheWeek.homeStreak.count}
+                    </span>
+                  )}
+                </div>
+              </article>
+            )}
+
+            {/* =========================================
+                REST OF WEEK
+            ========================================= */}
+
+            {rankedMatchups.length > 1 && (
+              <div className="other-matchups">
+                <div className="other-matchups-heading">
+                  THE REST OF WEEK {previewWeek}
+                </div>
+
+                {rankedMatchups.slice(1).map((matchup) => {
+                  const awayStars = topPlayers(
+                    matchup.awayIntel,
+                    2
+                  );
+
+                  const homeStars = topPlayers(
+                    matchup.homeIntel,
+                    2
+                  );
+
+                  return (
+                    <article
+                      className={`other-matchup ${
+                        matchup.assignedRivals
+                          ? "assigned-matchup"
+                          : ""
+                      }`}
+                      key={`${matchup.awayId}-${matchup.homeId}`}
+                    >
+                      <div className="other-matchup-top">
+                        <div>
+                          {matchup.assignedRivals && (
+                            <span className="small-rival-badge">
+                              {matchup.rivalryWeek
+                                ? "RIVALRY WEEK"
+                                : "ASSIGNED RIVALS"}
+                            </span>
+                          )}
+
+                          <h3>
+                            {matchup.awayName}
+                            {" vs. "}
+                            {matchup.homeName}
+                          </h3>
+                        </div>
+
+                        <strong>
+                          {formatRecord(
+                            matchup.awayStanding?.wins,
+                            matchup.awayStanding?.losses,
+                            matchup.awayStanding?.ties
+                          )}
+                          {" vs "}
+                          {formatRecord(
+                            matchup.homeStanding?.wins,
+                            matchup.homeStanding?.losses,
+                            matchup.homeStanding?.ties
+                          )}
+                        </strong>
+                      </div>
+
+                      {/* MATCHUP PREVIEW */}
+
+                      <p>
+                        {matchupAnalysis(matchup)}
+                      </p>
+
+                      {/* PLAYERS TO WATCH */}
+
+                      {(awayStars.length > 0 ||
+                        homeStars.length > 0) && (
+                        <div className="matchup-player-grid">
+                          <div className="matchup-player-panel">
+                            <span>
+                              {firstName(matchup.awayName)}
+                              {" · PLAYERS TO WATCH"}
+                            </span>
+
+                            {awayStars.length > 0 ? (
+                              awayStars.map((player, index) => (
+                                <div
+                                  className="matchup-player-row"
+                                  key={player.playerId || index}
+                                >
+                                  <strong>
+                                    {player.name}
+                                  </strong>
+
+                                  <small>
+                                    {player.position}
+                                    {" · "}
+                                    {formatOne(
+                                      player.projection
+                                    )}
+                                    {" proj · vs "}
+                                    {player.opponent}
+                                    {" · "}
+                                    {outlookWord(player)}
+                                  </small>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="matchup-player-row">
+                                <small>
+                                  Projection data unavailable.
+                                </small>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="matchup-player-panel">
+                            <span>
+                              {firstName(matchup.homeName)}
+                              {" · PLAYERS TO WATCH"}
+                            </span>
+
+                            {homeStars.length > 0 ? (
+                              homeStars.map((player, index) => (
+                                <div
+                                  className="matchup-player-row"
+                                  key={player.playerId || index}
+                                >
+                                  <strong>
+                                    {player.name}
+                                  </strong>
+
+                                  <small>
+                                    {player.position}
+                                    {" · "}
+                                    {formatOne(
+                                      player.projection
+                                    )}
+                                    {" proj · vs "}
+                                    {player.opponent}
+                                    {" · "}
+                                    {outlookWord(player)}
+                                  </small>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="matchup-player-row">
+                                <small>
+                                  Projection data unavailable.
+                                </small>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* MATCHUP PROJECTIONS */}
+
+                      <div className="scoreboard-market-strip">
+                        <div>
+                          <span>SPREAD</span>
+
+                          <strong>
+                            {matchup.fantasyLine.line}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>O/U</span>
+
+                          <strong>
+                            {matchup.fantasyLine.total}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>PROJECTED SCORE</span>
+
+                          <strong>
+                            {matchup.fantasyLine.projectedScore ||
+                              "—"}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="other-matchup-bottom">
+                        <span>
+                          {seriesText(
+                            matchup.series,
+                            matchup.awayName,
+                            matchup.homeName
+                          )}
+                        </span>
+
+                        {matchup.fantasyLine.projectedWinner && (
+                          <span>
+                            Projected winner:{" "}
+                            {matchup.fantasyLine.projectedWinner}
+                          </span>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* FOOTER */}
+
+      <footer className="site-footer">
+        <strong>
+          Dirty P Fantasy Football
+        </strong>
+
+        <span>
+          The League Archive · Est. 2014
+        </span>
+
+        <p>
+          Independent fantasy league archive. Not affiliated with
+          or endorsed by ESPN.
+        </p>
+      </footer>
+    </main>
+  );
+}
