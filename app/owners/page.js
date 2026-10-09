@@ -26,21 +26,24 @@ function formatPercentage(wins, losses, ties = 0) {
   if (total === 0) return "0.0";
 
   return (
-    ((num(wins) + num(ties) * 0.5) / total) *
-    100
+    ((num(wins) + num(ties) * 0.5) / total) * 100
   ).toFixed(1);
 }
 
 // ======================================================
 // POSTSEASON CLASSIFICATION
 //
-// Matches our verified Supabase audit.
+// IMPORTANT:
+// Third-place games ALWAYS count as playoff games.
 //
-// Consolation classification takes priority over
-// playoff classification.
+// This fixes ESPN third-place matchups labeled:
+// WINNERS_CONSOLATION_LADDER
 //
-// Third-place games count as playoff games.
-// Consolation games never count as playoff games.
+// Classification priority:
+// 1. Third-place game -> Playoff
+// 2. Actual consolation game -> Consolation
+// 3. Championship / semifinal -> Playoff
+// 4. Everything else -> Regular season
 // ======================================================
 
 function getGameType(game) {
@@ -56,29 +59,42 @@ function getGameType(game) {
     .trim()
     .toLowerCase();
 
-  const isConsolation =
+  // THIRD PLACE ALWAYS COUNTS AS PLAYOFF
+
+  if (
+    game.is_third_place === true ||
+    matchupType.includes("third_place") ||
+    matchupType.includes("third place") ||
+    matchupType.includes("third-place")
+  ) {
+    return "playoff";
+  }
+
+  // ACTUAL CONSOLATION BRACKET
+
+  if (
     game.is_consolation === true ||
     matchupType.includes("consolation") ||
     matchupType.includes("loser") ||
     playoffTier.includes("consolation") ||
     playoffTier.includes("loser") ||
-    playoffTier.includes("toilet");
-
-  if (isConsolation) {
+    playoffTier.includes("toilet")
+  ) {
     return "consolation";
   }
 
-  const isPlayoff =
+  // CHAMPIONSHIP AND PLAYOFF BRACKET
+
+  if (
     game.is_playoff === true ||
     game.is_championship === true ||
-    game.is_third_place === true ||
     matchupType.includes("playoff") ||
     matchupType.includes("championship") ||
-    matchupType.includes("third_place") ||
+    matchupType.includes("semifinal") ||
+    matchupType.includes("semi_final") ||
     playoffTier.includes("winner") ||
-    playoffTier.includes("championship");
-
-  if (isPlayoff) {
+    playoffTier.includes("championship")
+  ) {
     return "playoff";
   }
 
@@ -88,9 +104,8 @@ function getGameType(game) {
 // ======================================================
 // COMPLETED GAME RESULT
 //
-// Prefer official winner from Supabase or ESPN.
-//
-// Never count undecided current-season games.
+// Prefer official winner from Supabase / ESPN.
+// Do not count unfinished games.
 // ======================================================
 
 function getGameResult(game, ownerId) {
@@ -121,13 +136,14 @@ function getGameResult(game, ownerId) {
     return "tie";
   }
 
-  // No official winner means we must confirm the game
-  // is final before attempting a score comparison.
+  // No official winner?
+  // Only use scores when the game is confirmed final.
 
   const isFinal =
     game.completed === true ||
     game.is_final === true ||
-    String(game.status || "").toUpperCase() === "FINAL";
+    String(game.status || "").toUpperCase() ===
+      "FINAL";
 
   if (!isFinal) {
     return null;
@@ -155,8 +171,13 @@ function getGameResult(game, ownerId) {
     ? num(awayScore)
     : num(homeScore);
 
-  if (ownerScore > opponentScore) return "win";
-  if (ownerScore < opponentScore) return "loss";
+  if (ownerScore > opponentScore) {
+    return "win";
+  }
+
+  if (ownerScore < opponentScore) {
+    return "loss";
+  }
 
   return "tie";
 }
@@ -164,11 +185,12 @@ function getGameResult(game, ownerId) {
 // ======================================================
 // BUILD POSTSEASON RECORDS
 //
-// Historical: Seasons before current season
-// Current: Officially completed ESPN matchups only
+// Each completed matchup counts once per owner.
 //
-// Historical games are never mixed with unfinished
-// current ESPN schedule entries.
+// Third-place games are correctly included in playoffs.
+//
+// Historical and current-season matchups are processed
+// separately to prevent duplication.
 // ======================================================
 
 function buildPostseasonRecords(games, owners) {
@@ -192,7 +214,9 @@ function buildPostseasonRecords(games, owners) {
   for (const game of games) {
     const type = getGameType(game);
 
-    if (type === "regular") continue;
+    if (type === "regular") {
+      continue;
+    }
 
     const homeId = Number(game.home_owner_id);
     const awayId = Number(game.away_owner_id);
@@ -208,41 +232,61 @@ function buildPostseasonRecords(games, owners) {
     }
 
     for (const ownerId of [homeId, awayId]) {
-      const ownerRecord = records.get(ownerId);
+      const record = records.get(ownerId);
 
-      if (!ownerRecord) continue;
+      if (!record) {
+        continue;
+      }
 
       const result = getGameResult(game, ownerId);
 
-      if (!result) continue;
+      if (!result) {
+        continue;
+      }
 
       if (type === "playoff") {
-        ownerRecord.playoffGames++;
+        record.playoffGames++;
 
         if (result === "win") {
-          ownerRecord.playoffWins++;
+          record.playoffWins++;
         } else if (result === "loss") {
-          ownerRecord.playoffLosses++;
+          record.playoffLosses++;
         } else {
-          ownerRecord.playoffTies++;
+          record.playoffTies++;
         }
       }
 
       if (type === "consolation") {
-        ownerRecord.consolationGames++;
+        record.consolationGames++;
 
         if (result === "win") {
-          ownerRecord.consolationWins++;
+          record.consolationWins++;
         } else if (result === "loss") {
-          ownerRecord.consolationLosses++;
+          record.consolationLosses++;
         } else {
-          ownerRecord.consolationTies++;
+          record.consolationTies++;
         }
       }
     }
   }
 
   return records;
+}
+
+// ======================================================
+// EMPTY POSTSEASON RECORD
+// ======================================================
+
+function emptyPostseasonRecord() {
+  return {
+    playoffWins: 0,
+    playoffLosses: 0,
+    playoffTies: 0,
+
+    consolationWins: 0,
+    consolationLosses: 0,
+    consolationTies: 0,
+  };
 }
 
 // ======================================================
@@ -275,6 +319,7 @@ function OwnerCard({ owner }) {
         {owner.championships > 0 && (
           <div className="owner-title-count">
             <strong>{owner.championships}</strong>
+
             <span>
               {owner.championships === 1
                 ? "TITLE"
@@ -313,7 +358,7 @@ function OwnerCard({ owner }) {
         </div>
       </div>
 
-      {/* POSTSEASON RECORDS */}
+      {/* PLAYOFF AND CONSOLATION RECORDS */}
 
       <div className="owner-record">
         <div>
@@ -365,6 +410,8 @@ function OwnerCard({ owner }) {
         </div>
       </div>
 
+      {/* FOOTER */}
+
       <div className="owner-card-bottom">
         <span>
           {owner.firstSeason && owner.latestSeason
@@ -379,7 +426,7 @@ function OwnerCard({ owner }) {
 }
 
 // ======================================================
-// OWNERS PAGE
+// MAIN OWNERS PAGE
 // ======================================================
 
 export default async function OwnersPage() {
@@ -437,13 +484,15 @@ export default async function OwnersPage() {
   } = leagueData;
 
   // ====================================================
-  // CURRENT OWNER INFORMATION
+  // ACTIVE OWNERS
   // ====================================================
 
   const activeOwnerIds = new Set(
     currentTeams
       .map((team) => Number(team.owner_id))
-      .filter((id) => Number.isFinite(id) && id > 0)
+      .filter(
+        (id) => Number.isFinite(id) && id > 0
+      )
   );
 
   const currentTeamMap = new Map(
@@ -454,50 +503,64 @@ export default async function OwnersPage() {
   );
 
   // ====================================================
-  // SEPARATE HISTORICAL AND CURRENT POSTSEASON
+  // SEPARATE HISTORICAL AND CURRENT MATCHUPS
   // ====================================================
 
   const historicalGames = matchups.filter(
     (game) =>
-      Number(game.season_year) < Number(currentSeason)
+      Number(game.season_year) <
+      Number(currentSeason)
   );
 
-  const currentCompletedGames = completedCurrentMatchups
-    .filter(
+  const currentCompletedGames =
+    completedCurrentMatchups.filter(
       (game) =>
         Number(game.season_year) ===
           Number(currentSeason) &&
         game.completed === true
     );
 
-  // Build from separate periods to avoid including
-  // unfinished ESPN games or counting a current
-  // matchup twice.
+  // ====================================================
+  // CALCULATE HISTORICAL POSTSEASON RECORDS
+  // ====================================================
 
-  const historicalPostseason = buildPostseasonRecords(
-    historicalGames,
-    owners
-  );
+  const historicalPostseason =
+    buildPostseasonRecords(
+      historicalGames,
+      owners
+    );
 
-  const currentPostseason = buildPostseasonRecords(
-    currentCompletedGames,
-    owners
-  );
+  // ====================================================
+  // CALCULATE CURRENT POSTSEASON RECORDS
+  // ====================================================
+
+  const currentPostseason =
+    buildPostseasonRecords(
+      currentCompletedGames,
+      owners
+    );
 
   // ====================================================
   // LATEST COMPLETED WEEK
   // ====================================================
 
-  const completedWeeks = completedCurrentMatchups
-    .filter((game) => game.completed === true)
-    .map((game) => Number(game.matchup_period))
-    .filter(
-      (week) => Number.isFinite(week) && week > 0
-    );
+  const completedWeeks =
+    completedCurrentMatchups
+      .filter(
+        (game) => game.completed === true
+      )
+      .map((game) =>
+        Number(game.matchup_period)
+      )
+      .filter(
+        (week) =>
+          Number.isFinite(week) && week > 0
+      );
 
-  const latestCompletedWeek = completedWeeks.length
-    ? Math.max(...completedWeeks)
-    : 0;
+  const latestCompletedWeek =
+    completedWeeks.length
+      ? Math.max(...completedWeeks)
+      : 0;
 
   // ====================================================
   // BUILD OWNER CAREER STATISTICS
@@ -507,96 +570,110 @@ export default async function OwnersPage() {
     const ownerId = Number(owner.id);
 
     const results = seasonResults.filter(
-      (result) => Number(result.owner_id) === ownerId
+      (result) =>
+        Number(result.owner_id) === ownerId
     );
 
-    const currentTeam = currentTeamMap.get(ownerId);
-    const active = activeOwnerIds.has(ownerId);
+    const currentTeam =
+      currentTeamMap.get(ownerId);
+
+    const active =
+      activeOwnerIds.has(ownerId);
 
     // REGULAR SEASON
 
     const regularWins = results.reduce(
-      (sum, result) => sum + num(result.wins),
+      (sum, result) =>
+        sum + num(result.wins),
       0
     );
 
     const regularLosses = results.reduce(
-      (sum, result) => sum + num(result.losses),
+      (sum, result) =>
+        sum + num(result.losses),
       0
     );
 
     const regularTies = results.reduce(
-      (sum, result) => sum + num(result.ties),
+      (sum, result) =>
+        sum + num(result.ties),
       0
     );
 
     // CAREER POINTS
 
     const pointsFor = results.reduce(
-      (sum, result) => sum + num(result.points_for),
+      (sum, result) =>
+        sum + num(result.points_for),
       0
     );
 
     const pointsAgainst = results.reduce(
-      (sum, result) => sum + num(result.points_against),
+      (sum, result) =>
+        sum + num(result.points_against),
       0
     );
 
-    // POSTSEASON APPEARANCES
+    // PLAYOFF APPEARANCES
 
     const playoffAppearances = results.filter(
-      (result) => Boolean(result.playoff_appearance)
+      (result) =>
+        Boolean(result.playoff_appearance)
     ).length;
+
+    // CHAMPIONSHIP FINAL APPEARANCES
 
     const finalsAppearances = results.filter(
-      (result) => Boolean(result.championship_appearance)
+      (result) =>
+        Boolean(result.championship_appearance)
     ).length;
 
+    // CHAMPIONSHIPS
+
     const championships = results.filter(
-      (result) => Boolean(result.champion)
+      (result) =>
+        Boolean(result.champion)
     ).length;
 
     // HISTORICAL POSTSEASON
 
-    const history = historicalPostseason.get(ownerId) || {
-      playoffWins: 0,
-      playoffLosses: 0,
-      playoffTies: 0,
-      consolationWins: 0,
-      consolationLosses: 0,
-      consolationTies: 0,
-    };
+    const history =
+      historicalPostseason.get(ownerId) ||
+      emptyPostseasonRecord();
 
-    // CURRENT SEASON POSTSEASON
+    // CURRENT POSTSEASON
 
-    const current = currentPostseason.get(ownerId) || {
-      playoffWins: 0,
-      playoffLosses: 0,
-      playoffTies: 0,
-      consolationWins: 0,
-      consolationLosses: 0,
-      consolationTies: 0,
-    };
+    const current =
+      currentPostseason.get(ownerId) ||
+      emptyPostseasonRecord();
 
-    // COMBINED CAREER POSTSEASON RECORDS
+    // COMBINED PLAYOFF RECORD
 
     const playoffWins =
-      history.playoffWins + current.playoffWins;
+      history.playoffWins +
+      current.playoffWins;
 
     const playoffLosses =
-      history.playoffLosses + current.playoffLosses;
+      history.playoffLosses +
+      current.playoffLosses;
 
     const playoffTies =
-      history.playoffTies + current.playoffTies;
+      history.playoffTies +
+      current.playoffTies;
+
+    // COMBINED CONSOLATION RECORD
 
     const consolationWins =
-      history.consolationWins + current.consolationWins;
+      history.consolationWins +
+      current.consolationWins;
 
     const consolationLosses =
-      history.consolationLosses + current.consolationLosses;
+      history.consolationLosses +
+      current.consolationLosses;
 
     const consolationTies =
-      history.consolationTies + current.consolationTies;
+      history.consolationTies +
+      current.consolationTies;
 
     // ALL-GAME RECORD
 
@@ -615,10 +692,12 @@ export default async function OwnersPage() {
       playoffTies +
       consolationTies;
 
-    // SEASONS
+    // SEASONS PLAYED
 
     const years = results
-      .map((result) => Number(result.season_year))
+      .map((result) =>
+        Number(result.season_year)
+      )
       .filter(
         (year) =>
           Number.isFinite(year) &&
@@ -626,15 +705,18 @@ export default async function OwnersPage() {
           year <= Number(currentSeason)
       );
 
-    const seasonsPlayed = new Set(years).size;
+    const seasonsPlayed =
+      new Set(years).size;
 
-    const firstSeason = years.length
-      ? Math.min(...years)
-      : null;
+    const firstSeason =
+      years.length
+        ? Math.min(...years)
+        : null;
 
-    const latestSeason = years.length
-      ? Math.max(...years)
-      : null;
+    const latestSeason =
+      years.length
+        ? Math.max(...years)
+        : null;
 
     return {
       id: owner.id,
@@ -677,6 +759,10 @@ export default async function OwnersPage() {
 
   // ====================================================
   // SORT OWNERS
+  //
+  // 1. Active owners
+  // 2. Championships
+  // 3. Regular-season wins
   // ====================================================
 
   ownerStats.sort((a, b) => {
@@ -684,12 +770,22 @@ export default async function OwnersPage() {
       return a.active ? -1 : 1;
     }
 
-    if (b.championships !== a.championships) {
-      return b.championships - a.championships;
+    if (
+      b.championships !== a.championships
+    ) {
+      return (
+        b.championships -
+        a.championships
+      );
     }
 
-    if (b.regularWins !== a.regularWins) {
-      return b.regularWins - a.regularWins;
+    if (
+      b.regularWins !== a.regularWins
+    ) {
+      return (
+        b.regularWins -
+        a.regularWins
+      );
     }
 
     return a.name.localeCompare(b.name);
@@ -743,8 +839,13 @@ export default async function OwnersPage() {
         </div>
 
         <div className="owners-count">
-          <strong>{ownerStats.length}</strong>
-          <span>ALL-TIME OWNERS</span>
+          <strong>
+            {ownerStats.length}
+          </strong>
+
+          <span>
+            ALL-TIME OWNERS
+          </span>
         </div>
       </section>
 
@@ -800,7 +901,9 @@ export default async function OwnersPage() {
               CURRENT LEAGUE
             </p>
 
-            <h2>Active Owners</h2>
+            <h2>
+              Active Owners
+            </h2>
           </div>
 
           <span>
@@ -828,7 +931,9 @@ export default async function OwnersPage() {
                 LEAGUE HISTORY
               </p>
 
-              <h2>Former Owners</h2>
+              <h2>
+                Former Owners
+              </h2>
             </div>
 
             <span>
