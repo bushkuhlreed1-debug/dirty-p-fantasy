@@ -10,7 +10,7 @@ const links = [
   { href: "/champions", label: "Champions", icon: "trophy" },
   { href: "/records", label: "Records", icon: "chart" },
   { href: "/goat", label: "GOAT Rankings", icon: "crown" },
-  { href: "/rivalries", label: "Rivalries", icon: "swords" },
+  { href: "/rivalry-week", label: "Rivalry Week", icon: "swords" },
   { href: "/map", label: "Owner Map", icon: "map" },
 ];
 
@@ -38,6 +38,7 @@ function NavIcon({ name, size = 21 }) {
         <path d="M9 21v-7h6v7" />
       </>
     ),
+
     users: (
       <>
         <circle cx="9" cy="8" r="3" />
@@ -46,6 +47,7 @@ function NavIcon({ name, size = 21 }) {
         <path d="M18 14a5 5 0 0 1 3 4.6V20" />
       </>
     ),
+
     trophy: (
       <>
         <path d="M7 3h10v8a5 5 0 0 1-10 0V3Z" />
@@ -55,6 +57,7 @@ function NavIcon({ name, size = 21 }) {
         <path d="M8 21h8" />
       </>
     ),
+
     chart: (
       <>
         <path d="M4 20V4" />
@@ -64,12 +67,14 @@ function NavIcon({ name, size = 21 }) {
         <path d="M18 16V4" />
       </>
     ),
+
     crown: (
       <>
         <path d="m3 7 4.5 4L12 4l4.5 7L21 7l-2 12H5L3 7Z" />
         <path d="M5 22h14" />
       </>
     ),
+
     swords: (
       <>
         <path d="m4 4 16 16" />
@@ -79,6 +84,7 @@ function NavIcon({ name, size = 21 }) {
         <path d="m16 21 5-5" />
       </>
     ),
+
     map: (
       <>
         <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z" />
@@ -86,6 +92,7 @@ function NavIcon({ name, size = 21 }) {
         <path d="M15 6v15" />
       </>
     ),
+
     more: (
       <>
         <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
@@ -93,6 +100,7 @@ function NavIcon({ name, size = 21 }) {
         <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
       </>
     ),
+
     close: (
       <>
         <path d="M5 5 19 19" />
