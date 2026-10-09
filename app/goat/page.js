@@ -1,4 +1,3 @@
-
 import Link from "next/link";
 import { getLeagueData } from "../../lib/leagueData";
 
@@ -13,7 +12,7 @@ const GOAT_POINTS = {
   PLAYOFF_APPEARANCE: 3,
   PLAYOFF_WIN: 4,
   CHAMPIONSHIP_APPEARANCE: 8,
-  CHAMPIONSHIP: 20,
+  CHAMPIONSHIP: 12,
 };
 
 // ======================================================
@@ -44,10 +43,7 @@ function getWinPct(wins, losses, ties = 0) {
 
   if (!games) return 0;
 
-  return (
-    ((num(wins) + num(ties) * 0.5) / games) *
-    100
-  );
+  return ((num(wins) + num(ties) * 0.5) / games) * 100;
 }
 
 // ======================================================
@@ -63,8 +59,19 @@ function getGameType(game) {
     game.playoff_tier || ""
   ).trim().toLowerCase();
 
-  // Consolation has priority, even if ESPN labels
-  // the matchup as a postseason game.
+  // Third-place games always count as playoff games,
+  // even when ESPN calls their tier a consolation ladder.
+
+  if (
+    game.is_third_place === true ||
+    type.includes("third_place") ||
+    type.includes("third place") ||
+    type.includes("third-place")
+  ) {
+    return "playoff";
+  }
+
+  // Actual consolation games do not earn GOAT points.
 
   if (
     game.is_consolation === true ||
@@ -80,10 +87,9 @@ function getGameType(game) {
   if (
     game.is_playoff === true ||
     game.is_championship === true ||
-    game.is_third_place === true ||
     type.includes("playoff") ||
     type.includes("championship") ||
-    type.includes("third_place") ||
+    type.includes("semifinal") ||
     tier.includes("winners_bracket") ||
     tier.includes("winner") ||
     tier.includes("championship")
@@ -120,7 +126,11 @@ function getGameKey(game) {
   ].join(":");
 }
 
-function isCompletedGame(game, currentSeason, completedKeys) {
+function isCompletedGame(
+  game,
+  currentSeason,
+  completedKeys
+) {
   if (!hasValidScores(game)) {
     return false;
   }
@@ -142,7 +152,7 @@ function isCompletedGame(game, currentSeason, completedKeys) {
     return true;
   }
 
-  // Imported historical games may not have
+  // Historical imported games may not have
   // explicit completion fields.
 
   if (num(game.season_year) < num(currentSeason)) {
@@ -198,7 +208,6 @@ function GoatOwnerCard({
   owner,
   rank,
   currentSeason,
-  featured = false,
 }) {
   const limitedHistory = owner.seasons <= 2;
 
@@ -220,9 +229,7 @@ function GoatOwnerCard({
           <span className="owner-status">
             {rank === 1
               ? "👑 THE GOAT · #1 ALL-TIME"
-              : rank <= 3
-                ? `HALL OF FAME · #${rank} ALL-TIME`
-                : `#${rank} ALL-TIME`}
+              : `#${rank} ALL-TIME`}
           </span>
 
           <h3>{owner.name}</h3>
@@ -307,13 +314,9 @@ function GoatOwnerCard({
 
       <div className="owner-card-bottom">
         <span>
-          {featured
-            ? owner.championshipYears.length > 0
-              ? `Titles: ${owner.championshipYears.join(" · ")}`
-              : "No championships"
-            : owner.hasCurrentSeason
-              ? `${currentSeason} season included`
-              : `${owner.seasons} league seasons`}
+          {owner.hasCurrentSeason
+            ? `${currentSeason} season included`
+            : `${owner.seasons} league seasons`}
         </span>
 
         <Link href={`/owners/${owner.id}`}>
@@ -325,7 +328,7 @@ function GoatOwnerCard({
 }
 
 // ======================================================
-// GOAT POINTS EXPLANATION
+// GOAT SCORING FORMULA CARD
 // ======================================================
 
 function ScoringCard() {
@@ -351,29 +354,39 @@ function ScoringCard() {
 
       <div className="owner-stats-grid">
         <div>
-          <strong>+1</strong>
+          <strong>
+            +{GOAT_POINTS.REGULAR_WIN}
+          </strong>
           <span>Reg. Win</span>
         </div>
 
         <div>
-          <strong>+3</strong>
+          <strong>
+            +{GOAT_POINTS.PLAYOFF_APPEARANCE}
+          </strong>
           <span>Playoff App.</span>
         </div>
 
         <div>
-          <strong>+4</strong>
+          <strong>
+            +{GOAT_POINTS.PLAYOFF_WIN}
+          </strong>
           <span>Playoff Win</span>
         </div>
 
         <div>
-          <strong>+8</strong>
+          <strong>
+            +{GOAT_POINTS.CHAMPIONSHIP_APPEARANCE}
+          </strong>
           <span>Finals App.</span>
         </div>
       </div>
 
       <div className="owner-record">
         <div>
-          <strong>+20</strong>
+          <strong>
+            +{GOAT_POINTS.CHAMPIONSHIP}
+          </strong>
           <span>CHAMPIONSHIP</span>
         </div>
 
@@ -387,7 +400,7 @@ function ScoringCard() {
         <span>
           Consolation wins do not earn GOAT points.
           Championship-bracket victories earn four
-          points each.
+          points each, including third-place games.
         </span>
 
         <strong>TRANSPARENT FORMULA</strong>
@@ -544,7 +557,7 @@ export default async function GoatPage() {
         Number(season.owner_id) === ownerId
     );
 
-    // REGULAR-SEASON CAREER
+    // REGULAR-SEASON CAREER RECORD
 
     const wins = ownerSeasons.reduce(
       (total, season) =>
@@ -592,7 +605,8 @@ export default async function GoatPage() {
 
     const championships =
       ownerSeasons.filter(
-        (season) => Boolean(season.champion)
+        (season) =>
+          Boolean(season.champion)
       ).length;
 
     const playoffGameWins =
@@ -608,10 +622,12 @@ export default async function GoatPage() {
 
     const championshipYears = ownerSeasons
       .filter(
-        (season) => Boolean(season.champion)
+        (season) =>
+          Boolean(season.champion)
       )
       .map(
-        (season) => Number(season.season_year)
+        (season) =>
+          Number(season.season_year)
       )
       .sort((a, b) => a - b);
 
@@ -619,15 +635,19 @@ export default async function GoatPage() {
 
     const seasonYears = ownerSeasons
       .map(
-        (season) => Number(season.season_year)
+        (season) =>
+          Number(season.season_year)
       )
       .filter(Number.isFinite);
 
-    const seasons = new Set(seasonYears).size;
+    const seasons = new Set(
+      seasonYears
+    ).size;
 
-    const hasCurrentSeason = seasonYears.includes(
-      Number(currentSeason)
-    );
+    const hasCurrentSeason =
+      seasonYears.includes(
+        Number(currentSeason)
+      );
 
     const firstSeason = seasonYears.length
       ? Math.min(...seasonYears)
@@ -765,8 +785,6 @@ export default async function GoatPage() {
     return a.name.localeCompare(b.name);
   });
 
-  const hallOfFame = rankings.slice(0, 3);
-
   // ====================================================
   // PAGE RENDER
   // ====================================================
@@ -827,7 +845,7 @@ export default async function GoatPage() {
         </span>
       </nav>
 
-      {/* ESPN OWNER WARNING */}
+      {/* ESPN OWNER MAPPING WARNING */}
 
       {unmatchedEspnOwners.length > 0 && (
         <section className="owners-section">
@@ -856,66 +874,27 @@ export default async function GoatPage() {
         </section>
       )}
 
-      {/* NUMBER ONE */}
+      {/* GOAT SCORING FORMULA - FIRST */}
 
-      {hallOfFame[0] && (
-        <section className="owners-section">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">
-                #1 ALL-TIME
-              </p>
+      <section className="owners-section">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">
+              THE FORMULA
+            </p>
 
-              <h2>The GOAT</h2>
-            </div>
-
-            <span>
-              {hallOfFame[0].goatScore} GOAT Points
-            </span>
+            <h2>GOAT Scoring System</h2>
           </div>
 
-          <GoatOwnerCard
-            owner={hallOfFame[0]}
-            rank={1}
-            currentSeason={currentSeason}
-            featured={true}
-          />
-        </section>
-      )}
+          <span>
+            Résumé Based
+          </span>
+        </div>
 
-      {/* SECOND AND THIRD */}
+        <ScoringCard />
+      </section>
 
-      {hallOfFame.length > 1 && (
-        <section className="owners-section">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">
-                HALL OF FAME
-              </p>
-
-              <h2>The Top Three</h2>
-            </div>
-
-            <span>
-              Current All-Time Top 3
-            </span>
-          </div>
-
-          <div className="owners-grid">
-            {hallOfFame.slice(1).map((owner, index) => (
-              <GoatOwnerCard
-                key={owner.id}
-                owner={owner}
-                rank={index + 2}
-                currentSeason={currentSeason}
-                featured={true}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* COMPLETE RANKINGS */}
+      {/* COMPLETE GOAT RANKINGS - SECOND */}
 
       <section className="owners-section">
         <div className="section-heading">
@@ -942,26 +921,6 @@ export default async function GoatPage() {
             />
           ))}
         </div>
-      </section>
-
-      {/* GOAT SCORING SYSTEM */}
-
-      <section className="owners-section">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">
-              THE FORMULA
-            </p>
-
-            <h2>GOAT Scoring System</h2>
-          </div>
-
-          <span>
-            Résumé Based
-          </span>
-        </div>
-
-        <ScoringCard />
       </section>
 
       {/* FOOTER */}
