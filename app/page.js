@@ -1943,4 +1943,7 @@ export default async function Home() {
             font-size: 10px;
           }
         }
-      `}</
+      `}</style>
+    </main>
+  );
+}
