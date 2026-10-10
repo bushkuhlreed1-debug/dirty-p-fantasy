@@ -10,7 +10,9 @@ const CURRENT_SEASON = 2026;
 // =====================================================
 
 const n = (value) =>
-  Number.isFinite(Number(value)) ? Number(value) : 0;
+  Number.isFinite(Number(value))
+    ? Number(value)
+    : 0;
 
 const valid = (value) =>
   value !== null &&
@@ -59,17 +61,16 @@ function record(row) {
     : base;
 }
 
-function signed(value, digits = 2) {
+function signed(value) {
   if (!valid(value)) return "—";
 
   return `${n(value) >= 0 ? "+" : ""}${fmt(
-    value,
-    digits
+    value
   )}`;
 }
 
 // =====================================================
-// LOAD ALL HISTORICAL ROWS
+// LOAD HISTORICAL DATA
 // =====================================================
 
 async function fetchAll(table) {
@@ -85,7 +86,9 @@ async function fetchAll(table) {
       })
       .range(offset, offset + 499);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
 
     rows.push(...(data || []));
 
@@ -125,11 +128,17 @@ function winnerId(game) {
     return null;
   }
 
-  if (n(game.home_score) > n(game.away_score)) {
+  if (
+    n(game.home_score) >
+    n(game.away_score)
+  ) {
     return n(game.home_owner_id);
   }
 
-  if (n(game.away_score) > n(game.home_score)) {
+  if (
+    n(game.away_score) >
+    n(game.home_score)
+  ) {
     return n(game.away_owner_id);
   }
 
@@ -162,7 +171,7 @@ function roundOf(game) {
   const tier = norm(game.playoff_tier);
 
   // Third-place games are postseason games,
-  // but they do not count as semifinals.
+  // but do not count toward this award.
   if (
     game.is_third_place === true ||
     type.includes("third_place") ||
@@ -246,7 +255,17 @@ function scoringWeeks(game) {
 }
 
 // =====================================================
-// CALCULATE EACH CHAMPIONSHIP SEASON
+// CHAMPIONSHIP SEASON ANALYSIS
+//
+// THREE CATEGORIES:
+//
+// 1. Regular-season winning percentage
+// 2. Regular-season point differential
+//    relative to league scoring
+// 3. Combined semifinal and championship
+//    margin relative to league scoring
+//
+// Each category counts equally.
 // =====================================================
 
 function calculateSeasons(
@@ -257,6 +276,10 @@ function calculateSeasons(
   return seasons.map((season) => {
     const year = n(season.year);
     const ownerId = n(season.champion?.id);
+
+    // ---------------------------------------------
+    // REGULAR-SEASON RESULTS
+    // ---------------------------------------------
 
     const leagueResults = results.filter(
       (row) =>
@@ -269,11 +292,10 @@ function calculateSeasons(
     );
 
     // ---------------------------------------------
-    // AVERAGE SCORING FOR THAT SEASON
+    // LEAGUE-AVERAGE TEAM SCORE
     //
-    // This accounts for the differences between
-    // standard scoring and full PPR without
-    // needing the exact year settings changed.
+    // This adjusts for scoring differences
+    // between the 0-PPR and PPR eras.
     // ---------------------------------------------
 
     const scoredTeams = leagueResults.filter(
@@ -297,21 +319,26 @@ function calculateSeasons(
 
     const leagueAverage =
       totalLeagueGames > 0
-        ? totalLeaguePoints /
-          totalLeagueGames
+        ? totalLeaguePoints / totalLeagueGames
         : null;
 
     // ---------------------------------------------
-    // REGULAR SEASON
+    // CATEGORY 1: WINNING PERCENTAGE
     // ---------------------------------------------
 
     const totalGames =
       gamesPlayed(championResult);
 
     const winningPercentage =
-      championResult && totalGames
+      championResult && totalGames > 0
         ? winPct(championResult) * 100
         : null;
+
+    // ---------------------------------------------
+    // CATEGORY 2: REGULAR-SEASON DOMINANCE
+    //
+    // Includes both wins and losses.
+    // ---------------------------------------------
 
     const totalPointDifferential =
       championResult &&
@@ -324,18 +351,9 @@ function calculateSeasons(
     const avgPointDifferential =
       totalPointDifferential !== null &&
       totalGames > 0
-        ? totalPointDifferential /
-          totalGames
+        ? totalPointDifferential / totalGames
         : null;
 
-    // Average differential as a percentage of
-    // that season's league-average team score.
-    //
-    // Example:
-    // +30 PPG with a league average of 100
-    // = +30% regular-season dominance.
-    //
-    // This includes both wins and losses.
     const regularDominance =
       avgPointDifferential !== null &&
       leagueAverage > 0
@@ -346,7 +364,7 @@ function calculateSeasons(
         : null;
 
     // ---------------------------------------------
-    // PLAYOFF MATCHUPS
+    // CATEGORY 3: PLAYOFF DOMINANCE
     // ---------------------------------------------
 
     const ownerGames = matchups.filter(
@@ -355,11 +373,12 @@ function calculateSeasons(
         playedBy(game, ownerId)
     );
 
+    // Find the championship victory.
+
     const championshipGames = ownerGames
       .filter(
         (game) =>
-          roundOf(game) ===
-            "championship" &&
+          roundOf(game) === "championship" &&
           winnerId(game) === ownerId
       )
       .sort(
@@ -371,18 +390,23 @@ function calculateSeasons(
     const championship =
       championshipGames[0] || null;
 
-    // Some historical semifinal matchups are
-    // labeled simply "playoff".
+    // Find the semifinal victory.
     //
-    // Find the latest winners-bracket victory
-    // BEFORE the championship.
+    // Historical imports may label this
+    // simply as "playoff".
+    //
+    // Use the latest playoff victory before
+    // the championship game.
+
     const semifinalCandidates = ownerGames
       .filter((game) => {
         const type = roundOf(game);
 
         return (
-          (type === "semifinal" ||
-            type === "playoff") &&
+          (
+            type === "semifinal" ||
+            type === "playoff"
+          ) &&
           winnerId(game) === ownerId &&
           championship &&
           matchupWeek(game) <
@@ -400,18 +424,12 @@ function calculateSeasons(
 
     const semifinalMargin =
       semifinal
-        ? winningMargin(
-            semifinal,
-            ownerId
-          )
+        ? winningMargin(semifinal, ownerId)
         : null;
 
     const championshipMargin =
       championship
-        ? winningMargin(
-            championship,
-            ownerId
-          )
+        ? winningMargin(championship, ownerId)
         : null;
 
     const combinedPlayoffMargin =
@@ -421,12 +439,9 @@ function calculateSeasons(
           championshipMargin
         : null;
 
-    // Normalize combined playoff margins by
-    // the league-average team score for the
-    // number of scoring weeks in both rounds.
-    //
-    // This allows different scoring eras to
-    // be compared more fairly.
+    // Account for one-week or two-week
+    // playoff matchups.
+
     const playoffScoringWeeks =
       semifinal && championship
         ? scoringWeeks(semifinal) +
@@ -447,7 +462,7 @@ function calculateSeasons(
         : null;
 
     // ---------------------------------------------
-    // ELIGIBILITY
+    // COMPLETE DATA CHECK
     // ---------------------------------------------
 
     const complete =
@@ -463,12 +478,10 @@ function calculateSeasons(
       season,
       year,
       ownerId,
-
       championResult,
       complete,
 
       record: record(championResult),
-      wins: n(championResult?.wins),
 
       winningPercentage,
       avgPointDifferential,
@@ -485,22 +498,18 @@ function calculateSeasons(
       regularRank: null,
       playoffRank: null,
       rankTotal: null,
-      overallRank: null,
     };
   });
 }
 
 // =====================================================
-// CATEGORY RANKING
+// ASSIGN CATEGORY RANKS
 //
-// First = 1 point
-// Second = 2 points
-// Third = 3 points
-// ...
+// 1st = 1
+// 2nd = 2
+// 3rd = 3
 //
-// Tied statistics receive average ranks.
-//
-// Lower total rank = better championship season.
+// Ties receive average ranks.
 // =====================================================
 
 function assignRanks(
@@ -510,8 +519,7 @@ function assignRanks(
 ) {
   const sorted = [...rows].sort(
     (a, b) =>
-      n(b[field]) -
-      n(a[field])
+      n(b[field]) - n(a[field])
   );
 
   let position = 0;
@@ -529,15 +537,8 @@ function assignRanks(
       end++;
     }
 
-    // Positions are 1-based.
-    //
-    // Example:
-    // Tied second/third = 2.5 each.
     const averageRank =
-      (
-        (position + 1) +
-        end
-      ) / 2;
+      ((position + 1) + end) / 2;
 
     for (
       let index = position;
@@ -552,7 +553,22 @@ function assignRanks(
   }
 }
 
-function buildRankings(
+// =====================================================
+// FIND THE MOST DOMINANT CHAMPION
+//
+// FORMULA:
+//
+// DOMINANCE RANK =
+// WINNING % RANK
+// +
+// REGULAR-SEASON DOMINANCE RANK
+// +
+// PLAYOFF DOMINANCE RANK
+//
+// LOWEST TOTAL WINS.
+// =====================================================
+
+function findMostDominantChampion(
   seasons,
   results,
   matchups
@@ -566,14 +582,6 @@ function buildRankings(
   const eligible = all.filter(
     (row) => row.complete
   );
-
-  // Three equally important categories:
-  //
-  // 1. Regular-season winning percentage
-  // 2. Scoring-adjusted regular-season differential
-  // 3. Scoring-adjusted playoff victory margin
-  //
-  // Each contributes one rank number.
 
   assignRanks(
     eligible,
@@ -600,14 +608,12 @@ function buildRankings(
       row.playoffRank;
   });
 
-  // Overall ranking:
+  // Lowest total is most dominant.
   //
-  // Lowest combined rank wins.
-  //
-  // Exact rank-total ties are broken by:
-  // 1. Better regular-season dominance
-  // 2. Better playoff dominance
-  // 3. Better winning percentage
+  // Tie breakers:
+  // 1. Regular-season scoring dominance
+  // 2. Playoff dominance
+  // 3. Winning percentage
   // 4. Earlier season
 
   eligible.sort(
@@ -622,39 +628,38 @@ function buildRankings(
       a.year - b.year
   );
 
-  eligible.forEach((row, index) => {
-    row.overallRank = index + 1;
-  });
-
   return {
-    ranked: eligible,
-    incomplete: all.filter(
-      (row) => !row.complete
-    ),
+    champion: eligible[0] || null,
+    eligibleCount: eligible.length,
+    incompleteCount:
+      all.length - eligible.length,
   };
 }
 
 // =====================================================
-// STAT DISPLAY
+// STAT CARD
 // =====================================================
 
 function Stat({
-  label,
   value,
+  label,
   detail,
 }) {
   return (
     <div className="dp-ranking-stat">
       <strong>{value}</strong>
+
       <span>{label}</span>
 
-      {detail && <small>{detail}</small>}
+      {detail && (
+        <small>{detail}</small>
+      )}
     </div>
   );
 }
 
 // =====================================================
-// MAIN PAGE
+// MAIN CHAMPIONS PAGE
 // =====================================================
 
 export default async function ChampionsPage() {
@@ -732,9 +737,9 @@ export default async function ChampionsPage() {
     );
   }
 
-  // ---------------------------------------------
+  // ===================================================
   // TEAM NAMES
-  // ---------------------------------------------
+  // ===================================================
 
   const teamNames = new Map(
     teams.map((team) => [
@@ -751,20 +756,19 @@ export default async function ChampionsPage() {
     );
   }
 
-  // ---------------------------------------------
-  // RANKINGS
-  // ---------------------------------------------
+  // ===================================================
+  // MOST DOMINANT CHAMPION
+  // ===================================================
 
   const {
-    ranked,
-    incomplete,
-  } = buildRankings(
+    champion,
+    eligibleCount,
+    incompleteCount,
+  } = findMostDominantChampion(
     seasons,
     results,
     games
   );
-
-  const best = ranked[0] || null;
 
   const years = seasons.map(
     (season) => n(season.year)
@@ -778,9 +782,9 @@ export default async function ChampionsPage() {
     ? Math.max(...years)
     : 2025;
 
-  // ---------------------------------------------
+  // ===================================================
   // PAGE
-  // ---------------------------------------------
+  // ===================================================
 
   return (
     <main className="page-shell">
@@ -812,10 +816,9 @@ export default async function ChampionsPage() {
           <h1>Champions</h1>
 
           <p>
-            Every Dirty P champion since 2014,
-            ranked against the greatest
-            championship seasons in league
-            history.
+            Every Dirty P champion since 2014
+            and the most dominant championship
+            season in league history.
           </p>
         </div>
 
@@ -847,6 +850,7 @@ export default async function ChampionsPage() {
           ========================================= */}
 
       <section className="owners-section">
+
         <div className="section-heading">
           <div>
             <p className="eyebrow">
@@ -859,8 +863,10 @@ export default async function ChampionsPage() {
           </div>
         </div>
 
-        {best ? (
+        {champion ? (
           <article className="dp-dominant-card">
+
+            {/* CHAMPION */}
 
             <div className="dp-dominant-header">
               <div>
@@ -869,18 +875,18 @@ export default async function ChampionsPage() {
                 </span>
 
                 <h3>
-                  {best.season.champion.name}
+                  {champion.season.champion.name}
                 </h3>
 
                 <p>
                   {teamName(
-                    best.year,
-                    best.ownerId
+                    champion.year,
+                    champion.ownerId
                   )}
                 </p>
 
                 <strong className="dp-year">
-                  {best.year} LEAGUE CHAMPION
+                  {champion.year} LEAGUE CHAMPION
                 </strong>
               </div>
 
@@ -892,26 +898,27 @@ export default async function ChampionsPage() {
                 </strong>
 
                 <span>
-                  ALL-TIME CHAMPIONSHIP RANK
+                  ALL-TIME CHAMPIONSHIP
                 </span>
               </div>
             </div>
 
-            {/* PERFORMANCE */}
+            {/* PERFORMANCE STATS */}
 
             <div className="dp-dominant-stats">
+
               <Stat
-                value={best.record}
+                value={champion.record}
                 label="REGULAR-SEASON RECORD"
                 detail={`${fmt(
-                  best.winningPercentage,
+                  champion.winningPercentage,
                   1
                 )}% Winning Percentage`}
               />
 
               <Stat
                 value={signed(
-                  best.avgPointDifferential
+                  champion.avgPointDifferential
                 )}
                 label="AVG. POINT DIFFERENTIAL"
                 detail="Per Regular-Season Game"
@@ -919,456 +926,190 @@ export default async function ChampionsPage() {
 
               <Stat
                 value={signed(
-                  best.combinedPlayoffMargin
+                  champion.combinedPlayoffMargin
                 )}
                 label="COMBINED PLAYOFF MARGIN"
                 detail="Semifinal + Championship"
               />
+
             </div>
 
-            {/* RANK BREAKDOWN */}
+            {/* SIMPLE FORMULA */}
 
             <div className="dp-dominance-explainer">
+
               <h4>
-                Why This Season Ranks #1
+                How Is the Most Dominant
+                Champion Determined?
               </h4>
 
               <p>
-                Every Dirty P championship season
-                is compared across three categories.
-                Each category contributes one
-                ranking, and the lowest combined
-                rank wins.
+                We compare every championship
+                season in Dirty P history using
+                three equally important factors:
               </p>
 
-              <div className="dp-breakdown">
+              <div className="dp-simple-factors">
+
                 <div>
-                  <strong>
-                    #{fmt(best.winRank, 1)}
-                  </strong>
+                  <strong>1</strong>
 
-                  <span>
-                    Regular-Season Record
-                  </span>
+                  <div>
+                    <h5>
+                      Winning Percentage
+                    </h5>
 
-                  <p>
-                    {best.record} record with a
-                    {" "}
-                    {fmt(
-                      best.winningPercentage,
-                      1
-                    )}% winning percentage.
-                  </p>
+                    <p>
+                      How often the team won
+                      during the regular season.
+                    </p>
+                  </div>
                 </div>
 
                 <div>
-                  <strong>
-                    #{fmt(best.regularRank, 1)}
-                  </strong>
+                  <strong>2</strong>
 
-                  <span>
-                    Regular-Season Dominance
-                  </span>
+                  <div>
+                    <h5>
+                      Regular-Season Dominance
+                    </h5>
 
-                  <p>
-                    {signed(
-                      best.avgPointDifferential
-                    )} points per game against
-                    opponents.
-                  </p>
-
-                  <small>
-                    Scoring-adjusted dominance:
-                    {" "}
-                    {signed(
-                      best.regularDominance
-                    )}%
-                  </small>
+                    <p>
+                      Average point differential
+                      per game, compared to that
+                      season's league-average
+                      team score.
+                    </p>
+                  </div>
                 </div>
 
                 <div>
-                  <strong>
-                    #{fmt(best.playoffRank, 1)}
-                  </strong>
+                  <strong>3</strong>
 
-                  <span>
-                    Playoff Dominance
-                  </span>
+                  <div>
+                    <h5>
+                      Playoff Dominance
+                    </h5>
 
-                  <p>
-                    Semifinal:
-                    {" "}
-                    {signed(
-                      best.semifinalMargin
-                    )}
-                    <br />
-                    Championship:
-                    {" "}
-                    {signed(
-                      best.championshipMargin
-                    )}
-                  </p>
-
-                  <small>
-                    Scoring-adjusted dominance:
-                    {" "}
-                    {fmt(
-                      best.playoffDominance
-                    )}%
-                  </small>
+                    <p>
+                      Combined semifinal and
+                      championship winning
+                      margins, adjusted for
+                      league scoring and
+                      scoring weeks.
+                    </p>
+                  </div>
                 </div>
+
               </div>
 
-              <p className="dp-score-explanation">
+              {/* FORMULA BOX */}
+
+              <div className="dp-formula-box">
+
+                <span>
+                  THE FORMULA
+                </span>
+
                 <strong>
-                  Combined Rank:
-                  {" "}
-                  {fmt(best.rankTotal, 1)}
+                  Dominance Rank =
                 </strong>
 
-                {" "}— the sum of this team's
-                positions in the three categories.
-                A lower total means a stronger
-                championship season.
+                <div className="dp-formula-equation">
+                  <span>
+                    Winning % Rank
+                  </span>
+
+                  <b>+</b>
+
+                  <span>
+                    Regular-Season Rank
+                  </span>
+
+                  <b>+</b>
+
+                  <span>
+                    Playoff Rank
+                  </span>
+                </div>
+
+                <p>
+                  Every champion is ranked
+                  against the others in each
+                  category. First place earns
+                  1 point, second earns 2,
+                  and so on.
+                </p>
+
+                <p>
+                  <strong>
+                    The lowest combined
+                    ranking wins.
+                  </strong>
+                </p>
+
+              </div>
+
+              <p className="dp-scoring-note">
+                Because Dirty P changed from
+                standard scoring (0 PPR) to
+                full PPR, point differentials
+                are compared against each
+                season's average scoring.
+                This allows champions from
+                different scoring eras to
+                compete more fairly.
               </p>
+
+              {eligibleCount > 0 && (
+                <p className="dp-scoring-note">
+                  Compared against
+                  {" "}
+                  {eligibleCount}
+                  {" "}
+                  championship
+                  {" "}
+                  {eligibleCount === 1
+                    ? "season"
+                    : "seasons"}
+                  .
+                </p>
+              )}
+
             </div>
+
           </article>
         ) : (
           <article className="owner-card dp-message">
+
             <h3>
-              Championship rankings unavailable
+              Championship ranking unavailable
             </h3>
 
             <p>
-              Complete season records and both
-              playoff rounds are required to
-              determine the winner.
+              Complete regular-season data,
+              semifinal results, and
+              championship results are
+              required to determine the award.
             </p>
+
           </article>
         )}
-      </section>
 
-      {/* =========================================
-          ALL-TIME CHAMPIONSHIP RANKINGS
-          ========================================= */}
-
-      <section className="owners-section">
-
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">
-              2014–2025
-            </p>
-
-            <h2>
-              Championship Season Rankings
-            </h2>
-          </div>
-
-          <span>
-            {ranked.length} Ranked Seasons
-          </span>
-        </div>
-
-        <p className="dp-rank-intro">
-          Every championship team is evaluated
-          using regular-season winning percentage,
-          regular-season point differential,
-          and combined playoff winning margin.
-          Scoring statistics are adjusted to
-          the league's scoring environment in
-          that particular year.
-        </p>
-
-        <div className="dp-ranking-scroll">
-          <table className="dp-ranking-table">
-
-            <thead>
-              <tr>
-                <th>RANK</th>
-                <th>CHAMPION</th>
-                <th>YEAR</th>
-                <th>RECORD</th>
-                <th>WIN %</th>
-                <th>AVG. +/-</th>
-                <th>PLAYOFF +/-</th>
-                <th>RANK TOTAL</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {ranked.map((row) => (
-                <tr
-                  key={row.year}
-                  className={
-                    row.overallRank === 1
-                      ? "dp-ranking-first"
-                      : ""
-                  }
-                >
-                  <td>
-                    <strong className="dp-rank-number">
-                      #{row.overallRank}
-                    </strong>
-                  </td>
-
-                  <td>
-                    <Link
-                      href={`/owners/${row.ownerId}`}
-                      className="dp-rank-owner"
-                    >
-                      {row.season.champion.name}
-                    </Link>
-
-                    <small className="dp-rank-team">
-                      {teamName(
-                        row.year,
-                        row.ownerId
-                      )}
-                    </small>
-                  </td>
-
-                  <td>
-                    {row.year}
-                  </td>
-
-                  <td>
-                    {row.record}
-                  </td>
-
-                  <td>
-                    {fmt(
-                      row.winningPercentage,
-                      1
-                    )}%
-                  </td>
-
-                  <td>
-                    {signed(
-                      row.avgPointDifferential
-                    )}
-                  </td>
-
-                  <td>
-                    {signed(
-                      row.combinedPlayoffMargin
-                    )}
-                  </td>
-
-                  <td>
-                    <strong className="dp-rank-total">
-                      {fmt(
-                        row.rankTotal,
-                        1
-                      )}
-                    </strong>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-
-          </table>
-        </div>
-
-        {/* =========================================
-            CATEGORY RANK DETAILS
-            ========================================= */}
-
-        <details className="dp-ranking-details">
-          <summary>
-            View Individual Category Rankings
-            <span>+</span>
-          </summary>
-
-          <div className="dp-ranking-scroll">
-            <table className="dp-ranking-table">
-              <thead>
-                <tr>
-                  <th>CHAMPION</th>
-                  <th>YEAR</th>
-                  <th>WIN RANK</th>
-                  <th>REGULAR RANK</th>
-                  <th>PLAYOFF RANK</th>
-                  <th>TOTAL</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {ranked.map((row) => (
-                  <tr key={row.year}>
-                    <td>
-                      {row.season.champion.name}
-                    </td>
-
-                    <td>{row.year}</td>
-
-                    <td>
-                      {fmt(row.winRank, 1)}
-                    </td>
-
-                    <td>
-                      {fmt(row.regularRank, 1)}
-                    </td>
-
-                    <td>
-                      {fmt(row.playoffRank, 1)}
-                    </td>
-
-                    <td>
-                      <strong>
-                        {fmt(
-                          row.rankTotal,
-                          1
-                        )}
-                      </strong>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-
-        {/* =========================================
-            RANKING EXPLANATION
-            ========================================= */}
-
-        <details className="dp-ranking-details">
-          <summary>
-            How Are Championship Seasons Ranked?
-            <span>+</span>
-          </summary>
-
-          <div className="dp-ranking-method">
-
-            <h4>
-              Three Categories. Equal Importance.
-            </h4>
-
-            <p>
-              Every championship team receives
-              a ranking in three categories.
-              First place receives 1 point,
-              second place receives 2 points,
-              and so on.
-            </p>
-
-            <p>
-              <strong>
-                1. Regular-Season Winning Percentage
-              </strong>
-            </p>
-
-            <p>
-              How frequently did the champion
-              win during the regular season?
-              Ties count as half a win.
-            </p>
-
-            <p>
-              <strong>
-                2. Regular-Season Scoring Dominance
-              </strong>
-            </p>
-
-            <p>
-              We calculate the champion's average
-              point differential per game,
-              including both wins and losses.
-              We then divide that by the
-              league-average team score
-              for that season.
-            </p>
-
-            <p>
-              This makes point differentials
-              comparable across years with
-              different fantasy scoring systems.
-            </p>
-
-            <p>
-              <strong>
-                3. Playoff Dominance
-              </strong>
-            </p>
-
-            <p>
-              We combine the semifinal winning
-              margin and championship winning
-              margin. That total is divided by
-              the league-average weekly team
-              score multiplied by the number
-              of scoring weeks across both rounds.
-            </p>
-
-            <p>
-              <strong>
-                Final Ranking
-              </strong>
-            </p>
-
-            <p>
-              The three category ranks are added
-              together. The champion with the
-              lowest combined rank is the
-              Most Dominant Champion Ever.
-            </p>
-
-            <div className="dp-ranking-example">
-              <span>
-                Example
-              </span>
-
-              <p>
-                Regular-season rank: 2
-              </p>
-
-              <p>
-                Scoring dominance rank: 1
-              </p>
-
-              <p>
-                Playoff dominance rank: 5
-              </p>
-
-              <strong>
-                Combined Rank = 8
-              </strong>
-            </div>
-
-            <p className="dp-ranking-note">
-              Tied category statistics receive
-              average ranks. Exact final-rank
-              ties are broken by regular-season
-              scoring dominance, then playoff
-              dominance, then winning percentage,
-              then earlier season.
-            </p>
-
-            <p className="dp-ranking-note">
-              Scoring adjustments are based on
-              actual yearly league averages,
-              not an assumed date for the
-              switch from standard scoring
-              to full PPR.
-            </p>
-          </div>
-        </details>
-
-        {incomplete.length > 0 && (
+        {incompleteCount > 0 && (
           <p className="dp-missing-note">
-            {incomplete.length}
-            {" "}championship season
-            {incomplete.length === 1 ? "" : "s"}
-            {" "}could not be ranked because
-            regular-season or playoff data
-            is incomplete.
-
-            {" "}The rankings above include
-            only seasons with all three
-            required statistics.
+            {incompleteCount}
+            {" "}championship
+            {" "}
+            {incompleteCount === 1
+              ? "season lacks"
+              : "seasons lack"}
+            {" "}complete historical data.
+            The award currently compares
+            only eligible seasons.
           </p>
         )}
+
       </section>
 
       {/* =========================================
@@ -1376,6 +1117,7 @@ export default async function ChampionsPage() {
           ========================================= */}
 
       <section className="owners-section">
+
         <div className="section-heading">
           <div>
             <p className="eyebrow">
@@ -1399,6 +1141,7 @@ export default async function ChampionsPage() {
               className="dp-champion-row"
               key={season.year}
             >
+
               <div className="dp-champion-year">
                 {season.year}
               </div>
@@ -1445,7 +1188,8 @@ export default async function ChampionsPage() {
                 </span>
 
                 <strong>
-                  {season.runner_up?.name || "—"}
+                  {season.runner_up?.name ||
+                    "—"}
                 </strong>
 
                 <p>
@@ -1455,6 +1199,7 @@ export default async function ChampionsPage() {
                   )}
                 </p>
               </div>
+
             </article>
           ))}
 
@@ -1464,6 +1209,7 @@ export default async function ChampionsPage() {
       {/* FOOTER */}
 
       <footer className="site-footer">
+
         <strong>
           Dirty P Fantasy Football
         </strong>
@@ -1476,6 +1222,7 @@ export default async function ChampionsPage() {
           Independent fantasy league archive.
           Not affiliated with or endorsed by ESPN.
         </p>
+
       </footer>
 
       {/* =========================================
@@ -1483,6 +1230,7 @@ export default async function ChampionsPage() {
           ========================================= */}
 
       <style>{`
+
         .dp-dominant-card {
           background:#171d26;
           border:1px solid #806539;
@@ -1542,10 +1290,8 @@ export default async function ChampionsPage() {
 
         .dp-dominant-stats {
           display:grid;
-          grid-template-columns:repeat(
-            3,
-            minmax(0,1fr)
-          );
+          grid-template-columns:
+            repeat(3,minmax(0,1fr));
           gap:1px;
           background:#303947;
           border-block:1px solid #303947;
@@ -1589,234 +1335,128 @@ export default async function ChampionsPage() {
 
         .dp-dominance-explainer h4 {
           color:#e9bd67;
-          margin:0 0 10px;
+          margin:0 0 15px;
           font-size:17px;
         }
 
-        .dp-breakdown {
-          display:grid;
-          grid-template-columns:repeat(
-            3,
-            minmax(0,1fr)
-          );
-          gap:12px;
-          margin:20px 0;
+        .dp-dominance-explainer > p {
+          margin:0 0 17px;
         }
 
-        .dp-breakdown > div {
-          padding:15px;
+        /* THREE SIMPLE FACTORS */
+
+        .dp-simple-factors {
+          display:flex;
+          flex-direction:column;
+          gap:12px;
+          margin:18px 0 22px;
+        }
+
+        .dp-simple-factors > div {
+          display:flex;
+          align-items:flex-start;
+          gap:14px;
+          padding:14px 16px;
           background:#222b37;
           border:1px solid #354150;
           border-radius:10px;
         }
 
-        .dp-breakdown strong {
-          display:block;
-          color:#e9bd67;
-          font-size:21px;
+        .dp-simple-factors > div > strong {
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          flex-shrink:0;
+          width:30px;
+          height:30px;
+          border-radius:50%;
+          background:#806539;
+          color:#fff;
+          font-size:13px;
         }
 
-        .dp-breakdown span {
+        .dp-simple-factors h5 {
+          color:#f2f4f7;
+          font-size:13px;
+          margin:0 0 4px;
+        }
+
+        .dp-simple-factors p {
+          color:#aeb9c7;
+          font-size:12px;
+          margin:0;
+          line-height:1.6;
+        }
+
+        /* FORMULA */
+
+        .dp-formula-box {
+          background:#1c2430;
+          border:1px solid #806539;
+          border-radius:12px;
+          padding:22px;
+          margin:20px 0;
+          text-align:center;
+        }
+
+        .dp-formula-box > span {
+          display:block;
+          color:#e9bd67;
+          font-size:10px;
+          font-weight:900;
+          letter-spacing:1px;
+          margin-bottom:12px;
+        }
+
+        .dp-formula-box > strong {
           display:block;
           color:#f2f4f7;
-          font-weight:800;
-          margin-top:4px;
+          font-size:17px;
+          margin-bottom:17px;
         }
 
-        .dp-breakdown p {
-          margin:8px 0;
+        .dp-formula-equation {
+          display:flex;
+          justify-content:center;
+          align-items:center;
+          flex-wrap:wrap;
+          gap:9px;
+          margin-bottom:18px;
         }
 
-        .dp-breakdown small {
-          color:#d5b77c;
-        }
-
-        .dp-score-explanation {
-          margin-bottom:0;
-        }
-
-        .dp-score-explanation strong {
+        .dp-formula-equation span {
+          background:#2c3643;
           color:#e9bd67;
+          padding:9px 11px;
+          border-radius:7px;
+          font-size:12px;
+          font-weight:800;
+        }
+
+        .dp-formula-equation b {
+          color:#f2f4f7;
+          font-size:18px;
+        }
+
+        .dp-formula-box p {
+          color:#aeb9c7;
+          font-size:12px;
+          line-height:1.7;
+          margin:8px 0 0;
+        }
+
+        .dp-formula-box p strong {
+          color:#e9bd67;
+        }
+
+        .dp-scoring-note {
+          color:#94a3b5;
+          font-size:12px;
+          line-height:1.7;
         }
 
         .dp-message {
           padding:22px;
-        }
-
-        .dp-rank-intro {
-          color:#aeb9c7;
-          font-size:13px;
-          line-height:1.7;
-          margin:0 0 18px;
-        }
-
-        .dp-ranking-scroll {
-          width:100%;
-          overflow-x:auto;
-          border:1px solid #303947;
-          border-radius:12px;
-          background:#171d26;
-        }
-
-        .dp-ranking-table {
-          width:100%;
-          min-width:850px;
-          border-collapse:collapse;
-          font-variant-numeric:tabular-nums;
-        }
-
-        .dp-ranking-table thead {
-          background:#222b37;
-        }
-
-        .dp-ranking-table th {
-          color:#aeb9c7;
-          font-size:10px;
-          font-weight:800;
-          letter-spacing:.6px;
-          padding:16px 12px;
-          text-align:left;
-          white-space:nowrap;
-        }
-
-        .dp-ranking-table td {
-          color:#dce2e9;
-          font-size:13px;
-          padding:17px 12px;
-          border-top:1px solid #303947;
-          white-space:nowrap;
-        }
-
-        .dp-ranking-table tbody tr:hover {
-          background:#202936;
-        }
-
-        .dp-ranking-table .dp-ranking-first {
-          background:rgba(233,189,103,.08);
-        }
-
-        .dp-ranking-table .dp-ranking-first:hover {
-          background:rgba(233,189,103,.13);
-        }
-
-        .dp-rank-number {
-          color:#e9bd67;
-          font-size:17px;
-        }
-
-        .dp-rank-owner {
-          color:#f5f6f8;
-          font-weight:800;
-          text-decoration:none;
-        }
-
-        .dp-rank-owner:hover {
-          color:#e9bd67;
-        }
-
-        .dp-rank-team {
-          display:block;
-          color:#8898aa;
-          margin-top:5px;
-          font-size:11px;
-        }
-
-        .dp-rank-total {
-          color:#e9bd67;
-          font-size:16px;
-        }
-
-        .dp-ranking-details {
-          margin-top:14px;
-          border:1px solid #354150;
-          border-radius:12px;
-          background:#171d26;
-          overflow:hidden;
-        }
-
-        .dp-ranking-details summary {
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:16px;
-          cursor:pointer;
-          padding:17px 19px;
-          color:#e9bd67;
-          font-size:13px;
-          font-weight:800;
-          list-style:none;
-        }
-
-        .dp-ranking-details summary::-webkit-details-marker {
-          display:none;
-        }
-
-        .dp-ranking-details summary span {
-          font-size:21px;
-          line-height:1;
-        }
-
-        .dp-ranking-details[open] summary span {
-          transform:rotate(45deg);
-        }
-
-        .dp-ranking-details .dp-ranking-scroll {
-          border:none;
-          border-top:1px solid #354150;
-          border-radius:0;
-        }
-
-        .dp-ranking-method {
-          padding:20px;
-          border-top:1px solid #354150;
-          color:#b5c0ce;
-          font-size:13px;
-          line-height:1.7;
-        }
-
-        .dp-ranking-method h4 {
-          color:#f3f5f7;
-          font-size:17px;
-          margin:0 0 14px;
-        }
-
-        .dp-ranking-method p {
-          margin:0 0 14px;
-        }
-
-        .dp-ranking-method p strong {
-          color:#e9bd67;
-        }
-
-        .dp-ranking-example {
-          background:#222b37;
-          border:1px solid #354150;
-          border-radius:10px;
-          padding:16px;
-          margin:18px 0;
-        }
-
-        .dp-ranking-example > span {
-          display:block;
-          color:#e9bd67;
-          font-weight:800;
-          margin-bottom:10px;
-        }
-
-        .dp-ranking-example p {
-          margin:4px 0;
-        }
-
-        .dp-ranking-example > strong {
-          display:block;
-          color:#e9bd67;
-          margin-top:14px;
-          font-size:17px;
-        }
-
-        .dp-ranking-note {
-          color:#93a3b5;
-          font-size:12px;
         }
 
         .dp-missing-note {
@@ -1825,6 +1465,8 @@ export default async function ChampionsPage() {
           margin-top:12px;
           line-height:1.6;
         }
+
+        /* CHAMPIONSHIP HISTORY */
 
         .dp-champion-history {
           display:flex;
@@ -1878,13 +1520,20 @@ export default async function ChampionsPage() {
           font-size:14px;
         }
 
+        /* MOBILE */
+
         @media(max-width:750px) {
-          .dp-breakdown {
-            grid-template-columns:1fr;
-          }
 
           .dp-dominant-stats {
             grid-template-columns:1fr;
+          }
+
+          .dp-dominant-header {
+            padding:22px;
+          }
+
+          .dp-dominance-explainer {
+            padding:20px;
           }
 
           .dp-champion-row {
@@ -1895,11 +1544,14 @@ export default async function ChampionsPage() {
             grid-column:2;
           }
 
-          .dp-dominant-header {
-            padding:22px;
+          .dp-formula-box {
+            padding:17px;
           }
+
         }
+
       `}</style>
+
     </main>
   );
 }
