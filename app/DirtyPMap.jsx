@@ -40,6 +40,12 @@ const locations = [
     lng: -97.2293,
   },
   {
+    city: "Frisco",
+    state: "TX",
+    lat: 33.1507,
+    lng: -96.8236,
+  },
+  {
     city: "Charlotte",
     state: "NC",
     lat: 35.2271,
@@ -59,6 +65,7 @@ export default function DirtyPMap() {
 
   useEffect(() => {
     let cancelled = false;
+    let resizeTimeout;
 
     async function loadMap() {
       if (!document.getElementById("leaflet-css")) {
@@ -188,17 +195,26 @@ export default function DirtyPMap() {
         maxZoom: 5,
       });
 
-      setTimeout(() => {
+      resizeTimeout = setTimeout(() => {
         if (mapInstance.current) {
           mapInstance.current.invalidateSize();
         }
       }, 250);
     }
 
-    loadMap();
+    loadMap().catch((error) => {
+      console.error(
+        "Unable to load Dirty P map:",
+        error
+      );
+    });
 
     return () => {
       cancelled = true;
+
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
 
       if (mapInstance.current) {
         mapInstance.current.remove();
@@ -259,7 +275,6 @@ export default function DirtyPMap() {
 
       </div>
 
-
       <div className="dirty-p-real-map">
 
         <div
@@ -268,7 +283,6 @@ export default function DirtyPMap() {
         />
 
       </div>
-
 
       <div className="dirty-p-map-footer">
 
