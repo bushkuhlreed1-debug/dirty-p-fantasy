@@ -26,24 +26,28 @@ function formatPercentage(wins, losses, ties = 0) {
   if (total === 0) return "0.0";
 
   return (
-    ((num(wins) + num(ties) * 0.5) / total) * 100
+    ((num(wins) + num(ties) * 0.5) / total) *
+    100
   ).toFixed(1);
+}
+
+function formatPoints(value) {
+  return num(value).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 // ======================================================
 // POSTSEASON CLASSIFICATION
 //
 // IMPORTANT:
-// Third-place games ALWAYS count as playoff games.
 //
-// This fixes ESPN third-place matchups labeled:
-// WINNERS_CONSOLATION_LADDER
+// Third-place games ALWAYS count as playoff games,
+// even when ESPN labels the bracket
+// WINNERS_CONSOLATION_LADDER.
 //
-// Classification priority:
-// 1. Third-place game -> Playoff
-// 2. Actual consolation game -> Consolation
-// 3. Championship / semifinal -> Playoff
-// 4. Everything else -> Regular season
+// Actual consolation games remain separate.
 // ======================================================
 
 function getGameType(game) {
@@ -59,7 +63,7 @@ function getGameType(game) {
     .trim()
     .toLowerCase();
 
-  // THIRD PLACE ALWAYS COUNTS AS PLAYOFF
+  // THIRD PLACE COUNTS AS PLAYOFF
 
   if (
     game.is_third_place === true ||
@@ -70,7 +74,7 @@ function getGameType(game) {
     return "playoff";
   }
 
-  // ACTUAL CONSOLATION BRACKET
+  // ACTUAL CONSOLATION GAMES
 
   if (
     game.is_consolation === true ||
@@ -83,7 +87,7 @@ function getGameType(game) {
     return "consolation";
   }
 
-  // CHAMPIONSHIP AND PLAYOFF BRACKET
+  // PLAYOFF / CHAMPIONSHIP BRACKET
 
   if (
     game.is_playoff === true ||
@@ -104,8 +108,8 @@ function getGameType(game) {
 // ======================================================
 // COMPLETED GAME RESULT
 //
-// Prefer official winner from Supabase / ESPN.
-// Do not count unfinished games.
+// Use the official winner when available.
+// Don't count incomplete games.
 // ======================================================
 
 function getGameResult(game, ownerId) {
@@ -136,8 +140,8 @@ function getGameResult(game, ownerId) {
     return "tie";
   }
 
-  // No official winner?
-  // Only use scores when the game is confirmed final.
+  // If there is no official winner,
+  // only use scores from confirmed final games.
 
   const isFinal =
     game.completed === true ||
@@ -185,12 +189,10 @@ function getGameResult(game, ownerId) {
 // ======================================================
 // BUILD POSTSEASON RECORDS
 //
-// Each completed matchup counts once per owner.
+// Every completed game counts once per owner.
 //
-// Third-place games are correctly included in playoffs.
-//
-// Historical and current-season matchups are processed
-// separately to prevent duplication.
+// Third-place games are included in playoff records.
+// Consolation games are counted separately.
 // ======================================================
 
 function buildPostseasonRecords(games, owners) {
@@ -273,10 +275,6 @@ function buildPostseasonRecords(games, owners) {
   return records;
 }
 
-// ======================================================
-// EMPTY POSTSEASON RECORD
-// ======================================================
-
 function emptyPostseasonRecord() {
   return {
     playoffWins: 0,
@@ -290,15 +288,132 @@ function emptyPostseasonRecord() {
 }
 
 // ======================================================
+// STAT ROW COMPONENT
+// ======================================================
+
+function StatRow({ label, value }) {
+  return (
+    <div className="dp-stat-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+// ======================================================
+// EXPANDABLE OWNER CATEGORY
+//
+// Native HTML details/summary works without
+// JavaScript or a separate client component.
+// ======================================================
+
+function OwnerCategory({
+  title,
+  subtitle,
+  children,
+}) {
+  return (
+    <details className="dp-owner-category">
+      <summary className="dp-owner-category-toggle">
+        <div className="dp-category-info">
+          <strong>{title}</strong>
+
+          {subtitle && (
+            <span>{subtitle}</span>
+          )}
+        </div>
+
+        <span
+          className="dp-category-chevron"
+          aria-hidden="true"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </span>
+      </summary>
+
+      <div className="dp-owner-category-content">
+        {children}
+      </div>
+    </details>
+  );
+}
+
+// ======================================================
 // OWNER CARD
+//
+// Compact default view:
+//
+// - Owner name
+// - Current team
+// - Championship count
+// - Regular-season record
+// - All-game winning percentage
+//
+// Expandable categories:
+//
+// - Regular Season
+// - Postseason
+// - Achievements
 // ======================================================
 
 function OwnerCard({ owner }) {
+  const regularRecord = formatRecord(
+    owner.regularWins,
+    owner.regularLosses,
+    owner.regularTies
+  );
+
+  const playoffRecord = formatRecord(
+    owner.playoffWins,
+    owner.playoffLosses,
+    owner.playoffTies
+  );
+
+  const consolationRecord = formatRecord(
+    owner.consolationWins,
+    owner.consolationLosses,
+    owner.consolationTies
+  );
+
+  const allGameRecord = formatRecord(
+    owner.allWins,
+    owner.allLosses,
+    owner.allTies
+  );
+
+  const allGameWinPct = formatPercentage(
+    owner.allWins,
+    owner.allLosses,
+    owner.allTies
+  );
+
+  const regularWinPct = formatPercentage(
+    owner.regularWins,
+    owner.regularLosses,
+    owner.regularTies
+  );
+
+  const yearsText =
+    owner.firstSeason && owner.latestSeason
+      ? `${owner.firstSeason}–${owner.latestSeason}`
+      : "No seasons";
+
   return (
-    <Link
-      href={`/owners/${owner.id}`}
-      className="owner-card"
-    >
+    <article className="owner-card dp-compact-owner-card">
+
+      {/* OWNER HEADER */}
+
       <div className="owner-card-top">
         <div>
           <span className="owner-status">
@@ -318,7 +433,9 @@ function OwnerCard({ owner }) {
 
         {owner.championships > 0 && (
           <div className="owner-title-count">
-            <strong>{owner.championships}</strong>
+            <strong>
+              {owner.championships}
+            </strong>
 
             <span>
               {owner.championships === 1
@@ -329,99 +446,158 @@ function OwnerCard({ owner }) {
         )}
       </div>
 
-      {/* REGULAR SEASON */}
+      {/* ALWAYS-VISIBLE HEADLINE STATS */}
 
-      <div className="owner-record">
+      <div className="owner-record dp-owner-headline-stats">
         <div>
           <strong>
-            {formatRecord(
-              owner.regularWins,
-              owner.regularLosses,
-              owner.regularTies
-            )}
+            {regularRecord}
           </strong>
 
-          <span>REGULAR SEASON RECORD</span>
+          <span>
+            REGULAR SEASON RECORD
+          </span>
         </div>
 
         <div>
           <strong>
-            {formatPercentage(
-              owner.allWins,
-              owner.allLosses,
-              owner.allTies
-            )}
-            %
+            {allGameWinPct}%
           </strong>
 
-          <span>ALL-GAME WIN %</span>
+          <span>
+            ALL-GAME WIN %
+          </span>
         </div>
       </div>
 
-      {/* PLAYOFF AND CONSOLATION RECORDS */}
+      {/* EXPANDABLE CATEGORIES */}
 
-      <div className="owner-record">
-        <div>
-          <strong>
-            {formatRecord(
-              owner.playoffWins,
-              owner.playoffLosses,
-              owner.playoffTies
-            )}
-          </strong>
+      <div className="dp-owner-categories">
 
-          <span>PLAYOFF RECORD</span>
-        </div>
+        {/* REGULAR SEASON */}
 
-        <div>
-          <strong>
-            {formatRecord(
-              owner.consolationWins,
-              owner.consolationLosses,
-              owner.consolationTies
-            )}
-          </strong>
+        <OwnerCategory
+          title="Regular Season"
+          subtitle="Career record and scoring"
+        >
+          <StatRow
+            label="Wins"
+            value={owner.regularWins}
+          />
 
-          <span>CONSOLATION RECORD</span>
-        </div>
+          <StatRow
+            label="Losses"
+            value={owner.regularLosses}
+          />
+
+          <StatRow
+            label="Ties"
+            value={owner.regularTies}
+          />
+
+          <StatRow
+            label="Win Percentage"
+            value={`${regularWinPct}%`}
+          />
+
+          <StatRow
+            label="Points For"
+            value={formatPoints(owner.pointsFor)}
+          />
+
+          <StatRow
+            label="Points Against"
+            value={formatPoints(owner.pointsAgainst)}
+          />
+        </OwnerCategory>
+
+        {/* POSTSEASON */}
+
+        <OwnerCategory
+          title="Postseason"
+          subtitle="Playoffs and consolation"
+        >
+          <StatRow
+            label="Playoff Record"
+            value={playoffRecord}
+          />
+
+          <StatRow
+            label="Consolation Record"
+            value={consolationRecord}
+          />
+
+          <StatRow
+            label="Playoff Appearances"
+            value={owner.playoffAppearances}
+          />
+
+          <StatRow
+            label="Finals Appearances"
+            value={owner.finalsAppearances}
+          />
+        </OwnerCategory>
+
+        {/* ACHIEVEMENTS */}
+
+        <OwnerCategory
+          title="Achievements"
+          subtitle="Championships and career history"
+        >
+          <StatRow
+            label="Championships"
+            value={owner.championships}
+          />
+
+          <StatRow
+            label="Finals Appearances"
+            value={owner.finalsAppearances}
+          />
+
+          <StatRow
+            label="Seasons Played"
+            value={owner.seasonsPlayed}
+          />
+
+          <StatRow
+            label="First Season"
+            value={owner.firstSeason || "—"}
+          />
+
+          <StatRow
+            label="Latest Season"
+            value={owner.latestSeason || "—"}
+          />
+
+          <StatRow
+            label="All-Game Record"
+            value={allGameRecord}
+          />
+
+          <StatRow
+            label="All-Game Win %"
+            value={`${allGameWinPct}%`}
+          />
+        </OwnerCategory>
+
       </div>
 
-      {/* CAREER ACHIEVEMENTS */}
+      {/* OWNER PROFILE LINK */}
 
-      <div className="owner-stats-grid">
-        <div>
-          <strong>{owner.seasonsPlayed}</strong>
-          <span>Seasons</span>
-        </div>
-
-        <div>
-          <strong>{owner.playoffAppearances}</strong>
-          <span>Playoffs</span>
-        </div>
-
-        <div>
-          <strong>{owner.finalsAppearances}</strong>
-          <span>Finals</span>
-        </div>
-
-        <div>
-          <strong>{owner.championships}</strong>
-          <span>Titles</span>
-        </div>
-      </div>
-
-      {/* FOOTER */}
-
-      <div className="owner-card-bottom">
+      <div className="owner-card-bottom dp-owner-card-footer">
         <span>
-          {owner.firstSeason && owner.latestSeason
-            ? `${owner.firstSeason}–${owner.latestSeason}`
-            : "No seasons"}
+          {yearsText}
         </span>
 
-        <strong>View Owner →</strong>
+        <Link
+          href={`/owners/${owner.id}`}
+          className="dp-view-owner"
+        >
+          View Owner →
+        </Link>
       </div>
-    </Link>
+
+    </article>
   );
 }
 
@@ -491,7 +667,9 @@ export default async function OwnersPage() {
     currentTeams
       .map((team) => Number(team.owner_id))
       .filter(
-        (id) => Number.isFinite(id) && id > 0
+        (id) =>
+          Number.isFinite(id) &&
+          id > 0
       )
   );
 
@@ -504,6 +682,8 @@ export default async function OwnersPage() {
 
   // ====================================================
   // SEPARATE HISTORICAL AND CURRENT MATCHUPS
+  //
+  // Don't count current games twice.
   // ====================================================
 
   const historicalGames = matchups.filter(
@@ -547,14 +727,16 @@ export default async function OwnersPage() {
   const completedWeeks =
     completedCurrentMatchups
       .filter(
-        (game) => game.completed === true
+        (game) =>
+          game.completed === true
       )
       .map((game) =>
         Number(game.matchup_period)
       )
       .filter(
         (week) =>
-          Number.isFinite(week) && week > 0
+          Number.isFinite(week) &&
+          week > 0
       );
 
   const latestCompletedWeek =
@@ -616,24 +798,31 @@ export default async function OwnersPage() {
 
     // PLAYOFF APPEARANCES
 
-    const playoffAppearances = results.filter(
-      (result) =>
-        Boolean(result.playoff_appearance)
-    ).length;
+    const playoffAppearances =
+      results.filter(
+        (result) =>
+          Boolean(
+            result.playoff_appearance
+          )
+      ).length;
 
-    // CHAMPIONSHIP FINAL APPEARANCES
+    // FINALS APPEARANCES
 
-    const finalsAppearances = results.filter(
-      (result) =>
-        Boolean(result.championship_appearance)
-    ).length;
+    const finalsAppearances =
+      results.filter(
+        (result) =>
+          Boolean(
+            result.championship_appearance
+          )
+      ).length;
 
     // CHAMPIONSHIPS
 
-    const championships = results.filter(
-      (result) =>
-        Boolean(result.champion)
-    ).length;
+    const championships =
+      results.filter(
+        (result) =>
+          Boolean(result.champion)
+      ).length;
 
     // HISTORICAL POSTSEASON
 
@@ -771,7 +960,8 @@ export default async function OwnersPage() {
     }
 
     if (
-      b.championships !== a.championships
+      b.championships !==
+      a.championships
     ) {
       return (
         b.championships -
@@ -780,7 +970,8 @@ export default async function OwnersPage() {
     }
 
     if (
-      b.regularWins !== a.regularWins
+      b.regularWins !==
+      a.regularWins
     ) {
       return (
         b.regularWins -
@@ -805,6 +996,7 @@ export default async function OwnersPage() {
 
   return (
     <main className="page-shell">
+
       {/* HEADER */}
 
       <header className="site-header">
@@ -832,9 +1024,11 @@ export default async function OwnersPage() {
           <h1>Owners</h1>
 
           <p>
-            The complete career history of everyone
-            who has competed in Dirty P Fantasy Football,
-            updated throughout the current season.
+            The complete career history of
+            everyone who has competed in
+            Dirty P Fantasy Football,
+            updated throughout the
+            current season.
           </p>
         </div>
 
@@ -863,7 +1057,7 @@ export default async function OwnersPage() {
         </span>
       </div>
 
-      {/* ESPN OWNER MAPPING WARNING */}
+      {/* ESPN OWNER MATCH WARNING */}
 
       {unmatchedEspnOwners.length > 0 && (
         <section className="owners-section">
@@ -875,7 +1069,8 @@ export default async function OwnersPage() {
                 </span>
 
                 <h3>
-                  Some current owners could not be matched
+                  Some current owners could
+                  not be matched
                 </h3>
 
                 <p className="owner-team-name">
@@ -968,6 +1163,204 @@ export default async function OwnersPage() {
           Not affiliated with or endorsed by ESPN.
         </p>
       </footer>
+
+      {/* COLLAPSIBLE OWNER CARD STYLES */}
+
+      <style>{`
+        .dp-compact-owner-card {
+          display: flex;
+          flex-direction: column;
+          height: fit-content;
+          min-width: 0;
+          overflow: hidden;
+          cursor: default;
+          text-decoration: none;
+        }
+
+        .dp-compact-owner-card .owner-card-top {
+          align-items: flex-start;
+        }
+
+        .dp-compact-owner-card .owner-card-top h3 {
+          overflow-wrap: anywhere;
+        }
+
+        .dp-owner-headline-stats {
+          margin-bottom: 0;
+        }
+
+        .dp-owner-categories {
+          display: flex;
+          flex-direction: column;
+          padding: 8px 18px;
+          gap: 0;
+          border-top: 1px solid #303947;
+        }
+
+        .dp-owner-category {
+          border-bottom: 1px solid #303947;
+          min-width: 0;
+        }
+
+        .dp-owner-category:last-child {
+          border-bottom: none;
+        }
+
+        .dp-owner-category-toggle {
+          list-style: none;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          padding: 15px 0;
+          cursor: pointer;
+          user-select: none;
+        }
+
+        .dp-owner-category-toggle::-webkit-details-marker {
+          display: none;
+        }
+
+        .dp-owner-category-toggle::marker {
+          content: "";
+        }
+
+        .dp-category-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          min-width: 0;
+        }
+
+        .dp-category-info strong {
+          color: #f2f4f7;
+          font-size: 13px;
+          font-weight: 800;
+          line-height: 1.3;
+        }
+
+        .dp-category-info > span {
+          color: #93a0b1;
+          font-size: 11px;
+          line-height: 1.4;
+        }
+
+        .dp-category-chevron {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: 27px;
+          height: 27px;
+          flex-shrink: 0;
+          border-radius: 7px;
+          background: #28313e;
+          color: #d5b477;
+          transition:
+            transform 0.2s ease,
+            background 0.2s ease;
+        }
+
+        .dp-owner-category[open]
+        .dp-category-chevron {
+          transform: rotate(180deg);
+          background: #3b3429;
+        }
+
+        .dp-owner-category[open]
+        .dp-category-info strong {
+          color: #e9bd67;
+        }
+
+        .dp-owner-category-toggle:hover
+        .dp-category-info strong {
+          color: #e9bd67;
+        }
+
+        .dp-owner-category-toggle:focus-visible {
+          outline: 2px solid #e9bd67;
+          outline-offset: -2px;
+          border-radius: 4px;
+        }
+
+        .dp-owner-category-content {
+          background: #111721;
+          border: 1px solid #29323e;
+          border-radius: 9px;
+          padding: 5px 12px;
+          margin-bottom: 14px;
+        }
+
+        .dp-stat-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          min-width: 0;
+          padding: 11px 0;
+          border-bottom: 1px solid #27303b;
+        }
+
+        .dp-stat-row:last-child {
+          border-bottom: none;
+        }
+
+        .dp-stat-row span {
+          min-width: 0;
+          color: #aab5c3;
+          font-size: 12px;
+          line-height: 1.4;
+        }
+
+        .dp-stat-row strong {
+          flex-shrink: 0;
+          color: #f2f4f7;
+          font-size: 12px;
+          font-weight: 800;
+          font-variant-numeric: tabular-nums;
+          text-align: right;
+        }
+
+        .dp-owner-card-footer {
+          margin-top: auto;
+        }
+
+        .dp-view-owner {
+          color: #e9bd67;
+          font-size: 12px;
+          font-weight: 800;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+
+        .dp-view-owner:hover {
+          color: #f6d794;
+          text-decoration: underline;
+        }
+
+        .dp-view-owner:focus-visible {
+          outline: 2px solid #e9bd67;
+          outline-offset: 4px;
+          border-radius: 2px;
+        }
+
+        @media (max-width: 600px) {
+          .dp-owner-categories {
+            padding: 5px 14px;
+          }
+
+          .dp-owner-category-toggle {
+            padding: 13px 0;
+          }
+
+          .dp-owner-category-content {
+            padding: 4px 10px;
+          }
+
+          .dp-stat-row {
+            padding: 10px 0;
+          }
+        }
+      `}</style>
     </main>
   );
 }
