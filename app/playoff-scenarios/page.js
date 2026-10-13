@@ -4,11 +4,14 @@ import ScenarioSimulator from "./ScenarioSimulator";
 
 export const dynamic = "force-dynamic";
 
-function n(value) {
-  const result = Number(value);
+const n = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
 
-  return Number.isFinite(result) ? result : 0;
-}
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
 
 function isFinal(game) {
   return (
@@ -30,11 +33,7 @@ export default async function PlayoffScenariosPage() {
     return (
       <main className="page-shell">
         <h1>Playoff Scenarios</h1>
-        <p>
-          Unable to load the league:
-          {" "}
-          {error?.message || "Unknown error"}
-        </p>
+        <p>Unable to load league data.</p>
         <Link href="/">← Back Home</Link>
       </main>
     );
@@ -50,23 +49,18 @@ export default async function PlayoffScenariosPage() {
   } = league;
 
   const ownerMap = new Map(
-    owners.map((owner) => [
-      n(owner.id),
-      owner.name,
-    ])
+    owners.map((owner) => [n(owner.id), owner.name])
   );
 
   const teams = currentTeams
     .map((team) => {
-      const ownerId = n(
-        team.owner_id ?? team.ownerId
-      );
+      const ownerId = n(team.owner_id ?? team.ownerId);
 
       return {
         ownerId,
-
         ownerName:
           ownerMap.get(ownerId) ||
+          team.owner_name ||
           team.ownerName ||
           "Unknown Owner",
 
@@ -90,36 +84,42 @@ export default async function PlayoffScenariosPage() {
         ties: n(team.ties),
 
         pointsFor: n(
-          team.pointsFor ??
-          team.points_for
+          team.points_for ?? team.pointsFor
+        ),
+
+        pointsAgainst: n(
+          team.points_against ?? team.pointsAgainst
         ),
 
         seed: n(
-          team.playoffSeed ??
           team.playoff_seed ??
+          team.playoffSeed ??
           team.seed
         ),
       };
     })
     .filter((team) => team.ownerId > 0);
 
-  const validIds = new Set(
+  const validOwnerIds = new Set(
     teams.map((team) => team.ownerId)
   );
 
   const remaining = new Map();
 
   for (const game of currentSeasonMatchups) {
-    const gameWeek = n(game.matchup_period);
+    const week = n(game.matchup_period);
     const homeId = n(game.home_owner_id);
     const awayId = n(game.away_owner_id);
 
     if (
-      gameWeek < n(currentWeek) ||
+      week < n(currentWeek) ||
       isFinal(game) ||
       game.is_playoff === true ||
-      !validIds.has(homeId) ||
-      !validIds.has(awayId) ||
+      game.is_consolation === true ||
+      game.matchup_type === "playoff" ||
+      game.matchup_type === "consolation" ||
+      !validOwnerIds.has(homeId) ||
+      !validOwnerIds.has(awayId) ||
       homeId === awayId
     ) {
       continue;
@@ -127,14 +127,14 @@ export default async function PlayoffScenariosPage() {
 
     const id = [
       currentSeason,
-      gameWeek,
+      week,
       Math.min(homeId, awayId),
       Math.max(homeId, awayId),
     ].join("-");
 
     remaining.set(id, {
       id,
-      week: gameWeek,
+      week,
       homeId,
       awayId,
     });
@@ -148,16 +148,12 @@ export default async function PlayoffScenariosPage() {
 
   return (
     <main className="page-shell">
-
       <header className="site-header">
         <div className="site-title">
           <Link href="/">
             <strong>DIRTY P FANTASY FOOTBALL</strong>
           </Link>
-
-          <span>
-            THE LEAGUE ARCHIVE · EST. 2014
-          </span>
+          <span>THE LEAGUE ARCHIVE · EST. 2014</span>
         </div>
       </header>
 
@@ -170,9 +166,9 @@ export default async function PlayoffScenariosPage() {
           <h1>Playoff Scenarios</h1>
 
           <p>
-            Division races, wild cards,
-            and an interactive look at the
-            road to the playoffs.
+            See the playoff odds, choose future
+            winners, and find out which results
+            matter most to every owner.
           </p>
         </div>
 
@@ -183,13 +179,8 @@ export default async function PlayoffScenariosPage() {
       </section>
 
       <nav className="page-nav">
-        <Link href="/">
-          ← Back to Standings
-        </Link>
-
-        <span>
-          Week {currentWeek}
-        </span>
+        <Link href="/">← Back to Standings</Link>
+        <span>Week {currentWeek}</span>
       </nav>
 
       <ScenarioSimulator
@@ -202,17 +193,12 @@ export default async function PlayoffScenariosPage() {
 
       <footer className="site-footer">
         <strong>Dirty P Fantasy Football</strong>
-
-        <span>
-          The League Archive · Est. 2014
-        </span>
-
+        <span>The League Archive · Est. 2014</span>
         <p>
           Independent fantasy league archive.
           Not affiliated with or endorsed by ESPN.
         </p>
       </footer>
-
     </main>
   );
 }
