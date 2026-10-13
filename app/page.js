@@ -18,82 +18,91 @@ const ASSIGNED_RIVALS = [
   ["Jacob Madden", "Cody Stinnett"],
 ];
 
-function num(value) {
-  const result = Number(value);
-  return Number.isFinite(result) ? result : 0;
+// =====================================================
+// HELPERS
+// =====================================================
+
+function numberOrNull(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    !Number.isFinite(Number(value))
+  ) {
+    return null;
+  }
+
+  return Number(value);
 }
 
-function hasNumber(value) {
-  return (
-    value !== null &&
-    value !== undefined &&
-    value !== "" &&
-    Number.isFinite(Number(value))
-  );
+function num(value) {
+  return numberOrNull(value) ?? 0;
 }
 
 function formatScore(value) {
-  return num(value).toFixed(2);
+  const number = numberOrNull(value);
+
+  return number === null
+    ? "—"
+    : number.toFixed(2);
 }
 
 function formatOne(value) {
-  return num(value).toFixed(1);
-}
+  const number = numberOrNull(value);
 
-function signedScore(value) {
-  if (!hasNumber(value)) return "—";
-
-  return `${num(value) >= 0 ? "+" : ""}${formatScore(value)}`;
+  return number === null
+    ? "—"
+    : number.toFixed(1);
 }
 
 function formatRecord(wins, losses, ties = 0) {
-  const result = `${num(wins)}-${num(losses)}`;
+  const base = `${num(wins)}-${num(losses)}`;
 
   return num(ties)
-    ? `${result}-${num(ties)}`
-    : result;
+    ? `${base}-${num(ties)}`
+    : base;
 }
 
 function firstName(name) {
-  return (
-    String(name || "").trim().split(" ")[0] ||
-    "Owner"
-  );
+  return String(name || "").trim().split(" ")[0] || "Owner";
 }
 
-function isAssignedRival(name1, name2) {
-  const a = String(name1 || "").trim().toLowerCase();
-  const b = String(name2 || "").trim().toLowerCase();
+function isAssignedRival(a, b) {
+  const first = String(a || "").trim().toLowerCase();
+  const second = String(b || "").trim().toLowerCase();
 
-  return ASSIGNED_RIVALS.some(([first, second]) => {
-    const x = first.toLowerCase();
-    const y = second.toLowerCase();
+  return ASSIGNED_RIVALS.some(([x, y]) => {
+    const xName = x.toLowerCase();
+    const yName = y.toLowerCase();
 
     return (
-      (a === x && b === y) ||
-      (a === y && b === x)
+      (first === xName && second === yName) ||
+      (first === yName && second === xName)
     );
   });
 }
 
 function isCompleted(game) {
-  const winner = String(
-    game?.winner || ""
-  ).toUpperCase();
+  const winner = String(game?.winner || "")
+    .trim()
+    .toUpperCase();
 
   return (
     game?.completed === true ||
     game?.is_final === true ||
-    String(game?.status || "").toUpperCase() ===
-      "FINAL" ||
+    String(game?.status || "").toUpperCase() === "FINAL" ||
     ["HOME", "AWAY", "TIE"].includes(winner)
   );
 }
 
 function gameWinnerId(game) {
-  const winner = String(
-    game.winner || ""
-  ).toUpperCase();
+  if (!game || !isCompleted(game)) {
+    return null;
+  }
+
+  const winner = String(game.winner || "")
+    .trim()
+    .toUpperCase();
 
   if (winner === "HOME") {
     return Number(game.home_owner_id);
@@ -104,28 +113,28 @@ function gameWinnerId(game) {
   }
 
   if (
-    !isCompleted(game) ||
-    !hasNumber(game.home_score) ||
-    !hasNumber(game.away_score)
+    numberOrNull(game.home_score) === null ||
+    numberOrNull(game.away_score) === null
   ) {
     return null;
   }
 
-  if (
-    num(game.home_score) >
-    num(game.away_score)
-  ) {
+  if (num(game.home_score) > num(game.away_score)) {
     return Number(game.home_owner_id);
   }
 
-  if (
-    num(game.away_score) >
-    num(game.home_score)
-  ) {
+  if (num(game.away_score) > num(game.home_score)) {
     return Number(game.away_owner_id);
   }
 
   return null;
+}
+
+function matchupKey(game) {
+  const away = Number(game.away_owner_id);
+  const home = Number(game.home_owner_id);
+
+  return `${Math.min(away, home)}-${Math.max(away, home)}`;
 }
 
 function getSeries(games, firstId, secondId) {
@@ -134,27 +143,30 @@ function getSeries(games, firstId, secondId) {
   let ties = 0;
 
   for (const game of games || []) {
-    const homeId = Number(game.home_owner_id);
-    const awayId = Number(game.away_owner_id);
+    const home = Number(game.home_owner_id);
+    const away = Number(game.away_owner_id);
 
     const matches =
-      (homeId === firstId && awayId === secondId) ||
-      (homeId === secondId && awayId === firstId);
+      (home === firstId && away === secondId) ||
+      (home === secondId && away === firstId);
 
-    if (!matches) continue;
+    if (!matches || !isCompleted(game)) {
+      continue;
+    }
 
-    if (
-      String(game.winner || "").toUpperCase() ===
-      "TIE"
-    ) {
+    const winner = String(game.winner || "")
+      .trim()
+      .toUpperCase();
+
+    if (winner === "TIE") {
       ties++;
       continue;
     }
 
-    const winner = gameWinnerId(game);
+    const winnerId = gameWinnerId(game);
 
-    if (winner === firstId) firstWins++;
-    if (winner === secondId) secondWins++;
+    if (winnerId === firstId) firstWins++;
+    if (winnerId === secondId) secondWins++;
   }
 
   return {
@@ -188,262 +200,17 @@ function getTopPlayers(intel, limit = 3) {
 }
 
 function getPlayerOutlook(player) {
-  if (player?.matchupGrade === "GOOD") {
-    return "Favorable";
-  }
-
-  if (player?.matchupGrade === "TOUGH") {
-    return "Tough";
-  }
+  if (player?.matchupGrade === "GOOD") return "Favorable";
+  if (player?.matchupGrade === "TOUGH") return "Tough";
 
   return "Matchup";
-}
-
-// =====================================================
-// LIVE STARTING LINEUPS
-//
-// Accept player data from the ESPN live-score
-// helper without creating fake player scores.
-//
-// This adapter supports several common shapes,
-// but lib/espnLiveScore.js must actually return
-// roster entries for the lineup to appear.
-// =====================================================
-
-const BENCH_SLOTS = new Set([
-  "BE",
-  "BN",
-  "BENCH",
-  "IR",
-  "RESERVE",
-  "INJURED_RESERVE",
-]);
-
-const SLOT_NAMES = {
-  "0": "QB",
-  "2": "RB",
-  "3": "RB/WR",
-  "4": "WR",
-  "5": "WR",
-  "6": "TE",
-  "16": "D/ST",
-  "17": "K",
-  "20": "BE",
-  "21": "IR",
-  "23": "FLEX",
-};
-
-function getSlot(entry) {
-  const raw =
-    entry?.lineupSlot ??
-    entry?.lineup_slot ??
-    entry?.lineupSlotId ??
-    entry?.lineup_slot_id ??
-    entry?.slot ??
-    entry?.slotName ??
-    entry?.slotPosition ??
-    entry?.rosterSlot ??
-    null;
-
-  if (raw === null || raw === undefined) {
-    return null;
-  }
-
-  const value = String(raw).trim().toUpperCase();
-
-  return SLOT_NAMES[value] || value;
-}
-
-function isStarter(entry) {
-  if (
-    entry?.isStarter === false ||
-    entry?.starter === false ||
-    entry?.onBench === true
-  ) {
-    return false;
-  }
-
-  const slot = getSlot(entry);
-
-  if (slot && BENCH_SLOTS.has(slot)) {
-    return false;
-  }
-
-  if (
-    entry?.isStarter === true ||
-    entry?.starter === true
-  ) {
-    return true;
-  }
-
-  // If the source provides no starting-status
-  // information, do not guess who is starting.
-  return Boolean(slot);
-}
-
-function getPlayerArray(team) {
-  if (!team) return [];
-
-  const candidates = [
-    team.startingLineup,
-    team.starters,
-    team.lineup,
-    team.rosterEntries,
-    team.roster?.entries,
-    team.roster?.players,
-    team.players,
-  ];
-
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) {
-      return candidate;
-    }
-
-    if (
-      candidate &&
-      typeof candidate === "object"
-    ) {
-      const values = Object.values(candidate);
-
-      if (
-        values.length &&
-        values.every(
-          (item) =>
-            item &&
-            typeof item === "object"
-        )
-      ) {
-        return values;
-      }
-    }
-  }
-
-  return [];
-}
-
-function getPlayerName(entry) {
-  const player = entry?.playerPoolEntry?.player ??
-    entry?.player ??
-    entry;
-
-  const fullName =
-    player?.fullName ??
-    player?.name ??
-    player?.displayName ??
-    entry?.playerName ??
-    null;
-
-  if (fullName) return String(fullName);
-
-  const first = player?.firstName || "";
-  const last = player?.lastName || "";
-
-  return `${first} ${last}`.trim() || null;
-}
-
-function getActualPlayerPoints(entry) {
-  const player = entry?.playerPoolEntry?.player ??
-    entry?.player ??
-    entry;
-
-  const values = [
-    entry?.currentPoints,
-    entry?.livePoints,
-    entry?.actualPoints,
-    entry?.points,
-    entry?.appliedStatTotal,
-    entry?.totalPoints,
-    entry?.playerPoolEntry?.appliedStatTotal,
-    player?.currentPoints,
-    player?.livePoints,
-    player?.actualPoints,
-  ];
-
-  for (const value of values) {
-    if (hasNumber(value)) {
-      return Number(value);
-    }
-  }
-
-  // ESPN sometimes returns a list of statistics.
-  // Use an actual score, never projected points.
-  const stats =
-    player?.stats ||
-    entry?.stats ||
-    [];
-
-  if (Array.isArray(stats)) {
-    const actual = stats.find(
-      (stat) =>
-        stat?.statSourceId === 0 &&
-        hasNumber(stat?.appliedTotal)
-    );
-
-    if (actual) {
-      return Number(actual.appliedTotal);
-    }
-  }
-
-  return null;
-}
-
-function getStartingLineup(team) {
-  const entries = getPlayerArray(team);
-
-  const starters = entries
-    .filter(isStarter)
-    .map((entry, index) => {
-      const player =
-        entry?.playerPoolEntry?.player ??
-        entry?.player ??
-        entry;
-
-      const name = getPlayerName(entry);
-
-      if (!name) return null;
-
-      return {
-        id:
-          player?.id ??
-          player?.playerId ??
-          entry?.playerId ??
-          `${name}-${index}`,
-
-        name,
-
-        slot: getSlot(entry),
-
-        position:
-          player?.position ??
-          player?.positionName ??
-          player?.defaultPosition ??
-          entry?.position ??
-          null,
-
-        nflTeam:
-          player?.proTeamAbbreviation ??
-          player?.teamAbbreviation ??
-          player?.nflTeam ??
-          entry?.nflTeam ??
-          null,
-
-        points: getActualPlayerPoints(entry),
-      };
-    })
-    .filter(Boolean);
-
-  return starters;
 }
 
 // =====================================================
 // STANDINGS
 // =====================================================
 
-function buildStandings(
-  currentTeams,
-  currentSeasonResults,
-  owners
-) {
+function buildStandings(currentTeams, results, owners) {
   const ownerMap = new Map(
     (owners || []).map((owner) => [
       Number(owner.id),
@@ -452,7 +219,7 @@ function buildStandings(
   );
 
   const resultMap = new Map(
-    (currentSeasonResults || []).map((result) => [
+    (results || []).map((result) => [
       Number(result.owner_id),
       result,
     ])
@@ -461,9 +228,7 @@ function buildStandings(
   return (currentTeams || [])
     .map((team) => {
       const ownerId = Number(
-        team.owner_id ??
-        team.ownerId ??
-        0
+        team.owner_id ?? team.ownerId ?? 0
       );
 
       const result = resultMap.get(ownerId);
@@ -499,25 +264,9 @@ function buildStandings(
           team.divisionId ??
           null,
 
-        divisionName:
-          team.division_name ??
-          team.divisionName ??
-          null,
-
-        wins: num(
-          team.wins ??
-          result?.wins
-        ),
-
-        losses: num(
-          team.losses ??
-          result?.losses
-        ),
-
-        ties: num(
-          team.ties ??
-          result?.ties
-        ),
+        wins: num(team.wins ?? result?.wins),
+        losses: num(team.losses ?? result?.losses),
+        ties: num(team.ties ?? result?.ties),
 
         pointsFor: num(
           team.pointsFor ??
@@ -534,11 +283,8 @@ function buildStandings(
     })
     .filter((team) => team.ownerId > 0)
     .sort((a, b) => {
-      const aSeed =
-        a.seed > 0 ? a.seed : 999;
-
-      const bSeed =
-        b.seed > 0 ? b.seed : 999;
+      const aSeed = a.seed > 0 ? a.seed : 999;
+      const bSeed = b.seed > 0 ? b.seed : 999;
 
       if (aSeed !== bSeed) {
         return aSeed - bSeed;
@@ -556,10 +302,7 @@ function buildStandings(
 // PLAYOFF STATUS
 // =====================================================
 
-function calculatePlayoffStatuses(
-  standings,
-  playoffCount
-) {
+function calculatePlayoffStatuses(standings, playoffCount) {
   const statuses = new Map();
   const divisions = new Map();
 
@@ -585,19 +328,11 @@ function calculatePlayoffStatuses(
 
   for (const teams of divisions.values()) {
     const sorted = [...teams].sort((a, b) => {
-      const aSeed =
-        a.seed > 0 ? a.seed : 999;
+      const aSeed = a.seed > 0 ? a.seed : 999;
+      const bSeed = b.seed > 0 ? b.seed : 999;
 
-      const bSeed =
-        b.seed > 0 ? b.seed : 999;
-
-      if (aSeed !== bSeed) {
-        return aSeed - bSeed;
-      }
-
-      if (b.wins !== a.wins) {
-        return b.wins - a.wins;
-      }
+      if (aSeed !== bSeed) return aSeed - bSeed;
+      if (b.wins !== a.wins) return b.wins - a.wins;
 
       return b.pointsFor - a.pointsFor;
     });
@@ -607,22 +342,18 @@ function calculatePlayoffStatuses(
     }
   }
 
-  const divisionLeaderIds = new Set(
-    divisionLeaders.map(
-      (team) => team.ownerId
-    )
+  const leaderIds = new Set(
+    divisionLeaders.map((team) => team.ownerId)
   );
 
-  const playoffFieldIds = new Set(
+  const playoffIds = new Set(
     standings
       .filter(
         (team) =>
           team.seed > 0 &&
           team.seed <= playoffCount
       )
-      .map(
-        (team) => team.ownerId
-      )
+      .map((team) => team.ownerId)
   );
 
   const divisionsAvailable =
@@ -634,28 +365,575 @@ function calculatePlayoffStatuses(
 
     if (
       divisionsAvailable &&
-      divisionLeaderIds.has(team.ownerId)
+      leaderIds.has(team.ownerId)
     ) {
       status = "Division Leader";
-    } else if (
-      playoffFieldIds.has(team.ownerId)
-    ) {
+    } else if (playoffIds.has(team.ownerId)) {
       status = divisionsAvailable
         ? "Wild Card"
         : "Playoff Position";
     }
 
-    statuses.set(
-      team.ownerId,
-      status
-    );
+    statuses.set(team.ownerId, status);
   }
 
   return statuses;
 }
 
 // =====================================================
-// MATCHUP DISPLAY
+// LIVE STARTING LINEUPS
+// =====================================================
+
+const BENCH_SLOTS = new Set([
+  "BE",
+  "BN",
+  "BENCH",
+  "IR",
+  "RESERVE",
+  "20",
+  "21",
+]);
+
+const SLOT_NAMES = {
+  "0": "QB",
+  "2": "RB",
+  "3": "RB/WR",
+  "4": "WR",
+  "5": "WR/TE",
+  "6": "TE",
+  "16": "D/ST",
+  "17": "K",
+  "20": "BE",
+  "21": "IR",
+  "23": "FLEX",
+};
+
+function getSlot(entry) {
+  const raw =
+    entry?.lineupSlot ??
+    entry?.lineup_slot ??
+    entry?.lineupSlotId ??
+    entry?.lineup_slot_id ??
+    entry?.slot ??
+    null;
+
+  if (raw === null || raw === undefined) {
+    return null;
+  }
+
+  const value = String(raw).trim().toUpperCase();
+
+  return SLOT_NAMES[value] || value;
+}
+
+function getStartingLineup(team) {
+  if (!team) return [];
+
+  const entries =
+    team.startingLineup ??
+    team.starters ??
+    team.roster?.entries ??
+    team.rosterEntries ??
+    team.players ??
+    [];
+
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+
+  return entries
+    .filter((entry) => {
+      if (
+        entry?.isStarter === false ||
+        entry?.starter === false
+      ) {
+        return false;
+      }
+
+      const slot = getSlot(entry);
+
+      if (slot && BENCH_SLOTS.has(slot)) {
+        return false;
+      }
+
+      return (
+        entry?.isStarter === true ||
+        entry?.starter === true ||
+        Boolean(slot)
+      );
+    })
+    .map((entry, index) => {
+      const player =
+        entry?.playerPoolEntry?.player ??
+        entry?.player ??
+        entry;
+
+      const name =
+        player?.fullName ??
+        player?.name ??
+        player?.displayName ??
+        entry?.name ??
+        null;
+
+      if (!name) return null;
+
+      const stats = Array.isArray(player?.stats)
+        ? player.stats
+        : [];
+
+      const actualStat = stats.find(
+        (stat) =>
+          Number(stat?.statSourceId) === 0 &&
+          numberOrNull(stat?.appliedTotal) !== null
+      );
+
+      const points =
+        numberOrNull(
+          entry?.currentPoints ??
+          entry?.actualPoints ??
+          entry?.livePoints ??
+          actualStat?.appliedTotal
+        );
+
+      return {
+        id:
+          player?.id ??
+          entry?.playerId ??
+          `${name}-${index}`,
+
+        name,
+        slot: getSlot(entry),
+
+        position:
+          entry?.position ??
+          player?.position ??
+          null,
+
+        nflTeam:
+          entry?.nflTeam ??
+          player?.proTeamAbbreviation ??
+          null,
+
+        points,
+      };
+    })
+    .filter(Boolean);
+}
+
+// =====================================================
+// AROUND THE LEAGUE — AUTOMATIC WEEKLY RECAP
+//
+// Works for every completed week.
+//
+// Uses actual completed fantasy matchups.
+//
+// Shows:
+// - Highest scorer
+// - Biggest blowout
+// - Closest matchup
+// - Highest combined score
+// - Weekly scoring average
+// - Every completed matchup result
+//
+// No fabricated MVPs or upset rankings.
+// =====================================================
+
+function buildWeeklyRecap(games, week, ownerMap) {
+  const completed = (games || []).filter(
+    (game) =>
+      Number(game.matchup_period) === Number(week) &&
+      isCompleted(game) &&
+      numberOrNull(game.home_score) !== null &&
+      numberOrNull(game.away_score) !== null
+  );
+
+  const seen = new Set();
+
+  const uniqueGames = completed.filter((game) => {
+    const key = matchupKey(game);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+
+  if (!uniqueGames.length) {
+    return null;
+  }
+
+  const results = uniqueGames.map((game) => {
+    const homeId = Number(game.home_owner_id);
+    const awayId = Number(game.away_owner_id);
+
+    const homeName =
+      ownerMap.get(homeId) || "Unknown Owner";
+
+    const awayName =
+      ownerMap.get(awayId) || "Unknown Owner";
+
+    const homeScore = num(game.home_score);
+    const awayScore = num(game.away_score);
+
+    const winnerId = gameWinnerId(game);
+
+    const tied = homeScore === awayScore;
+
+    const winnerName = tied
+      ? "Tie"
+      : winnerId === homeId
+      ? homeName
+      : winnerId === awayId
+      ? awayName
+      : homeScore > awayScore
+      ? homeName
+      : awayName;
+
+    const loserName = tied
+      ? "Tie"
+      : winnerName === homeName
+      ? awayName
+      : homeName;
+
+    return {
+      key: matchupKey(game),
+      homeId,
+      awayId,
+      homeName,
+      awayName,
+      homeScore,
+      awayScore,
+      winnerName,
+      loserName,
+      margin: Math.abs(homeScore - awayScore),
+      combined: homeScore + awayScore,
+      tied,
+    };
+  });
+
+  const performances = results.flatMap((game) => [
+    {
+      ownerId: game.homeId,
+      ownerName: game.homeName,
+      points: game.homeScore,
+    },
+    {
+      ownerId: game.awayId,
+      ownerName: game.awayName,
+      points: game.awayScore,
+    },
+  ]);
+
+  const sortedPerformances = [...performances].sort(
+    (a, b) => b.points - a.points
+  );
+
+  const decisiveGames = results.filter(
+    (game) => !game.tied
+  );
+
+  const biggestBlowout = [...decisiveGames].sort(
+    (a, b) => b.margin - a.margin
+  )[0] || null;
+
+  const closestGame = [...results].sort(
+    (a, b) => a.margin - b.margin
+  )[0] || null;
+
+  const highestCombined = [...results].sort(
+    (a, b) => b.combined - a.combined
+  )[0] || null;
+
+  const lowestCombined = [...results].sort(
+    (a, b) => a.combined - b.combined
+  )[0] || null;
+
+  const totalPoints = performances.reduce(
+    (sum, performance) => sum + performance.points,
+    0
+  );
+
+  const averageScore = performances.length
+    ? totalPoints / performances.length
+    : 0;
+
+  return {
+    week,
+    results,
+    matchupCount: results.length,
+    highestScorer: sortedPerformances[0] || null,
+    lowestScorer:
+      sortedPerformances[sortedPerformances.length - 1] ||
+      null,
+    biggestBlowout,
+    closestGame,
+    highestCombined,
+    lowestCombined,
+    averageScore,
+    totalPoints,
+  };
+}
+
+// =====================================================
+// AROUND THE LEAGUE COMPONENTS
+// =====================================================
+
+function RecapHighlight({
+  label,
+  title,
+  value,
+  detail,
+  featured = false,
+}) {
+  return (
+    <div
+      className={`dp-recap-highlight ${
+        featured ? "dp-recap-featured" : ""
+      }`}
+    >
+      <span className="dp-recap-label">
+        {label}
+      </span>
+
+      <strong className="dp-recap-name">
+        {title}
+      </strong>
+
+      <div className="dp-recap-value">
+        {value}
+      </div>
+
+      {detail && (
+        <p className="dp-recap-detail">
+          {detail}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function AroundTheLeague({ recap }) {
+  if (!recap) {
+    return null;
+  }
+
+  const {
+    week,
+    results,
+    matchupCount,
+    highestScorer,
+    biggestBlowout,
+    closestGame,
+    highestCombined,
+    lowestCombined,
+    averageScore,
+  } = recap;
+
+  return (
+    <section className="section-block">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">
+            WEEK {week} RECAP
+          </p>
+
+          <h2>
+            Around the League
+          </h2>
+        </div>
+
+        <span>
+          {matchupCount} Final Matchups
+        </span>
+      </div>
+
+      <div className="dp-recap-intro">
+        <strong>
+          The Week {week} Rundown
+        </strong>
+
+        <p>
+          The biggest performances, closest finishes,
+          and standout results from Week {week}.
+        </p>
+      </div>
+
+      <div className="dp-recap-highlights">
+
+        {highestScorer && (
+          <RecapHighlight
+            featured
+            label="🏆 TOP WEEKLY PERFORMANCE"
+            title={highestScorer.ownerName}
+            value={`${formatScore(
+              highestScorer.points
+            )} PTS`}
+            detail="Highest-scoring fantasy team of the week"
+          />
+        )}
+
+        {biggestBlowout && (
+          <RecapHighlight
+            label="💥 BIGGEST BLOWOUT"
+            title={biggestBlowout.winnerName}
+            value={`${formatScore(
+              biggestBlowout.margin
+            )}-point win`}
+            detail={`Defeated ${firstName(
+              biggestBlowout.loserName
+            )}`}
+          />
+        )}
+
+        {closestGame && (
+          <RecapHighlight
+            label="🔥 CLOSEST MATCHUP"
+            title={
+              `${firstName(closestGame.awayName)} vs ` +
+              `${firstName(closestGame.homeName)}`
+            }
+            value={
+              closestGame.tied
+                ? "Tied"
+                : `${formatScore(
+                    closestGame.margin
+                  )}-point margin`
+            }
+            detail={
+              `${formatScore(
+                closestGame.awayScore
+              )} – ${formatScore(
+                closestGame.homeScore
+              )}`
+            }
+          />
+        )}
+
+        {highestCombined && (
+          <RecapHighlight
+            label="🚀 HIGHEST-SCORING MATCHUP"
+            title={
+              `${firstName(highestCombined.awayName)} vs ` +
+              `${firstName(highestCombined.homeName)}`
+            }
+            value={`${formatScore(
+              highestCombined.combined
+            )} PTS`}
+            detail="Most combined points in a matchup"
+          />
+        )}
+
+        <RecapHighlight
+          label="📊 WEEKLY SCORING AVERAGE"
+          title="League Average"
+          value={`${formatScore(averageScore)} PTS`}
+          detail="Average fantasy team score this week"
+        />
+
+        {lowestCombined && (
+          <RecapHighlight
+            label="🛡️ LOWEST-SCORING MATCHUP"
+            title={
+              `${firstName(lowestCombined.awayName)} vs ` +
+              `${firstName(lowestCombined.homeName)}`
+            }
+            value={`${formatScore(
+              lowestCombined.combined
+            )} PTS`}
+            detail="Fewest combined points in a matchup"
+          />
+        )}
+
+      </div>
+
+      {/* EVERY WEEKLY RESULT */}
+
+      <div className="dp-recap-results">
+        <div className="dp-recap-results-heading">
+          <div>
+            <span className="dp-recap-label">
+              FULL WEEKLY RESULTS
+            </span>
+
+            <h3>
+              Week {week} Scoreboard
+            </h3>
+          </div>
+
+          <span className="dp-recap-final-count">
+            {matchupCount} FINAL
+          </span>
+        </div>
+
+        <div className="dp-recap-results-grid">
+          {results.map((game) => {
+            const awayWon =
+              game.awayScore > game.homeScore;
+
+            const homeWon =
+              game.homeScore > game.awayScore;
+
+            return (
+              <article
+                className="dp-recap-result"
+                key={game.key}
+              >
+                <div className="dp-recap-result-top">
+                  <span>FINAL</span>
+
+                  <span>
+                    {game.tied
+                      ? "TIE"
+                      : `${formatScore(
+                          game.margin
+                        )}-POINT MARGIN`}
+                  </span>
+                </div>
+
+                <div
+                  className={`dp-recap-result-team ${
+                    awayWon ? "winner" : ""
+                  }`}
+                >
+                  <Link
+                    href={`/owners/${game.awayId}`}
+                  >
+                    {game.awayName}
+                  </Link>
+
+                  <strong>
+                    {formatScore(game.awayScore)}
+                  </strong>
+                </div>
+
+                <div
+                  className={`dp-recap-result-team ${
+                    homeWon ? "winner" : ""
+                  }`}
+                >
+                  <Link
+                    href={`/owners/${game.homeId}`}
+                  >
+                    {game.homeName}
+                  </Link>
+
+                  <strong>
+                    {formatScore(game.homeScore)}
+                  </strong>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// =====================================================
+// MATCHUP COMPONENTS
 // =====================================================
 
 function OwnerMatchupSide({
@@ -689,25 +967,23 @@ function OwnerMatchupSide({
         </div>
       )}
 
-      {hasNumber(points) && (
+      {numberOrNull(points) !== null && (
         <div className="dp-matchup-score">
           {formatScore(points)}
         </div>
       )}
 
-      {!live && hasNumber(projection) && (
-        <div className="dp-matchup-projection">
-          Projected points · {formatOne(projection)}
-        </div>
-      )}
+      {!live &&
+        numberOrNull(projection) !== null && (
+          <div className="dp-matchup-projection">
+            Projected points · {formatOne(projection)}
+          </div>
+        )}
     </div>
   );
 }
 
-function PlayersToWatch({
-  title,
-  players,
-}) {
+function PlayersToWatch({ title, players }) {
   return (
     <div className="dp-players-panel">
       <div className="dp-players-heading">
@@ -720,14 +996,12 @@ function PlayersToWatch({
             className="dp-player-row"
             key={player.playerId || index}
           >
-            <strong>
-              {player.name}
-            </strong>
+            <strong>{player.name}</strong>
 
             <span>
               {player.position || "Player"}
 
-              {hasNumber(player.projection) &&
+              {numberOrNull(player.projection) !== null &&
                 ` · ${formatOne(
                   player.projection
                 )} projected`}
@@ -750,24 +1024,18 @@ function PlayersToWatch({
   );
 }
 
-// =====================================================
-// NEW: LIVE STARTING LINEUP PANEL
-// =====================================================
-
-function LiveLineup({
-  title,
-  team,
-}) {
+function LiveLineup({ title, team }) {
   const starters = getStartingLineup(team);
 
   return (
     <div className="dp-live-lineup">
       <div className="dp-live-lineup-heading">
-        {title}
+        <strong>{title}</strong>
+
         <span>STARTING LINEUP</span>
       </div>
 
-      {starters.length > 0 ? (
+      {starters.length ? (
         <div className="dp-live-players">
           {starters.map((player) => (
             <div
@@ -796,9 +1064,7 @@ function LiveLineup({
               </div>
 
               <div className="dp-live-player-score">
-                {hasNumber(player.points)
-                  ? formatScore(player.points)
-                  : "—"}
+                {formatScore(player.points)}
               </div>
             </div>
           ))}
@@ -820,21 +1086,11 @@ function MatchupCard({
 }) {
   const awayPoints =
     matchup.awayLive?.currentPoints ??
-    (
-      live &&
-      hasNumber(matchup.game.away_score)
-        ? matchup.game.away_score
-        : null
-    );
+    (live ? matchup.game.away_score : null);
 
   const homePoints =
     matchup.homeLive?.currentPoints ??
-    (
-      live &&
-      hasNumber(matchup.game.home_score)
-        ? matchup.game.home_score
-        : null
-    );
+    (live ? matchup.game.home_score : null);
 
   const awayProjection =
     matchup.awayIntel?.projectedPoints;
@@ -852,15 +1108,12 @@ function MatchupCard({
     featured ? 3 : 2
   );
 
-  const gameFinal =
-    isCompleted(matchup.game);
+  const final = isCompleted(matchup.game);
 
   return (
     <article
       className={`dp-matchup-card ${
-        featured
-          ? "dp-featured-matchup"
-          : ""
+        featured ? "dp-featured-matchup" : ""
       }`}
     >
       <div className="dp-matchup-top">
@@ -875,7 +1128,7 @@ function MatchupCard({
 
         <span>
           {live
-            ? gameFinal
+            ? final
               ? "FINAL"
               : "LIVE SCORES"
             : "MATCHUP PREVIEW"}
@@ -913,8 +1166,6 @@ function MatchupCard({
       </div>
 
       {live ? (
-        // During games, show actual starters.
-        // Never show projected top performers.
         <div className="dp-live-lineups-grid">
           <LiveLineup
             title={firstName(matchup.awayName)}
@@ -979,6 +1230,7 @@ export default async function Home() {
     return (
       <main className="page-shell">
         <h1>Dirty P Fantasy Football</h1>
+
         <p>
           {error?.message ||
             "Unable to load league data."}
@@ -1058,25 +1310,57 @@ export default async function Home() {
     );
 
   // ===================================================
-  // WEEK DATA
+  // COMPLETED WEEKS
   // ===================================================
 
-  const completedWeeks =
-    completedCurrentMatchups
-      .filter(isCompleted)
-      .map((game) =>
-        Number(game.matchup_period)
-      )
-      .filter(
-        (week) =>
-          Number.isFinite(week) &&
-          week > 0
-      );
+  const allCompletedMatchups = [
+    ...completedCurrentMatchups,
+    ...currentSeasonMatchups.filter(isCompleted),
+  ];
+
+  const completedByWeek = new Map();
+
+  for (const game of allCompletedMatchups) {
+    const week = Number(game.matchup_period);
+
+    if (!Number.isFinite(week) || week < 1) {
+      continue;
+    }
+
+    if (!isCompleted(game)) {
+      continue;
+    }
+
+    if (
+      numberOrNull(game.home_score) === null ||
+      numberOrNull(game.away_score) === null
+    ) {
+      continue;
+    }
+
+    if (!completedByWeek.has(week)) {
+      completedByWeek.set(week, new Map());
+    }
+
+    completedByWeek
+      .get(week)
+      .set(matchupKey(game), game);
+  }
+
+  const completedWeeks = [
+    ...completedByWeek.keys(),
+  ].sort((a, b) => b - a);
 
   const latestCompletedWeek =
-    completedWeeks.length
-      ? Math.max(...completedWeeks)
-      : 0;
+    completedWeeks[0] || 0;
+
+  // ===================================================
+  // CURRENT MATCHUP WEEK
+  //
+  // Keep ESPN's current week when possible.
+  // This prevents skipping to the next week
+  // just because one matchup has finished.
+  // ===================================================
 
   const regularMatchups =
     currentSeasonMatchups.filter(
@@ -1085,27 +1369,32 @@ export default async function Home() {
         game.is_consolation !== true
     );
 
-  const futureWeeks = [
+  const scheduleWeeks = [
     ...new Set(
       regularMatchups
-        .filter(
-          (game) =>
-            Number(game.matchup_period) >
-            latestCompletedWeek
-        )
         .map((game) =>
           Number(game.matchup_period)
         )
-        .filter(Number.isFinite)
+        .filter(
+          (week) =>
+            Number.isFinite(week) &&
+            week > 0
+        )
     ),
   ].sort((a, b) => a - b);
 
+  const espnCurrentWeek =
+    Number(currentWeek) || 1;
+
   const previewWeek =
-    futureWeeks[0] ||
-    Math.max(
-      Number(currentWeek) || 1,
-      latestCompletedWeek + 1
-    );
+    scheduleWeeks.includes(espnCurrentWeek)
+      ? espnCurrentWeek
+      : scheduleWeeks.find(
+          (week) =>
+            week >= espnCurrentWeek
+        ) ||
+        scheduleWeeks[scheduleWeeks.length - 1] ||
+        espnCurrentWeek;
 
   const upcomingGames =
     regularMatchups.filter(
@@ -1131,7 +1420,7 @@ export default async function Home() {
   }
 
   // ===================================================
-  // LIVE SCORES
+  // LIVE ESPN FANTASY SCORES
   // ===================================================
 
   let liveScores = new Map();
@@ -1149,16 +1438,8 @@ export default async function Home() {
     );
   }
 
-  // ===================================================
-  // GAME-STATE DETECTION
-  //
-  // Show live scoreboard after games begin.
-  // Hide all pregame matchup sections.
-  // ===================================================
-
-  const liveScoreValues = Array.from(
-    liveScores?.values?.() || []
-  );
+  const liveScoreValues =
+    Array.from(liveScores.values());
 
   const hasActualFantasyScoring =
     liveScoreValues.some(
@@ -1166,7 +1447,7 @@ export default async function Home() {
         num(team?.currentPoints) > 0
     );
 
-  const completedGamesThisWeek =
+  const currentWeekCompletedGames =
     currentSeasonMatchups.filter(
       (game) =>
         Number(game.matchup_period) ===
@@ -1177,11 +1458,71 @@ export default async function Home() {
   const showLiveScoreboard = Boolean(
     matchupIntel?.weekStarted ||
     hasActualFantasyScoring ||
-    completedGamesThisWeek.length > 0
+    currentWeekCompletedGames.length > 0
   );
 
   const showPregamePreviews =
     !showLiveScoreboard;
+
+  // ===================================================
+  // WEEKLY RECAP SELECTION
+  //
+  // Show the latest fully completed week.
+  //
+  // Hide Around the League when the current
+  // week's games are underway.
+  //
+  // Generate this automatically every week.
+  // ===================================================
+
+  const recapWeek = completedWeeks.find(
+    (week) => {
+      const finishedCount =
+        completedByWeek.get(week)?.size || 0;
+
+      const scheduledGames =
+        regularMatchups.filter(
+          (game) =>
+            Number(game.matchup_period) ===
+            week
+        );
+
+      const scheduledCount = new Set(
+        scheduledGames.map(matchupKey)
+      ).size;
+
+      // Do not present a partial week's results
+      // as though the entire week has finished.
+      return (
+        finishedCount > 0 &&
+        scheduledCount > 0 &&
+        finishedCount >= scheduledCount
+      );
+    }
+  ) || null;
+
+  const recapGames = recapWeek
+    ? Array.from(
+        completedByWeek.get(recapWeek)?.values() ||
+        []
+      )
+    : [];
+
+  const weeklyRecap = recapWeek
+    ? buildWeeklyRecap(
+        recapGames,
+        recapWeek,
+        ownerMap
+      )
+    : null;
+
+  const showAroundTheLeague =
+    !showLiveScoreboard &&
+    weeklyRecap !== null;
+
+  // ===================================================
+  // MATCHUP PLAYER DATA
+  // ===================================================
 
   const teamMap = new Map(
     standings.map((team) => [
@@ -1222,7 +1563,7 @@ export default async function Home() {
   }
 
   // ===================================================
-  // MATCHUPS AND HEAD-TO-HEAD HISTORY
+  // GAME OF THE WEEK
   // ===================================================
 
   const seriesGames = (
@@ -1263,24 +1604,6 @@ export default async function Home() {
         homeId
       );
 
-      const awayIntel =
-        getTeamIntel(awayId);
-
-      const homeIntel =
-        getTeamIntel(homeId);
-
-      const awayLive =
-        getLiveTeam(awayId);
-
-      const homeLive =
-        getLiveTeam(homeId);
-
-      const assignedRivals =
-        isAssignedRival(
-          awayName,
-          homeName
-        );
-
       const awaySeed =
         awayStanding?.seed || 999;
 
@@ -1292,6 +1615,12 @@ export default async function Home() {
 
       const homeInPlayoffs =
         homeSeed <= playoffCount;
+
+      const assignedRivals =
+        isAssignedRival(
+          awayName,
+          homeName
+        );
 
       let hypeScore = 0;
 
@@ -1393,10 +1722,10 @@ export default async function Home() {
         homeName,
         awayStanding,
         homeStanding,
-        awayIntel,
-        homeIntel,
-        awayLive,
-        homeLive,
+        awayIntel: getTeamIntel(awayId),
+        homeIntel: getTeamIntel(homeId),
+        awayLive: getLiveTeam(awayId),
+        homeLive: getLiveTeam(homeId),
         series,
         assignedRivals,
         hypeScore,
@@ -1408,8 +1737,7 @@ export default async function Home() {
     ...previewMatchups,
   ].sort(
     (a, b) =>
-      b.hypeScore -
-      a.hypeScore
+      b.hypeScore - a.hypeScore
   );
 
   const gameOfTheWeek =
@@ -1417,59 +1745,6 @@ export default async function Home() {
 
   const otherMatchups =
     rankedMatchups.slice(1);
-
-  // ===================================================
-  // AROUND THE LEAGUE
-  // ===================================================
-
-  const latestWeekGames =
-    completedCurrentMatchups.filter(
-      (game) =>
-        isCompleted(game) &&
-        Number(game.matchup_period) ===
-          latestCompletedWeek
-    );
-
-  const weekPerformances =
-    latestWeekGames.flatMap(
-      (game) => {
-        const home =
-          standingMap.get(
-            Number(game.home_owner_id)
-          );
-
-        const away =
-          standingMap.get(
-            Number(game.away_owner_id)
-          );
-
-        return [
-          {
-            owner:
-              home?.ownerName ||
-              "Unknown Owner",
-            score: num(
-              game.home_score
-            ),
-          },
-          {
-            owner:
-              away?.ownerName ||
-              "Unknown Owner",
-            score: num(
-              game.away_score
-            ),
-          },
-        ];
-      }
-    );
-
-  const highestScorer = [
-    ...weekPerformances,
-  ].sort(
-    (a, b) =>
-      b.score - a.score
-  )[0];
 
   // ===================================================
   // PAGE
@@ -1569,7 +1844,7 @@ export default async function Home() {
         </section>
       )}
 
-      {/* OWNER MAPPING WARNING */}
+      {/* ESPN OWNER MAPPING WARNING */}
 
       {unmatchedEspnOwners.length > 0 && (
         <section className="section-block">
@@ -1579,9 +1854,8 @@ export default async function Home() {
             </strong>
 
             <p>
-              Some current ESPN owners
-              could not be matched to the
-              league archive.
+              Some current ESPN owners could
+              not be matched to the league archive.
             </p>
 
             <p>
@@ -1691,58 +1965,22 @@ export default async function Home() {
         </div>
 
         <p className="dp-standings-note">
-          Division leaders and wild cards
-          reflect current ESPN playoff
-          positions. They are not
-          mathematically clinched berths.
+          Division leaders and wild cards reflect
+          current ESPN playoff positions.
+          They are not mathematically clinched berths.
         </p>
       </section>
 
-      {/* AROUND THE LEAGUE */}
+      {/* AROUND THE LEAGUE
+          AUTOMATICALLY UPDATES EVERY WEEK.
+          HIDDEN WHEN LIVE SCORING BEGINS.
+      */}
 
-      {!showLiveScoreboard &&
-        latestWeekGames.length > 0 && (
-          <section className="section-block">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">
-                  WEEK {latestCompletedWeek}
-                </p>
-
-                <h2>
-                  Around the League
-                </h2>
-              </div>
-
-              <span>
-                Weekly Highlights
-              </span>
-            </div>
-
-            <div className="dp-feature-panel">
-              {highestScorer && (
-                <>
-                  <span>
-                    TOP WEEKLY PERFORMANCE
-                  </span>
-
-                  <strong>
-                    {highestScorer.owner}
-                  </strong>
-
-                  <p>
-                    Scored{" "}
-                    {formatScore(
-                      highestScorer.score
-                    )}{" "}
-                    points in Week{" "}
-                    {latestCompletedWeek}.
-                  </p>
-                </>
-              )}
-            </div>
-          </section>
-        )}
+      {showAroundTheLeague && (
+        <AroundTheLeague
+          recap={weeklyRecap}
+        />
+      )}
 
       {/* LIVE SCOREBOARD */}
 
@@ -1751,7 +1989,7 @@ export default async function Home() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">
-                WEEK {previewWeek}
+                LIVE · WEEK {previewWeek}
               </p>
 
               <h2>
@@ -1812,8 +2050,7 @@ export default async function Home() {
           ) : (
             <div className="dp-empty">
               Game of the Week will appear
-              when the weekly schedule
-              becomes available.
+              when the weekly schedule is available.
             </div>
           )}
         </section>
@@ -1835,8 +2072,7 @@ export default async function Home() {
             </div>
 
             <span>
-              Players to Watch ·
-              Head-to-Head History
+              Players to Watch · Head-to-Head History
             </span>
           </div>
 
@@ -1853,9 +2089,8 @@ export default async function Home() {
             </div>
           ) : (
             <div className="dp-empty">
-              Additional matchup previews
-              will appear when the
-              schedule is available.
+              Additional matchup previews will
+              appear when the schedule is available.
             </div>
           )}
         </section>
@@ -1878,7 +2113,7 @@ export default async function Home() {
         </p>
       </footer>
 
-      {/* STYLES */}
+      {/* PAGE STYLES */}
 
       <style>{`
 
@@ -1979,6 +2214,182 @@ export default async function Home() {
           font-size:12px;
           line-height:1.5;
           margin-top:12px;
+        }
+
+        /* AROUND THE LEAGUE */
+
+        .dp-recap-intro {
+          background:#171d26;
+          border:1px solid #303947;
+          border-radius:14px;
+          padding:20px 22px;
+          margin-bottom:15px;
+        }
+
+        .dp-recap-intro strong {
+          display:block;
+          color:#f5f6f8;
+          font-size:18px;
+          margin-bottom:7px;
+        }
+
+        .dp-recap-intro p {
+          color:#aeb9c7;
+          font-size:13px;
+          line-height:1.6;
+          margin:0;
+        }
+
+        .dp-recap-highlights {
+          display:grid;
+          grid-template-columns:
+            repeat(3,minmax(0,1fr));
+          gap:14px;
+        }
+
+        .dp-recap-highlight {
+          min-width:0;
+          background:#171d26;
+          border:1px solid #303947;
+          border-radius:12px;
+          padding:19px;
+          display:flex;
+          flex-direction:column;
+          gap:9px;
+        }
+
+        .dp-recap-featured {
+          border-color:#806539;
+          background:
+            linear-gradient(
+              135deg,
+              #25281f,
+              #171d26 75%
+            );
+        }
+
+        .dp-recap-label {
+          display:block;
+          color:#d7ad63;
+          font-size:10px;
+          font-weight:900;
+          letter-spacing:.65px;
+          line-height:1.5;
+        }
+
+        .dp-recap-name {
+          display:block;
+          color:#f4f6f8;
+          font-size:15px;
+          font-weight:800;
+          line-height:1.5;
+          overflow-wrap:anywhere;
+        }
+
+        .dp-recap-value {
+          color:#e9bd67;
+          font-size:23px;
+          font-weight:900;
+          font-variant-numeric:tabular-nums;
+          overflow-wrap:anywhere;
+        }
+
+        .dp-recap-detail {
+          color:#aeb9c7;
+          font-size:12px;
+          line-height:1.6;
+          margin:0;
+        }
+
+        .dp-recap-results {
+          margin-top:22px;
+          background:#171d26;
+          border:1px solid #303947;
+          border-radius:14px;
+          padding:20px;
+        }
+
+        .dp-recap-results-heading {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+          margin-bottom:18px;
+        }
+
+        .dp-recap-results-heading h3 {
+          color:#f5f6f8;
+          font-size:17px;
+          margin:6px 0 0;
+        }
+
+        .dp-recap-final-count {
+          color:#aeb9c7;
+          font-size:11px;
+          font-weight:800;
+        }
+
+        .dp-recap-results-grid {
+          display:grid;
+          grid-template-columns:
+            repeat(2,minmax(0,1fr));
+          gap:12px;
+        }
+
+        .dp-recap-result {
+          background:#1d2530;
+          border:1px solid #303947;
+          border-radius:10px;
+          padding:15px;
+          min-width:0;
+        }
+
+        .dp-recap-result-top {
+          display:flex;
+          justify-content:space-between;
+          gap:8px;
+          color:#91a0b1;
+          font-size:10px;
+          font-weight:800;
+          padding-bottom:10px;
+          margin-bottom:10px;
+          border-bottom:1px solid #303947;
+        }
+
+        .dp-recap-result-team {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+          padding:7px 0;
+          color:#aeb9c7;
+          font-size:13px;
+        }
+
+        .dp-recap-result-team a {
+          color:inherit;
+          text-decoration:none;
+          overflow-wrap:anywhere;
+        }
+
+        .dp-recap-result-team a:hover {
+          color:#e9bd67;
+        }
+
+        .dp-recap-result-team strong {
+          font-size:15px;
+          font-weight:800;
+          font-variant-numeric:tabular-nums;
+          flex-shrink:0;
+        }
+
+        .dp-recap-result-team.winner {
+          color:#f4f6f8;
+          font-weight:800;
+        }
+
+        .dp-recap-result-team.winner strong {
+          color:#e9bd67;
         }
 
         /* MATCHUPS */
@@ -2154,7 +2565,7 @@ export default async function Home() {
           line-height:1.5;
         }
 
-        /* NEW LIVE STARTING LINEUPS */
+        /* LIVE STARTING LINEUPS */
 
         .dp-live-lineups-grid {
           display:grid;
@@ -2200,7 +2611,6 @@ export default async function Home() {
             37px minmax(0,1fr) 55px;
           gap:8px;
           align-items:center;
-          min-width:0;
           padding:10px 0;
           border-bottom:1px solid #29313d;
         }
@@ -2259,7 +2669,14 @@ export default async function Home() {
           font-size:14px;
         }
 
-        /* MOBILE */
+        /* RESPONSIVE */
+
+        @media(max-width:1000px) {
+          .dp-recap-highlights {
+            grid-template-columns:
+              repeat(2,minmax(0,1fr));
+          }
+        }
 
         @media(max-width:850px) {
           .dp-matchup-grid {
@@ -2267,7 +2684,29 @@ export default async function Home() {
           }
         }
 
+        @media(max-width:650px) {
+          .dp-recap-results-grid {
+            grid-template-columns:1fr;
+          }
+        }
+
         @media(max-width:480px) {
+          .dp-recap-highlights {
+            grid-template-columns:1fr;
+          }
+
+          .dp-recap-highlight {
+            padding:16px;
+          }
+
+          .dp-recap-value {
+            font-size:20px;
+          }
+
+          .dp-recap-results {
+            padding:14px;
+          }
+
           .dp-versus-row {
             grid-template-columns:
               minmax(0,1fr)
