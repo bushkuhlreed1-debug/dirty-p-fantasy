@@ -7,8 +7,8 @@ import AutoRefresh from "./components/AutoRefresh";
 
 export const dynamic = "force-dynamic";
 
-const PLAYOFF_TEAMS = 4;
 const CURRENT_SEASON = 2026;
+const PLAYOFF_TEAMS = 4;
 
 const ASSIGNED_RIVALS = [
   ["Reed Bushkuhl", "Austin Lloyd"],
@@ -18,13 +18,9 @@ const ASSIGNED_RIVALS = [
   ["Jacob Madden", "Cody Stinnett"],
 ];
 
-// ======================================================
-// GENERAL HELPERS
-// ======================================================
-
 function num(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+  const result = Number(value);
+  return Number.isFinite(result) ? result : 0;
 }
 
 function hasNumber(value) {
@@ -44,14 +40,18 @@ function formatOne(value) {
   return num(value).toFixed(1);
 }
 
-function formatRecord(wins, losses, ties = 0) {
-  const w = num(wins);
-  const l = num(losses);
-  const t = num(ties);
+function signedScore(value) {
+  if (!hasNumber(value)) return "—";
 
-  return t
-    ? `${w}-${l}-${t}`
-    : `${w}-${l}`;
+  return `${num(value) >= 0 ? "+" : ""}${formatScore(value)}`;
+}
+
+function formatRecord(wins, losses, ties = 0) {
+  const result = `${num(wins)}-${num(losses)}`;
+
+  return num(ties)
+    ? `${result}-${num(ties)}`
+    : result;
 }
 
 function firstName(name) {
@@ -78,13 +78,13 @@ function isAssignedRival(name1, name2) {
 
 function isCompleted(game) {
   const winner = String(
-    game.winner || ""
+    game?.winner || ""
   ).toUpperCase();
 
   return (
-    game.completed === true ||
-    game.is_final === true ||
-    String(game.status || "").toUpperCase() ===
+    game?.completed === true ||
+    game?.is_final === true ||
+    String(game?.status || "").toUpperCase() ===
       "FINAL" ||
     ["HOME", "AWAY", "TIE"].includes(winner)
   );
@@ -143,21 +143,18 @@ function getSeries(games, firstId, secondId) {
 
     if (!matches) continue;
 
-    const winner = String(
-      game.winner || ""
-    )
-      .trim()
-      .toUpperCase();
-
-    if (winner === "TIE") {
+    if (
+      String(game.winner || "").toUpperCase() ===
+      "TIE"
+    ) {
       ties++;
       continue;
     }
 
-    const winnerId = gameWinnerId(game);
+    const winner = gameWinnerId(game);
 
-    if (winnerId === firstId) firstWins++;
-    if (winnerId === secondId) secondWins++;
+    if (winner === firstId) firstWins++;
+    if (winner === secondId) secondWins++;
   }
 
   return {
@@ -168,12 +165,8 @@ function getSeries(games, firstId, secondId) {
   };
 }
 
-function getSeriesText(
-  series,
-  firstOwner,
-  secondOwner
-) {
-  if (!series || !series.total) {
+function getSeriesText(series, firstOwner, secondOwner) {
+  if (!series?.total) {
     return "No previous completed meetings";
   }
 
@@ -189,11 +182,9 @@ function getSeriesText(
 }
 
 function getTopPlayers(intel, limit = 3) {
-  if (!Array.isArray(intel?.impactPlayers)) {
-    return [];
-  }
-
-  return intel.impactPlayers.slice(0, limit);
+  return Array.isArray(intel?.impactPlayers)
+    ? intel.impactPlayers.slice(0, limit)
+    : [];
 }
 
 function getPlayerOutlook(player) {
@@ -208,9 +199,245 @@ function getPlayerOutlook(player) {
   return "Matchup";
 }
 
-// ======================================================
-// CURRENT STANDINGS
-// ======================================================
+// =====================================================
+// LIVE STARTING LINEUPS
+//
+// Accept player data from the ESPN live-score
+// helper without creating fake player scores.
+//
+// This adapter supports several common shapes,
+// but lib/espnLiveScore.js must actually return
+// roster entries for the lineup to appear.
+// =====================================================
+
+const BENCH_SLOTS = new Set([
+  "BE",
+  "BN",
+  "BENCH",
+  "IR",
+  "RESERVE",
+  "INJURED_RESERVE",
+]);
+
+const SLOT_NAMES = {
+  "0": "QB",
+  "2": "RB",
+  "3": "RB/WR",
+  "4": "WR",
+  "5": "WR",
+  "6": "TE",
+  "16": "D/ST",
+  "17": "K",
+  "20": "BE",
+  "21": "IR",
+  "23": "FLEX",
+};
+
+function getSlot(entry) {
+  const raw =
+    entry?.lineupSlot ??
+    entry?.lineup_slot ??
+    entry?.lineupSlotId ??
+    entry?.lineup_slot_id ??
+    entry?.slot ??
+    entry?.slotName ??
+    entry?.slotPosition ??
+    entry?.rosterSlot ??
+    null;
+
+  if (raw === null || raw === undefined) {
+    return null;
+  }
+
+  const value = String(raw).trim().toUpperCase();
+
+  return SLOT_NAMES[value] || value;
+}
+
+function isStarter(entry) {
+  if (
+    entry?.isStarter === false ||
+    entry?.starter === false ||
+    entry?.onBench === true
+  ) {
+    return false;
+  }
+
+  const slot = getSlot(entry);
+
+  if (slot && BENCH_SLOTS.has(slot)) {
+    return false;
+  }
+
+  if (
+    entry?.isStarter === true ||
+    entry?.starter === true
+  ) {
+    return true;
+  }
+
+  // If the source provides no starting-status
+  // information, do not guess who is starting.
+  return Boolean(slot);
+}
+
+function getPlayerArray(team) {
+  if (!team) return [];
+
+  const candidates = [
+    team.startingLineup,
+    team.starters,
+    team.lineup,
+    team.rosterEntries,
+    team.roster?.entries,
+    team.roster?.players,
+    team.players,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+
+    if (
+      candidate &&
+      typeof candidate === "object"
+    ) {
+      const values = Object.values(candidate);
+
+      if (
+        values.length &&
+        values.every(
+          (item) =>
+            item &&
+            typeof item === "object"
+        )
+      ) {
+        return values;
+      }
+    }
+  }
+
+  return [];
+}
+
+function getPlayerName(entry) {
+  const player = entry?.playerPoolEntry?.player ??
+    entry?.player ??
+    entry;
+
+  const fullName =
+    player?.fullName ??
+    player?.name ??
+    player?.displayName ??
+    entry?.playerName ??
+    null;
+
+  if (fullName) return String(fullName);
+
+  const first = player?.firstName || "";
+  const last = player?.lastName || "";
+
+  return `${first} ${last}`.trim() || null;
+}
+
+function getActualPlayerPoints(entry) {
+  const player = entry?.playerPoolEntry?.player ??
+    entry?.player ??
+    entry;
+
+  const values = [
+    entry?.currentPoints,
+    entry?.livePoints,
+    entry?.actualPoints,
+    entry?.points,
+    entry?.appliedStatTotal,
+    entry?.totalPoints,
+    entry?.playerPoolEntry?.appliedStatTotal,
+    player?.currentPoints,
+    player?.livePoints,
+    player?.actualPoints,
+  ];
+
+  for (const value of values) {
+    if (hasNumber(value)) {
+      return Number(value);
+    }
+  }
+
+  // ESPN sometimes returns a list of statistics.
+  // Use an actual score, never projected points.
+  const stats =
+    player?.stats ||
+    entry?.stats ||
+    [];
+
+  if (Array.isArray(stats)) {
+    const actual = stats.find(
+      (stat) =>
+        stat?.statSourceId === 0 &&
+        hasNumber(stat?.appliedTotal)
+    );
+
+    if (actual) {
+      return Number(actual.appliedTotal);
+    }
+  }
+
+  return null;
+}
+
+function getStartingLineup(team) {
+  const entries = getPlayerArray(team);
+
+  const starters = entries
+    .filter(isStarter)
+    .map((entry, index) => {
+      const player =
+        entry?.playerPoolEntry?.player ??
+        entry?.player ??
+        entry;
+
+      const name = getPlayerName(entry);
+
+      if (!name) return null;
+
+      return {
+        id:
+          player?.id ??
+          player?.playerId ??
+          entry?.playerId ??
+          `${name}-${index}`,
+
+        name,
+
+        slot: getSlot(entry),
+
+        position:
+          player?.position ??
+          player?.positionName ??
+          player?.defaultPosition ??
+          entry?.position ??
+          null,
+
+        nflTeam:
+          player?.proTeamAbbreviation ??
+          player?.teamAbbreviation ??
+          player?.nflTeam ??
+          entry?.nflTeam ??
+          null,
+
+        points: getActualPlayerPoints(entry),
+      };
+    })
+    .filter(Boolean);
+
+  return starters;
+}
+
+// =====================================================
+// STANDINGS
+// =====================================================
 
 function buildStandings(
   currentTeams,
@@ -325,17 +552,9 @@ function buildStandings(
     });
 }
 
-// ======================================================
-// PLAYOFF STATUS INSIDE STANDINGS
-//
-// Dirty P has four playoff teams:
-// - Two division leaders
-// - Two wild cards
-//
-// Use actual ESPN division information.
-// Never assume the top two seeds automatically
-// represent the division leaders.
-// ======================================================
+// =====================================================
+// PLAYOFF STATUS
+// =====================================================
 
 function calculatePlayoffStatuses(
   standings,
@@ -361,9 +580,6 @@ function calculatePlayoffStatuses(
 
     divisions.get(key).push(team);
   }
-
-  // Use ESPN playoff seeding to identify the
-  // leading team within each division.
 
   const divisionLeaders = [];
 
@@ -392,22 +608,22 @@ function calculatePlayoffStatuses(
   }
 
   const divisionLeaderIds = new Set(
-    divisionLeaders.map((team) => team.ownerId)
-  );
-
-  const playoffField = standings.filter(
-    (team) =>
-      team.seed > 0 &&
-      team.seed <= playoffCount
+    divisionLeaders.map(
+      (team) => team.ownerId
+    )
   );
 
   const playoffFieldIds = new Set(
-    playoffField.map((team) => team.ownerId)
+    standings
+      .filter(
+        (team) =>
+          team.seed > 0 &&
+          team.seed <= playoffCount
+      )
+      .map(
+        (team) => team.ownerId
+      )
   );
-
-  // Exactly two divisions should produce two
-  // leaders. If division data is unavailable,
-  // don't invent which teams lead them.
 
   const divisionsAvailable =
     divisions.size === 2 &&
@@ -421,21 +637,26 @@ function calculatePlayoffStatuses(
       divisionLeaderIds.has(team.ownerId)
     ) {
       status = "Division Leader";
-    } else if (playoffFieldIds.has(team.ownerId)) {
+    } else if (
+      playoffFieldIds.has(team.ownerId)
+    ) {
       status = divisionsAvailable
         ? "Wild Card"
         : "Playoff Position";
     }
 
-    statuses.set(team.ownerId, status);
+    statuses.set(
+      team.ownerId,
+      status
+    );
   }
 
   return statuses;
 }
 
-// ======================================================
-// MATCHUP COMPONENTS
-// ======================================================
+// =====================================================
+// MATCHUP DISPLAY
+// =====================================================
 
 function OwnerMatchupSide({
   owner,
@@ -474,20 +695,19 @@ function OwnerMatchupSide({
         </div>
       )}
 
-      {hasNumber(projection) && (
+      {!live && hasNumber(projection) && (
         <div className="dp-matchup-projection">
-          {live
-            ? "Projected finish"
-            : "Projected points"}
-          {" · "}
-          {formatOne(projection)}
+          Projected points · {formatOne(projection)}
         </div>
       )}
     </div>
   );
 }
 
-function PlayersToWatch({ title, players }) {
+function PlayersToWatch({
+  title,
+  players,
+}) {
   return (
     <div className="dp-players-panel">
       <div className="dp-players-heading">
@@ -500,7 +720,9 @@ function PlayersToWatch({ title, players }) {
             className="dp-player-row"
             key={player.playerId || index}
           >
-            <strong>{player.name}</strong>
+            <strong>
+              {player.name}
+            </strong>
 
             <span>
               {player.position || "Player"}
@@ -523,6 +745,69 @@ function PlayersToWatch({ title, players }) {
             Player projections unavailable.
           </span>
         </div>
+      )}
+    </div>
+  );
+}
+
+// =====================================================
+// NEW: LIVE STARTING LINEUP PANEL
+// =====================================================
+
+function LiveLineup({
+  title,
+  team,
+}) {
+  const starters = getStartingLineup(team);
+
+  return (
+    <div className="dp-live-lineup">
+      <div className="dp-live-lineup-heading">
+        {title}
+        <span>STARTING LINEUP</span>
+      </div>
+
+      {starters.length > 0 ? (
+        <div className="dp-live-players">
+          {starters.map((player) => (
+            <div
+              className="dp-live-player"
+              key={player.id}
+            >
+              <div className="dp-live-player-slot">
+                {player.slot ||
+                  player.position ||
+                  "—"}
+              </div>
+
+              <div className="dp-live-player-info">
+                <strong>
+                  {player.name}
+                </strong>
+
+                <span>
+                  {[
+                    player.position,
+                    player.nflTeam,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "Starter"}
+                </span>
+              </div>
+
+              <div className="dp-live-player-score">
+                {hasNumber(player.points)
+                  ? formatScore(player.points)
+                  : "—"}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="dp-lineup-unavailable">
+          Live starting lineup data is
+          not currently available.
+        </p>
       )}
     </div>
   );
@@ -552,11 +837,9 @@ function MatchupCard({
     );
 
   const awayProjection =
-    matchup.awayLive?.liveProjectedPoints ??
     matchup.awayIntel?.projectedPoints;
 
   const homeProjection =
-    matchup.homeLive?.liveProjectedPoints ??
     matchup.homeIntel?.projectedPoints;
 
   const awayPlayers = getTopPlayers(
@@ -568,6 +851,9 @@ function MatchupCard({
     matchup.homeIntel,
     featured ? 3 : 2
   );
+
+  const gameFinal =
+    isCompleted(matchup.game);
 
   return (
     <article
@@ -589,7 +875,9 @@ function MatchupCard({
 
         <span>
           {live
-            ? "LIVE SCORES"
+            ? gameFinal
+              ? "FINAL"
+              : "LIVE SCORES"
             : "MATCHUP PREVIEW"}
         </span>
       </div>
@@ -624,45 +912,63 @@ function MatchupCard({
         />
       </div>
 
-      {matchup.analysis && (
-        <div className="dp-matchup-description">
-          {matchup.analysis}
-        </div>
-      )}
-
-      <div className="dp-series-line">
-        {getSeriesText(
-          matchup.series,
-          matchup.awayName,
-          matchup.homeName
-        )}
-      </div>
-
-      {(awayPlayers.length > 0 ||
-        homePlayers.length > 0) && (
-        <div className="dp-players-grid">
-          <PlayersToWatch
-            title={`${firstName(
-              matchup.awayName
-            )} · PLAYERS TO WATCH`}
-            players={awayPlayers}
+      {live ? (
+        // During games, show actual starters.
+        // Never show projected top performers.
+        <div className="dp-live-lineups-grid">
+          <LiveLineup
+            title={firstName(matchup.awayName)}
+            team={matchup.awayLive}
           />
 
-          <PlayersToWatch
-            title={`${firstName(
+          <LiveLineup
+            title={firstName(matchup.homeName)}
+            team={matchup.homeLive}
+          />
+        </div>
+      ) : (
+        <>
+          {matchup.analysis && (
+            <div className="dp-matchup-description">
+              {matchup.analysis}
+            </div>
+          )}
+
+          <div className="dp-series-line">
+            {getSeriesText(
+              matchup.series,
+              matchup.awayName,
               matchup.homeName
-            )} · PLAYERS TO WATCH`}
-            players={homePlayers}
-          />
-        </div>
+            )}
+          </div>
+
+          {(awayPlayers.length > 0 ||
+            homePlayers.length > 0) && (
+            <div className="dp-players-grid">
+              <PlayersToWatch
+                title={`${firstName(
+                  matchup.awayName
+                )} · PLAYERS TO WATCH`}
+                players={awayPlayers}
+              />
+
+              <PlayersToWatch
+                title={`${firstName(
+                  matchup.homeName
+                )} · PLAYERS TO WATCH`}
+                players={homePlayers}
+              />
+            </div>
+          )}
+        </>
       )}
     </article>
   );
 }
 
-// ======================================================
+// =====================================================
 // HOMEPAGE
-// ======================================================
+// =====================================================
 
 export default async function Home() {
   let data;
@@ -673,7 +979,6 @@ export default async function Home() {
     return (
       <main className="page-shell">
         <h1>Dirty P Fantasy Football</h1>
-
         <p>
           {error?.message ||
             "Unable to load league data."}
@@ -696,30 +1001,31 @@ export default async function Home() {
     unmatchedEspnOwners = [],
   } = data;
 
-  // ====================================================
+  // ===================================================
   // DEFENDING CHAMPION
-  // ====================================================
+  // ===================================================
 
-  const {
-    data: previousChampions,
-  } = await supabase
-    .from("seasons")
-    .select(`
-      year,
-      championship_score,
-      champion:champion_owner_id(name),
-      runner_up:runner_up_owner_id(name)
-    `)
-    .lt("year", currentSeason)
-    .order("year", { ascending: false })
-    .limit(1);
+  const { data: previousChampions } =
+    await supabase
+      .from("seasons")
+      .select(`
+        year,
+        championship_score,
+        champion:champion_owner_id(name),
+        runner_up:runner_up_owner_id(name)
+      `)
+      .lt("year", currentSeason)
+      .order("year", {
+        ascending: false,
+      })
+      .limit(1);
 
   const defendingSeason =
     previousChampions?.[0] || null;
 
-  // ====================================================
-  // CURRENT STANDINGS
-  // ====================================================
+  // ===================================================
+  // STANDINGS
+  // ===================================================
 
   const standings = buildStandings(
     currentTeams,
@@ -751,9 +1057,9 @@ export default async function Home() {
       playoffCount
     );
 
-  // ====================================================
-  // LATEST COMPLETED WEEK
-  // ====================================================
+  // ===================================================
+  // WEEK DATA
+  // ===================================================
 
   const completedWeeks =
     completedCurrentMatchups
@@ -771,10 +1077,6 @@ export default async function Home() {
     completedWeeks.length
       ? Math.max(...completedWeeks)
       : 0;
-
-  // ====================================================
-  // UPCOMING MATCHUPS
-  // ====================================================
 
   const regularMatchups =
     currentSeasonMatchups.filter(
@@ -812,16 +1114,15 @@ export default async function Home() {
         previewWeek
     );
 
-  // ====================================================
-  // PLAYER PROJECTIONS AND LIVE SCORING
-  // ====================================================
+  // ===================================================
+  // MATCHUP INTEL
+  // ===================================================
 
   let matchupIntel = null;
 
   try {
-    matchupIntel = await getMatchupIntel(
-      previewWeek
-    );
+    matchupIntel =
+      await getMatchupIntel(previewWeek);
   } catch (error) {
     console.error(
       "Matchup intel error:",
@@ -829,13 +1130,18 @@ export default async function Home() {
     );
   }
 
+  // ===================================================
+  // LIVE SCORES
+  // ===================================================
+
   let liveScores = new Map();
 
   try {
-    liveScores = await getEspnLiveScoreMap(
-      currentSeason,
-      previewWeek
-    );
+    liveScores =
+      await getEspnLiveScoreMap(
+        currentSeason,
+        previewWeek
+      );
   } catch (error) {
     console.error(
       "ESPN live score error:",
@@ -843,9 +1149,39 @@ export default async function Home() {
     );
   }
 
-  const showLiveScoreboard = Boolean(
-    matchupIntel?.weekStarted
+  // ===================================================
+  // GAME-STATE DETECTION
+  //
+  // Show live scoreboard after games begin.
+  // Hide all pregame matchup sections.
+  // ===================================================
+
+  const liveScoreValues = Array.from(
+    liveScores?.values?.() || []
   );
+
+  const hasActualFantasyScoring =
+    liveScoreValues.some(
+      (team) =>
+        num(team?.currentPoints) > 0
+    );
+
+  const completedGamesThisWeek =
+    currentSeasonMatchups.filter(
+      (game) =>
+        Number(game.matchup_period) ===
+          previewWeek &&
+        isCompleted(game)
+    );
+
+  const showLiveScoreboard = Boolean(
+    matchupIntel?.weekStarted ||
+    hasActualFantasyScoring ||
+    completedGamesThisWeek.length > 0
+  );
+
+  const showPregamePreviews =
+    !showLiveScoreboard;
 
   const teamMap = new Map(
     standings.map((team) => [
@@ -857,7 +1193,10 @@ export default async function Home() {
   function getTeamIntel(ownerId) {
     const team = teamMap.get(ownerId);
 
-    if (!team || !matchupIntel?.teamMap) {
+    if (
+      !team ||
+      !matchupIntel?.teamMap
+    ) {
       return null;
     }
 
@@ -871,10 +1210,7 @@ export default async function Home() {
   function getLiveTeam(ownerId) {
     const team = teamMap.get(ownerId);
 
-    if (
-      !team ||
-      !team.espnTeamId
-    ) {
+    if (!team?.espnTeamId) {
       return null;
     }
 
@@ -885,9 +1221,9 @@ export default async function Home() {
     );
   }
 
-  // ====================================================
-  // GAME OF THE WEEK AND MATCHUP PREVIEWS
-  // ====================================================
+  // ===================================================
+  // MATCHUPS AND HEAD-TO-HEAD HISTORY
+  // ===================================================
 
   const seriesGames = (
     historicalMatchups?.length
@@ -899,15 +1235,13 @@ export default async function Home() {
       Number(currentSeason)
   );
 
-  const previewMatchups = upcomingGames.map(
-    (game) => {
-      const awayId = Number(
-        game.away_owner_id
-      );
+  const previewMatchups =
+    upcomingGames.map((game) => {
+      const awayId =
+        Number(game.away_owner_id);
 
-      const homeId = Number(
-        game.home_owner_id
-      );
+      const homeId =
+        Number(game.home_owner_id);
 
       const awayStanding =
         standingMap.get(awayId);
@@ -947,12 +1281,6 @@ export default async function Home() {
           homeName
         );
 
-      // Game of the Week selection is based on
-      // standings, playoff position, league
-      // record, and rivalry significance.
-      //
-      // No betting odds or spreads are used.
-
       const awaySeed =
         awayStanding?.seed || 999;
 
@@ -989,10 +1317,9 @@ export default async function Home() {
       ) {
         hypeScore += Math.max(
           0,
-          8 -
-            Math.abs(
-              awaySeed - homeSeed
-            )
+          8 - Math.abs(
+            awaySeed - homeSeed
+          )
         );
       }
 
@@ -1075,8 +1402,7 @@ export default async function Home() {
         hypeScore,
         analysis: notes.join(" "),
       };
-    }
-  );
+    });
 
   const rankedMatchups = [
     ...previewMatchups,
@@ -1092,17 +1418,16 @@ export default async function Home() {
   const otherMatchups =
     rankedMatchups.slice(1);
 
-  // ====================================================
+  // ===================================================
   // AROUND THE LEAGUE
-  // ====================================================
+  // ===================================================
 
   const latestWeekGames =
     completedCurrentMatchups.filter(
       (game) =>
         isCompleted(game) &&
-        Number(
-          game.matchup_period
-        ) === latestCompletedWeek
+        Number(game.matchup_period) ===
+          latestCompletedWeek
     );
 
   const weekPerformances =
@@ -1110,16 +1435,12 @@ export default async function Home() {
       (game) => {
         const home =
           standingMap.get(
-            Number(
-              game.home_owner_id
-            )
+            Number(game.home_owner_id)
           );
 
         const away =
           standingMap.get(
-            Number(
-              game.away_owner_id
-            )
+            Number(game.away_owner_id)
           );
 
         return [
@@ -1147,13 +1468,12 @@ export default async function Home() {
     ...weekPerformances,
   ].sort(
     (a, b) =>
-      b.score -
-      a.score
+      b.score - a.score
   )[0];
 
-  // ====================================================
+  // ===================================================
   // PAGE
-  // ====================================================
+  // ===================================================
 
   return (
     <main className="page-shell">
@@ -1162,7 +1482,7 @@ export default async function Home() {
         intervalMs={30000}
       />
 
-      {/* SITE HEADER */}
+      {/* HEADER */}
 
       <header className="site-header">
         <div className="site-title">
@@ -1178,13 +1498,12 @@ export default async function Home() {
         </div>
       </header>
 
-      {/* HOMEPAGE HERO */}
+      {/* HERO */}
 
       <section className="owners-hero">
         <div>
           <p className="eyebrow">
-            {currentSeason}
-            {" "}FANTASY FOOTBALL
+            {currentSeason} FANTASY FOOTBALL
           </p>
 
           <h1>
@@ -1220,10 +1539,7 @@ export default async function Home() {
               </p>
 
               <h2>
-                {
-                  defendingSeason
-                    .champion.name
-                }
+                {defendingSeason.champion.name}
               </h2>
             </div>
 
@@ -1239,28 +1555,21 @@ export default async function Home() {
             </span>
 
             <strong>
-              {
-                defendingSeason
-                  .champion.name
-              }
+              {defendingSeason.champion.name}
             </strong>
 
-            {defendingSeason
-              .runner_up?.name && (
+            {defendingSeason.runner_up?.name && (
               <p>
                 Defeated{" "}
-                {
-                  defendingSeason
-                    .runner_up.name
-                }{" "}
-                in the championship game.
+                {defendingSeason.runner_up.name}
+                {" "}in the championship game.
               </p>
             )}
           </div>
         </section>
       )}
 
-      {/* ESPN OWNER MAPPING WARNING */}
+      {/* OWNER MAPPING WARNING */}
 
       {unmatchedEspnOwners.length > 0 && (
         <section className="section-block">
@@ -1270,8 +1579,8 @@ export default async function Home() {
             </strong>
 
             <p>
-              Some current ESPN owners could
-              not be matched to the
+              Some current ESPN owners
+              could not be matched to the
               league archive.
             </p>
 
@@ -1287,10 +1596,7 @@ export default async function Home() {
         </section>
       )}
 
-      {/* CURRENT STANDINGS
-          DIVISION LEADERS AND WILD CARDS
-          ARE SHOWN DIRECTLY IN THE TABLE.
-      */}
+      {/* CURRENT STANDINGS */}
 
       <section className="section-block">
         <div className="section-heading">
@@ -1322,90 +1628,64 @@ export default async function Home() {
             </thead>
 
             <tbody>
-              {standings.map(
-                (team) => {
-                  const status =
-                    playoffStatuses.get(
-                      team.ownerId
-                    ) || "Outside";
+              {standings.map((team) => {
+                const status =
+                  playoffStatuses.get(
+                    team.ownerId
+                  ) || "Outside";
 
-                  const divisionLeader =
-                    status ===
-                    "Division Leader";
+                const inField =
+                  status !== "Outside";
 
-                  const wildCard =
-                    status ===
-                    "Wild Card";
+                return (
+                  <tr key={team.ownerId}>
+                    <td>
+                      #{team.seed || "—"}
+                    </td>
 
-                  const playoffPosition =
-                    status ===
-                    "Playoff Position";
+                    <td>
+                      <Link
+                        href={`/owners/${team.ownerId}`}
+                        className="dp-standing-owner"
+                      >
+                        <strong>
+                          {team.ownerName}
+                        </strong>
 
-                  const inField =
-                    divisionLeader ||
-                    wildCard ||
-                    playoffPosition;
-
-                  return (
-                    <tr
-                      key={team.ownerId}
-                    >
-                      <td>
-                        #
-                        {
-                          team.seed ||
-                          "—"
-                        }
-                      </td>
-
-                      <td>
-                        <Link
-                          href={`/owners/${team.ownerId}`}
-                          className="dp-standing-owner"
-                        >
-                          <strong>
-                            {
-                              team.ownerName
-                            }
-                          </strong>
-
-                          <span>
-                            {
-                              team.teamName
-                            }
-                          </span>
-                        </Link>
-                      </td>
-
-                      <td>
-                        {formatRecord(
-                          team.wins,
-                          team.losses,
-                          team.ties
-                        )}
-                      </td>
-
-                      <td>
-                        {formatScore(
-                          team.pointsFor
-                        )}
-                      </td>
-
-                      <td>
-                        <span
-                          className={
-                            inField
-                              ? "dp-status-playoff"
-                              : "dp-status-out"
-                          }
-                        >
-                          {status}
+                        <span>
+                          {team.teamName}
                         </span>
-                      </td>
-                    </tr>
-                  );
-                }
-              )}
+                      </Link>
+                    </td>
+
+                    <td>
+                      {formatRecord(
+                        team.wins,
+                        team.losses,
+                        team.ties
+                      )}
+                    </td>
+
+                    <td>
+                      {formatScore(
+                        team.pointsFor
+                      )}
+                    </td>
+
+                    <td>
+                      <span
+                        className={
+                          inField
+                            ? "dp-status-playoff"
+                            : "dp-status-out"
+                        }
+                      >
+                        {status}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1426,10 +1706,7 @@ export default async function Home() {
             <div className="section-heading">
               <div>
                 <p className="eyebrow">
-                  WEEK{" "}
-                  {
-                    latestCompletedWeek
-                  }
+                  WEEK {latestCompletedWeek}
                 </p>
 
                 <h2>
@@ -1450,23 +1727,16 @@ export default async function Home() {
                   </span>
 
                   <strong>
-                    {
-                      highestScorer
-                        .owner
-                    }
+                    {highestScorer.owner}
                   </strong>
 
                   <p>
                     Scored{" "}
                     {formatScore(
-                      highestScorer
-                        .score
+                      highestScorer.score
                     )}{" "}
                     points in Week{" "}
-                    {
-                      latestCompletedWeek
-                    }
-                    .
+                    {latestCompletedWeek}.
                   </p>
                 </>
               )}
@@ -1481,19 +1751,16 @@ export default async function Home() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">
-                LIVE · WEEK{" "}
-                {previewWeek}
+                WEEK {previewWeek}
               </p>
 
               <h2>
-                Week {previewWeek}
-                {" "}Scoreboard
+                Week {previewWeek} Scoreboard
               </h2>
             </div>
 
             <span>
-              Refreshes Every
-              30 Seconds
+              Refreshes Every 30 Seconds
             </span>
           </div>
 
@@ -1511,94 +1778,88 @@ export default async function Home() {
             </div>
           ) : (
             <div className="dp-empty">
-              No matchups currently
-              available.
+              No matchups currently available.
             </div>
           )}
         </section>
       )}
 
-      {/* GAME OF THE WEEK */}
+      {/* GAME OF THE WEEK — PREGAME ONLY */}
 
-      <section className="section-block">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">
-              WEEK {previewWeek}
-              {" "}SPOTLIGHT
-            </p>
+      {showPregamePreviews && (
+        <section className="section-block">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">
+                WEEK {previewWeek} SPOTLIGHT
+              </p>
 
-            <h2>
-              Game of the Week
-            </h2>
+              <h2>
+                Game of the Week
+              </h2>
+            </div>
+
+            <span>
+              Featured Fantasy Matchup
+            </span>
           </div>
 
-          <span>
-            Featured Fantasy Matchup
-          </span>
-        </div>
+          {gameOfTheWeek ? (
+            <MatchupCard
+              matchup={gameOfTheWeek}
+              featured
+            />
+          ) : (
+            <div className="dp-empty">
+              Game of the Week will appear
+              when the weekly schedule
+              becomes available.
+            </div>
+          )}
+        </section>
+      )}
 
-        {gameOfTheWeek ? (
-          <MatchupCard
-            matchup={
-              gameOfTheWeek
-            }
-            featured
-            live={
-              showLiveScoreboard
-            }
-          />
-        ) : (
-          <div className="dp-empty">
-            Game of the Week will
-            appear when the weekly
-            schedule becomes available.
-          </div>
-        )}
-      </section>
+      {/* MATCHUP PREVIEWS — PREGAME ONLY */}
 
-      {/* MATCHUP PREVIEWS */}
+      {showPregamePreviews && (
+        <section className="section-block">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">
+                WEEK {previewWeek}
+              </p>
 
-      <section className="section-block">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">
-              WEEK {previewWeek}
-            </p>
+              <h2>
+                Matchup Previews
+              </h2>
+            </div>
 
-            <h2>
-              Matchup Previews
-            </h2>
+            <span>
+              Players to Watch ·
+              Head-to-Head History
+            </span>
           </div>
 
-          <span>
-            Players to Watch ·
-            Head-to-Head History
-          </span>
-        </div>
-
-        {otherMatchups.length ? (
-          <div className="dp-matchup-grid">
-            {otherMatchups.map(
-              (matchup) => (
-                <MatchupCard
-                  key={`${matchup.awayId}-${matchup.homeId}`}
-                  matchup={matchup}
-                  live={
-                    showLiveScoreboard
-                  }
-                />
-              )
-            )}
-          </div>
-        ) : (
-          <div className="dp-empty">
-            Additional matchup previews
-            will appear when the
-            schedule is available.
-          </div>
-        )}
-      </section>
+          {otherMatchups.length ? (
+            <div className="dp-matchup-grid">
+              {otherMatchups.map(
+                (matchup) => (
+                  <MatchupCard
+                    key={`${matchup.awayId}-${matchup.homeId}`}
+                    matchup={matchup}
+                  />
+                )
+              )}
+            </div>
+          ) : (
+            <div className="dp-empty">
+              Additional matchup previews
+              will appear when the
+              schedule is available.
+            </div>
+          )}
+        </section>
+      )}
 
       {/* FOOTER */}
 
@@ -1608,341 +1869,444 @@ export default async function Home() {
         </strong>
 
         <span>
-          The League Archive ·
-          Est. 2014
+          The League Archive · Est. 2014
         </span>
 
         <p>
-          Independent fantasy league
-          archive. Not affiliated
-          with or endorsed by ESPN.
+          Independent fantasy league archive.
+          Not affiliated with or endorsed by ESPN.
         </p>
       </footer>
 
-      {/* PAGE-SPECIFIC STYLES */}
+      {/* STYLES */}
 
       <style>{`
+
         .dp-feature-panel {
-          background: #171d26;
-          border: 1px solid #303947;
-          border-radius: 14px;
-          padding: 22px;
+          background:#171d26;
+          border:1px solid #303947;
+          border-radius:14px;
+          padding:22px;
         }
 
         .dp-feature-panel > span {
-          display: block;
-          color: #e9bd67;
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 1.3px;
-          margin-bottom: 10px;
+          display:block;
+          color:#e9bd67;
+          font-size:11px;
+          font-weight:800;
+          letter-spacing:1.3px;
+          margin-bottom:10px;
         }
 
         .dp-feature-panel > strong {
-          display: block;
-          color: #f5f7fa;
-          font-size: 23px;
-          margin-bottom: 8px;
+          display:block;
+          color:#f5f7fa;
+          font-size:23px;
+          margin-bottom:8px;
         }
 
         .dp-feature-panel p {
-          color: #aeb9c7;
-          font-size: 14px;
-          line-height: 1.6;
+          color:#aeb9c7;
+          font-size:14px;
+          line-height:1.6;
         }
 
+        /* STANDINGS */
+
         .dp-table-wrapper {
-          width: 100%;
-          overflow-x: auto;
-          background: #171d26;
-          border: 1px solid #303947;
-          border-radius: 14px;
+          width:100%;
+          overflow-x:auto;
+          background:#171d26;
+          border:1px solid #303947;
+          border-radius:14px;
         }
 
         .dp-standings-table {
-          width: 100%;
-          border-collapse: collapse;
-          min-width: 560px;
+          width:100%;
+          border-collapse:collapse;
+          min-width:560px;
         }
 
         .dp-standings-table th {
-          text-align: left;
-          color: #9aa7b8;
-          font-size: 11px;
-          letter-spacing: 0.7px;
-          padding: 15px 14px;
-          border-bottom: 1px solid #303947;
+          text-align:left;
+          color:#9aa7b8;
+          font-size:11px;
+          letter-spacing:.7px;
+          padding:15px 14px;
+          border-bottom:1px solid #303947;
         }
 
         .dp-standings-table td {
-          padding: 15px 14px;
-          border-bottom: 1px solid #252e39;
-          color: #e6eaf0;
-          font-size: 13px;
+          padding:15px 14px;
+          border-bottom:1px solid #252e39;
+          color:#e6eaf0;
+          font-size:13px;
         }
 
         .dp-standings-table tr:last-child td {
-          border-bottom: none;
+          border-bottom:none;
         }
 
         .dp-standing-owner {
-          display: flex;
-          flex-direction: column;
-          gap: 5px;
-          color: #f3f4f6;
-          text-decoration: none;
+          display:flex;
+          flex-direction:column;
+          gap:5px;
+          color:#f3f4f6;
+          text-decoration:none;
         }
 
         .dp-standing-owner span {
-          color: #929ead;
-          font-size: 12px;
+          color:#929ead;
+          font-size:12px;
         }
 
         .dp-status-playoff {
-          display: inline-block;
-          color: #e9bd67;
-          font-size: 11px;
-          font-weight: 800;
-          white-space: nowrap;
+          display:inline-block;
+          color:#e9bd67;
+          font-size:11px;
+          font-weight:800;
+          white-space:nowrap;
         }
 
         .dp-status-out {
-          color: #8895a5;
-          font-size: 11px;
-          font-weight: 700;
+          color:#8895a5;
+          font-size:11px;
+          font-weight:700;
         }
 
         .dp-standings-note {
-          color: #909cab;
-          font-size: 12px;
-          line-height: 1.5;
-          margin-top: 12px;
+          color:#909cab;
+          font-size:12px;
+          line-height:1.5;
+          margin-top:12px;
         }
 
+        /* MATCHUPS */
+
         .dp-matchup-grid {
-          display: grid;
+          display:grid;
           grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-          gap: 16px;
+            repeat(2,minmax(0,1fr));
+          gap:16px;
         }
 
         .dp-matchup-card {
-          min-width: 0;
-          overflow: hidden;
-          background: #171d26;
-          border: 1px solid #303947;
-          border-radius: 14px;
+          min-width:0;
+          overflow:hidden;
+          background:#171d26;
+          border:1px solid #303947;
+          border-radius:14px;
         }
 
         .dp-featured-matchup {
-          border-color: #806539;
+          border-color:#806539;
           box-shadow:
             0 0 0 1px
-            rgba(233,189,103,0.1);
+            rgba(233,189,103,.1);
         }
 
         .dp-matchup-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 10px;
-          padding: 14px 17px;
-          color: #aab6c3;
-          border-bottom:
-            1px solid #303947;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 1px;
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:10px;
+          padding:14px 17px;
+          color:#aab6c3;
+          border-bottom:1px solid #303947;
+          font-size:10px;
+          font-weight:800;
+          letter-spacing:1px;
         }
 
         .dp-matchup-top span:first-child {
-          color: #e9bd67;
+          color:#e9bd67;
         }
 
         .dp-versus-row {
-          display: grid;
+          display:grid;
           grid-template-columns:
-            minmax(0, 1fr)
+            minmax(0,1fr)
             40px
-            minmax(0, 1fr);
-          align-items: center;
-          padding: 25px 13px 20px;
-          gap: 6px;
+            minmax(0,1fr);
+          align-items:center;
+          padding:25px 13px 20px;
+          gap:6px;
         }
 
         .dp-matchup-side {
-          min-width: 0;
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
+          min-width:0;
+          text-align:center;
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          gap:6px;
         }
 
         .dp-owner-link {
-          color: #f3f5f7;
-          font-size: 15px;
-          font-weight: 800;
-          text-decoration: none;
-          line-height: 1.4;
-          overflow-wrap: anywhere;
+          color:#f3f5f7;
+          font-size:15px;
+          font-weight:800;
+          text-decoration:none;
+          line-height:1.4;
+          overflow-wrap:anywhere;
         }
 
         .dp-owner-link:hover {
-          color: #e9bd67;
+          color:#e9bd67;
         }
 
         .dp-matchup-owner {
-          color: #aeb9c7;
-          font-size: 12px;
-          line-height: 1.4;
+          color:#aeb9c7;
+          font-size:12px;
+          line-height:1.4;
         }
 
         .dp-matchup-record {
-          color: #8896a7;
-          font-size: 12px;
+          color:#8896a7;
+          font-size:12px;
         }
 
         .dp-matchup-score {
-          color: #f4f6f8;
-          font-size: 27px;
-          font-weight: 900;
-          margin-top: 7px;
-          font-variant-numeric:
-            tabular-nums;
+          color:#f4f6f8;
+          font-size:27px;
+          font-weight:900;
+          margin-top:7px;
+          font-variant-numeric:tabular-nums;
         }
 
         .dp-matchup-projection {
-          font-size: 11px;
-          color: #d4b57d;
+          font-size:11px;
+          color:#d4b57d;
         }
 
         .dp-versus-label {
-          text-align: center;
-          color: #e9bd67;
-          font-size: 12px;
-          font-weight: 900;
-          letter-spacing: 1px;
+          text-align:center;
+          color:#e9bd67;
+          font-size:12px;
+          font-weight:900;
+          letter-spacing:1px;
         }
 
+        /* PREGAME PREVIEWS */
+
         .dp-matchup-description {
-          color: #aeb9c7;
-          font-size: 13px;
-          line-height: 1.7;
-          padding: 0 18px 16px;
-          text-align: center;
+          color:#aeb9c7;
+          font-size:13px;
+          line-height:1.7;
+          padding:0 18px 16px;
+          text-align:center;
         }
 
         .dp-series-line {
-          border-top:
-            1px solid #303947;
-          padding: 13px 18px;
-          text-align: center;
-          color: #d6b77c;
-          font-size: 12px;
-          font-weight: 700;
+          border-top:1px solid #303947;
+          padding:13px 18px;
+          text-align:center;
+          color:#d6b77c;
+          font-size:12px;
+          font-weight:700;
         }
 
         .dp-players-grid {
-          display: grid;
+          display:grid;
           grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-          border-top:
-            1px solid #303947;
+            repeat(2,minmax(0,1fr));
+          border-top:1px solid #303947;
         }
 
         .dp-players-panel {
-          padding: 15px;
-          min-width: 0;
+          padding:15px;
+          min-width:0;
         }
 
         .dp-players-panel +
         .dp-players-panel {
-          border-left:
-            1px solid #303947;
+          border-left:1px solid #303947;
         }
 
         .dp-players-heading {
-          font-size: 10px;
-          letter-spacing: 0.7px;
-          color: #e9bd67;
-          font-weight: 800;
-          margin-bottom: 12px;
+          font-size:10px;
+          letter-spacing:.7px;
+          color:#e9bd67;
+          font-weight:800;
+          margin-bottom:12px;
         }
 
         .dp-player-row {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          padding: 9px 0;
-          border-bottom:
-            1px solid #29313d;
+          display:flex;
+          flex-direction:column;
+          gap:4px;
+          padding:9px 0;
+          border-bottom:1px solid #29313d;
         }
 
         .dp-player-row:last-child {
-          border-bottom: none;
+          border-bottom:none;
         }
 
         .dp-player-row strong {
-          color: #f0f2f5;
-          font-size: 12px;
+          color:#f0f2f5;
+          font-size:12px;
         }
 
         .dp-player-row span {
-          color: #9ba8b7;
-          font-size: 11px;
-          line-height: 1.5;
+          color:#9ba8b7;
+          font-size:11px;
+          line-height:1.5;
+        }
+
+        /* NEW LIVE STARTING LINEUPS */
+
+        .dp-live-lineups-grid {
+          display:grid;
+          grid-template-columns:
+            repeat(2,minmax(0,1fr));
+          border-top:1px solid #303947;
+        }
+
+        .dp-live-lineup {
+          min-width:0;
+          padding:15px;
+        }
+
+        .dp-live-lineup +
+        .dp-live-lineup {
+          border-left:1px solid #303947;
+        }
+
+        .dp-live-lineup-heading {
+          display:flex;
+          flex-direction:column;
+          gap:3px;
+          color:#e9bd67;
+          font-size:13px;
+          font-weight:800;
+          margin-bottom:13px;
+        }
+
+        .dp-live-lineup-heading span {
+          color:#8998a9;
+          font-size:9px;
+          letter-spacing:.8px;
+        }
+
+        .dp-live-players {
+          display:flex;
+          flex-direction:column;
+        }
+
+        .dp-live-player {
+          display:grid;
+          grid-template-columns:
+            37px minmax(0,1fr) 55px;
+          gap:8px;
+          align-items:center;
+          min-width:0;
+          padding:10px 0;
+          border-bottom:1px solid #29313d;
+        }
+
+        .dp-live-player:last-child {
+          border-bottom:none;
+        }
+
+        .dp-live-player-slot {
+          color:#e9bd67;
+          font-size:10px;
+          font-weight:900;
+          text-align:center;
+        }
+
+        .dp-live-player-info {
+          display:flex;
+          flex-direction:column;
+          gap:4px;
+          min-width:0;
+        }
+
+        .dp-live-player-info strong {
+          color:#f3f5f7;
+          font-size:12px;
+          overflow-wrap:anywhere;
+        }
+
+        .dp-live-player-info span {
+          color:#8f9cac;
+          font-size:10px;
+        }
+
+        .dp-live-player-score {
+          color:#f5f6f8;
+          font-size:13px;
+          font-weight:900;
+          font-variant-numeric:tabular-nums;
+          text-align:right;
+        }
+
+        .dp-lineup-unavailable {
+          color:#8f9cac;
+          font-size:11px;
+          line-height:1.6;
+          margin:8px 0;
         }
 
         .dp-empty {
-          background: #171d26;
-          border: 1px solid #303947;
-          border-radius: 14px;
-          color: #9ba8b7;
-          text-align: center;
-          padding: 30px;
-          font-size: 14px;
+          background:#171d26;
+          border:1px solid #303947;
+          border-radius:14px;
+          color:#9ba8b7;
+          text-align:center;
+          padding:30px;
+          font-size:14px;
         }
 
-        @media (max-width: 850px) {
+        /* MOBILE */
+
+        @media(max-width:850px) {
           .dp-matchup-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns:1fr;
           }
         }
 
-        @media (max-width: 480px) {
+        @media(max-width:480px) {
           .dp-versus-row {
             grid-template-columns:
-              minmax(0, 1fr)
+              minmax(0,1fr)
               28px
-              minmax(0, 1fr);
-            padding: 20px 9px;
+              minmax(0,1fr);
+            padding:20px 9px;
           }
 
           .dp-owner-link {
-            font-size: 13px;
+            font-size:13px;
           }
 
           .dp-matchup-score {
-            font-size: 23px;
+            font-size:23px;
           }
 
           .dp-players-panel {
-            padding: 11px;
+            padding:11px;
           }
 
-          .dp-players-heading {
-            font-size: 9px;
+          .dp-live-lineup {
+            padding:10px;
           }
 
-          .dp-player-row strong {
-            font-size: 11px;
+          .dp-live-player {
+            grid-template-columns:
+              30px minmax(0,1fr) 44px;
+            gap:5px;
           }
 
-          .dp-player-row span {
-            font-size: 10px;
+          .dp-live-player-info strong {
+            font-size:11px;
+          }
+
+          .dp-live-player-score {
+            font-size:12px;
           }
         }
+
       `}</style>
     </main>
   );
