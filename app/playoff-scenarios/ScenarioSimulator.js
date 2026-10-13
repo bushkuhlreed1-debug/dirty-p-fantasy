@@ -2,18 +2,24 @@
 
 import { useMemo, useState } from "react";
 
-function pct(team) {
-  const played =
-    team.wins + team.losses + team.ties;
+// =====================================================
+// HELPERS
+// =====================================================
 
-  return played
-    ? (team.wins + team.ties * 0.5) / played
+function winPercentage(team) {
+  const games =
+    team.wins +
+    team.losses +
+    team.ties;
+
+  return games
+    ? (team.wins + team.ties * 0.5) / games
     : 0;
 }
 
-function sortTeams(a, b) {
+function compareTeams(a, b) {
   return (
-    pct(b) - pct(a) ||
+    winPercentage(b) - winPercentage(a) ||
     b.wins - a.wins ||
     b.pointsFor - a.pointsFor ||
     a.ownerName.localeCompare(b.ownerName)
@@ -21,50 +27,54 @@ function sortTeams(a, b) {
 }
 
 function record(team) {
+  const base = `${team.wins}-${team.losses}`;
+
   return team.ties
-    ? `${team.wins}-${team.losses}-${team.ties}`
-    : `${team.wins}-${team.losses}`;
+    ? `${base}-${team.ties}`
+    : base;
 }
 
-function findPlayoffField(teams, playoffCount) {
+function getPlayoffField(teams, playoffCount) {
   const divisions = new Map();
 
   for (const team of teams) {
-    const divisionId =
+    if (
       team.divisionId === null ||
-      team.divisionId === undefined
-        ? null
-        : String(team.divisionId);
-
-    if (!divisionId) continue;
-
-    if (!divisions.has(divisionId)) {
-      divisions.set(divisionId, []);
+      team.divisionId === undefined ||
+      team.divisionId === ""
+    ) {
+      continue;
     }
 
-    divisions.get(divisionId).push(team);
+    const id = String(team.divisionId);
+
+    if (!divisions.has(id)) {
+      divisions.set(id, []);
+    }
+
+    divisions.get(id).push(team);
   }
 
-  // Two division winners qualify.
-  const leaders = Array.from(divisions.values())
-    .map((division) =>
-      [...division].sort(sortTeams)[0]
-    )
-    .filter(Boolean)
-    .sort(sortTeams);
+  // Dirty P: 2 division winners + 2 wild cards.
 
-  // Without both divisions, we cannot
-  // accurately identify division winners.
   if (divisions.size !== 2) {
     return {
-      divisionsAvailable: false,
+      hasDivisions: false,
       leaders: [],
       wildCards: [],
       field: [...teams]
-        .sort(sortTeams)
+        .sort(compareTeams)
         .slice(0, playoffCount),
     };
   }
+
+  const leaders = [...divisions.values()]
+    .map(
+      (divisionTeams) =>
+        [...divisionTeams].sort(compareTeams)[0]
+    )
+    .filter(Boolean)
+    .sort(compareTeams);
 
   const leaderIds = new Set(
     leaders.map((team) => team.ownerId)
@@ -74,19 +84,23 @@ function findPlayoffField(teams, playoffCount) {
     .filter(
       (team) => !leaderIds.has(team.ownerId)
     )
-    .sort(sortTeams)
+    .sort(compareTeams)
     .slice(
       0,
       Math.max(0, playoffCount - leaders.length)
     );
 
   return {
-    divisionsAvailable: true,
+    hasDivisions: true,
     leaders,
     wildCards,
     field: [...leaders, ...wildCards],
   };
 }
+
+// =====================================================
+// MAIN SIMULATOR
+// =====================================================
 
 export default function ScenarioSimulator({
   teams,
@@ -97,110 +111,124 @@ export default function ScenarioSimulator({
 }) {
   const [picks, setPicks] = useState({});
   const [selectedOwner, setSelectedOwner] =
-    useState(null);
+    useState("");
 
   const [expandedWeeks, setExpandedWeeks] =
     useState([currentWeek]);
 
+  const ownerMap = useMemo(
+    () =>
+      new Map(
+        teams.map((team) => [
+          team.ownerId,
+          team,
+        ])
+      ),
+    [teams]
+  );
+
+  // ===================================================
+  // APPLY SELECTED WINNERS
+  // ===================================================
+
   const simulatedTeams = useMemo(() => {
-    const calculated = teams.map((team) => ({
+    const result = teams.map((team) => ({
       ...team,
       wins: Number(team.wins) || 0,
       losses: Number(team.losses) || 0,
       ties: Number(team.ties) || 0,
     }));
 
-    const teamMap = new Map(
-      calculated.map((team) => [
+    const byOwner = new Map(
+      result.map((team) => [
         team.ownerId,
         team,
       ])
     );
 
     for (const game of games) {
-      const winnerId = Number(picks[game.id]);
+      const winnerId = Number(
+        picks[game.id]
+      );
 
       if (!winnerId) continue;
 
-      const home = teamMap.get(game.homeId);
-      const away = teamMap.get(game.awayId);
+      const home = byOwner.get(game.homeId);
+      const away = byOwner.get(game.awayId);
 
       if (!home || !away) continue;
 
       if (winnerId === home.ownerId) {
-        home.wins++;
-        away.losses++;
-      } else if (winnerId === away.ownerId) {
-        away.wins++;
-        home.losses++;
+        home.wins += 1;
+        away.losses += 1;
+      } else if (
+        winnerId === away.ownerId
+      ) {
+        away.wins += 1;
+        home.losses += 1;
       }
     }
 
-    return calculated;
+    return result;
   }, [teams, games, picks]);
 
-  const scenario = useMemo(
+  const playoff = useMemo(
     () =>
-      findPlayoffField(
+      getPlayoffField(
         simulatedTeams,
         playoffCount
       ),
     [simulatedTeams, playoffCount]
   );
 
-  const divisionGroups = useMemo(() => {
-    const map = new Map();
+  const divisions = useMemo(() => {
+    const groups = new Map();
 
     for (const team of simulatedTeams) {
       const id = String(
         team.divisionId ?? "unknown"
       );
 
-      const name =
-        team.divisionName ||
-        (id === "unknown"
-          ? "Division Unavailable"
-          : `Division ${id}`);
-
-      if (!map.has(id)) {
-        map.set(id, {
+      if (!groups.has(id)) {
+        groups.set(id, {
           id,
-          name,
+          name:
+            team.divisionName ||
+            (id === "unknown"
+              ? "Division Not Available"
+              : `Division ${id}`),
           teams: [],
         });
       }
 
-      map.get(id).teams.push(team);
+      groups.get(id).teams.push(team);
     }
 
-    return Array.from(map.values()).map(
+    return [...groups.values()].map(
       (division) => ({
         ...division,
-        teams: division.teams.sort(sortTeams),
+        teams: division.teams.sort(compareTeams),
       })
     );
   }, [simulatedTeams]);
 
   const weeks = useMemo(
     () =>
-      [...new Set(games.map((game) => game.week))]
-        .sort((a, b) => a - b),
+      [
+        ...new Set(
+          games.map((game) => game.week)
+        ),
+      ].sort((a, b) => a - b),
     [games]
   );
 
-  const ownerMap = new Map(
-    teams.map((team) => [
-      team.ownerId,
-      team,
-    ])
+  const selectedTeam = simulatedTeams.find(
+    (team) =>
+      String(team.ownerId) ===
+      String(selectedOwner)
   );
 
-  const selectedTeam =
-    simulatedTeams.find(
-      (team) => team.ownerId === selectedOwner
-    ) || null;
-
-  const selectedRemainingGames = selectedTeam
+  const selectedGames = selectedTeam
     ? games.filter(
         (game) =>
           game.homeId === selectedTeam.ownerId ||
@@ -208,16 +236,13 @@ export default function ScenarioSimulator({
       )
     : [];
 
-  const completedPicks = games.filter(
+  const selectedPicks = games.filter(
     (game) => picks[game.id]
   ).length;
 
-  const selectedTeamInPlayoffs =
-    selectedTeam &&
-    scenario.field.some(
-      (team) =>
-        team.ownerId === selectedTeam.ownerId
-    );
+  // ===================================================
+  // ACTIONS
+  // ===================================================
 
   function chooseWinner(gameId, winnerId) {
     setPicks((current) => {
@@ -236,54 +261,61 @@ export default function ScenarioSimulator({
   function toggleWeek(week) {
     setExpandedWeeks((current) =>
       current.includes(week)
-        ? current.filter((item) => item !== week)
+        ? current.filter(
+            (item) => item !== week
+          )
         : [...current, week]
     );
   }
 
-  function setRemainingForTeam(ownerId, shouldWin) {
-    const next = { ...picks };
+  function setTeamOutcome(ownerId, shouldWin) {
+    setPicks((current) => {
+      const next = { ...current };
 
-    for (const game of games) {
-      if (
-        game.homeId !== ownerId &&
-        game.awayId !== ownerId
-      ) {
-        continue;
+      for (const game of games) {
+        if (
+          game.homeId !== ownerId &&
+          game.awayId !== ownerId
+        ) {
+          continue;
+        }
+
+        const opponent =
+          game.homeId === ownerId
+            ? game.awayId
+            : game.homeId;
+
+        next[game.id] =
+          shouldWin ? ownerId : opponent;
       }
 
-      const opponentId =
-        game.homeId === ownerId
-          ? game.awayId
-          : game.homeId;
-
-      next[game.id] =
-        shouldWin ? ownerId : opponentId;
-    }
-
-    setPicks(next);
+      return next;
+    });
   }
 
-  function fieldStatus(ownerId) {
+  function teamStatus(ownerId) {
     if (
-      scenario.leaders.some(
-        (team) => team.ownerId === ownerId
+      playoff.leaders.some(
+        (team) =>
+          team.ownerId === ownerId
       )
     ) {
       return "Division Leader";
     }
 
     if (
-      scenario.wildCards.some(
-        (team) => team.ownerId === ownerId
+      playoff.wildCards.some(
+        (team) =>
+          team.ownerId === ownerId
       )
     ) {
       return "Wild Card";
     }
 
     if (
-      scenario.field.some(
-        (team) => team.ownerId === ownerId
+      playoff.field.some(
+        (team) =>
+          team.ownerId === ownerId
       )
     ) {
       return "Projected Playoff Spot";
@@ -292,33 +324,40 @@ export default function ScenarioSimulator({
     return "Outside";
   }
 
+  // ===================================================
+  // RENDER
+  // ===================================================
+
   return (
     <div className="scenario-root">
+
+      {/* PLAYOFF FIELD */}
 
       <section className="scenario-section">
         <div className="scenario-heading">
           <div>
             <span className="scenario-eyebrow">
-              CURRENT PICTURE
+              PLAYOFF PICTURE
             </span>
+
             <h2>Projected Playoff Field</h2>
           </div>
 
           <span className="scenario-small">
-            {completedPicks} of {games.length}
-            {" "}future games selected
+            {selectedPicks} of {games.length}
+            {" "}results selected
           </span>
         </div>
 
         <div className="scenario-field">
-          {scenario.field.map((team, index) => (
+          {playoff.field.map((team, index) => (
             <div
               className="scenario-seed"
               key={team.ownerId}
             >
-              <div className="scenario-seed-number">
+              <span className="scenario-seed-number">
                 #{index + 1}
-              </div>
+              </span>
 
               <div className="scenario-team-info">
                 <strong>
@@ -330,13 +369,13 @@ export default function ScenarioSimulator({
                 </span>
               </div>
 
-              <div className="scenario-field-right">
+              <div className="scenario-seed-status">
                 <strong>
                   {record(team)}
                 </strong>
 
                 <span>
-                  {fieldStatus(team.ownerId)}
+                  {teamStatus(team.ownerId)}
                 </span>
               </div>
             </div>
@@ -344,14 +383,15 @@ export default function ScenarioSimulator({
         </div>
 
         <p className="scenario-note">
-          This field is a projection based on the
-          selected game results. It is not an
-          official ESPN clinching determination.
-          Unselected games have no simulated
-          result, and the simulator uses current
-          points-for as a simplified tiebreaker.
+          Projection based on current ESPN records
+          and the game results you select below.
+          This is not an official clinching or
+          elimination calculation. Current points-for
+          is used as a simplified tiebreaker.
         </p>
       </section>
+
+      {/* DIVISION RACES */}
 
       <section className="scenario-section">
         <div className="scenario-heading">
@@ -359,17 +399,20 @@ export default function ScenarioSimulator({
             <span className="scenario-eyebrow">
               DIVISION RACES
             </span>
+
             <h2>Road to the Playoffs</h2>
           </div>
         </div>
 
         <div className="scenario-divisions">
-          {divisionGroups.map((division) => (
+          {divisions.map((division) => (
             <div
               className="scenario-division"
               key={division.id}
             >
-              <h3>{division.name}</h3>
+              <h3>
+                {division.name}
+              </h3>
 
               {division.teams.map(
                 (team, index) => (
@@ -387,7 +430,7 @@ export default function ScenarioSimulator({
                       #{index + 1}
                     </span>
 
-                    <span className="scenario-division-name">
+                    <span className="scenario-owner">
                       {team.ownerName}
                     </span>
 
@@ -402,12 +445,15 @@ export default function ScenarioSimulator({
         </div>
       </section>
 
+      {/* WHAT-IF SIMULATOR */}
+
       <section className="scenario-section">
         <div className="scenario-heading">
           <div>
             <span className="scenario-eyebrow">
               INTERACTIVE SIMULATOR
             </span>
+
             <h2>What If?</h2>
           </div>
 
@@ -421,21 +467,29 @@ export default function ScenarioSimulator({
         </div>
 
         <p className="scenario-intro">
-          Select a winner for any remaining game.
-          Watch the projected division standings
-          and playoff field change instantly.
+          Choose the winners of future fantasy
+          matchups. Your projected playoff field
+          and division standings will update
+          automatically.
         </p>
 
-        {weeks.length ? (
-          <div className="scenario-weeks">
-            {weeks.map((week) => {
+        <div className="scenario-weeks">
+          {weeks.length ? (
+            weeks.map((week) => {
               const weekGames =
                 games.filter(
-                  (game) => game.week === week
+                  (game) =>
+                    game.week === week
                 );
 
               const expanded =
                 expandedWeeks.includes(week);
+
+              const pickedCount =
+                weekGames.filter(
+                  (game) =>
+                    picks[game.id]
+                ).length;
 
               return (
                 <div
@@ -449,21 +503,14 @@ export default function ScenarioSimulator({
                       toggleWeek(week)
                     }
                   >
-                    <span>
+                    <strong>
                       Week {week}
-                    </span>
+                    </strong>
 
                     <span>
-                      {
-                        weekGames.filter(
-                          (game) =>
-                            picks[game.id]
-                        ).length
-                      }
-                      /{weekGames.length}
+                      {pickedCount}/{weekGames.length}
                       {" "}selected
-                      {" "}
-                      {expanded ? "−" : "+"}
+                      {expanded ? " −" : " +"}
                     </span>
                   </button>
 
@@ -471,10 +518,14 @@ export default function ScenarioSimulator({
                     <div className="scenario-games">
                       {weekGames.map((game) => {
                         const away =
-                          ownerMap.get(game.awayId);
+                          ownerMap.get(
+                            game.awayId
+                          );
 
                         const home =
-                          ownerMap.get(game.homeId);
+                          ownerMap.get(
+                            game.homeId
+                          );
 
                         return (
                           <div
@@ -499,8 +550,7 @@ export default function ScenarioSimulator({
                                 )
                               }
                             >
-                              {away?.ownerName ||
-                                "Away"}
+                              {away?.ownerName || "Away"}
                             </button>
 
                             <span className="scenario-vs">
@@ -525,8 +575,7 @@ export default function ScenarioSimulator({
                                 )
                               }
                             >
-                              {home?.ownerName ||
-                                "Home"}
+                              {home?.ownerName || "Home"}
                             </button>
                           </div>
                         );
@@ -535,15 +584,17 @@ export default function ScenarioSimulator({
                   )}
                 </div>
               );
-            })}
-          </div>
-        ) : (
-          <div className="scenario-empty">
-            No remaining matchup schedule is
-            available from ESPN.
-          </div>
-        )}
+            })
+          ) : (
+            <div className="scenario-empty">
+              No remaining fantasy matchups
+              are currently available.
+            </div>
+          )}
+        </div>
       </section>
+
+      {/* TEAM-SPECIFIC SCENARIOS */}
 
       <section className="scenario-section">
         <div className="scenario-heading">
@@ -551,18 +602,17 @@ export default function ScenarioSimulator({
             <span className="scenario-eyebrow">
               TEAM-BY-TEAM
             </span>
+
             <h2>Explore a Team's Path</h2>
           </div>
         </div>
 
         <select
           className="scenario-select"
-          value={selectedOwner ?? ""}
+          value={selectedOwner}
           onChange={(event) =>
             setSelectedOwner(
               event.target.value
-                ? Number(event.target.value)
-                : null
             )
           }
         >
@@ -570,12 +620,12 @@ export default function ScenarioSimulator({
             Select an owner
           </option>
 
-          {teams
-            .slice()
-            .sort((a, b) =>
-              a.ownerName.localeCompare(
-                b.ownerName
-              )
+          {[...teams]
+            .sort(
+              (a, b) =>
+                a.ownerName.localeCompare(
+                  b.ownerName
+                )
             )
             .map((team) => (
               <option
@@ -606,7 +656,7 @@ export default function ScenarioSimulator({
                 </strong>
 
                 <span>
-                  {fieldStatus(
+                  {teamStatus(
                     selectedTeam.ownerId
                   )}
                 </span>
@@ -614,19 +664,16 @@ export default function ScenarioSimulator({
             </div>
 
             <p className="scenario-intro">
-              {selectedRemainingGames.length}
-              {" "}remaining games available
-              in the ESPN schedule.
-              Try winning or losing those
-              games to see how the projected
-              playoff field changes.
+              {selectedGames.length}
+              {" "}remaining games are available
+              for this team in the schedule.
             </p>
 
             <div className="scenario-actions">
               <button
                 type="button"
                 onClick={() =>
-                  setRemainingForTeam(
+                  setTeamOutcome(
                     selectedTeam.ownerId,
                     true
                   )
@@ -638,7 +685,7 @@ export default function ScenarioSimulator({
               <button
                 type="button"
                 onClick={() =>
-                  setRemainingForTeam(
+                  setTeamOutcome(
                     selectedTeam.ownerId,
                     false
                   )
@@ -649,31 +696,36 @@ export default function ScenarioSimulator({
             </div>
 
             <div className="scenario-outlook">
-              {selectedTeamInPlayoffs
-                ? "Currently in the projected playoff field under your selected results."
-                : "Currently outside the projected playoff field under your selected results."}
+              {playoff.field.some(
+                (team) =>
+                  team.ownerId ===
+                  selectedTeam.ownerId
+              )
+                ? "Currently inside the projected playoff field under your selections."
+                : "Currently outside the projected playoff field under your selections."}
             </div>
           </div>
         )}
       </section>
 
       <p className="scenario-disclaimer">
-        Season {season} · Based on ESPN league
-        standings and the remaining matchups
-        available in the data feed. The simulator
-        is illustrative: it does not calculate
-        official mathematical clinches,
-        eliminations, or ESPN-specific
-        tiebreakers.
+        {season} playoff projections use
+        ESPN standings and available remaining
+        matchups. They are illustrative,
+        not official mathematical clinching
+        or elimination scenarios. Changes to
+        future points-for, head-to-head
+        tiebreakers, and other ESPN settings
+        are not simulated.
       </p>
 
       <style jsx>{`
         .scenario-root {
           display:flex;
           flex-direction:column;
-          gap:26px;
-          color:#f3f5f7;
+          gap:30px;
           margin:24px 0 36px;
+          color:#f3f5f7;
         }
 
         .scenario-section {
@@ -699,8 +751,8 @@ export default function ScenarioSimulator({
 
         .scenario-heading h2 {
           margin:5px 0 0;
-          font-size:23px;
           color:#f5f6f8;
+          font-size:23px;
         }
 
         .scenario-small,
@@ -722,10 +774,10 @@ export default function ScenarioSimulator({
           display:flex;
           align-items:center;
           gap:15px;
+          padding:17px;
           background:#171d26;
           border:1px solid #303947;
           border-radius:12px;
-          padding:17px;
         }
 
         .scenario-seed-number {
@@ -735,15 +787,11 @@ export default function ScenarioSimulator({
           width:40px;
         }
 
-        .scenario-team-info,
-        .scenario-field-right {
+        .scenario-team-info {
+          flex:1;
           display:flex;
           flex-direction:column;
           gap:5px;
-        }
-
-        .scenario-team-info {
-          flex:1;
           min-width:0;
         }
 
@@ -752,18 +800,16 @@ export default function ScenarioSimulator({
         }
 
         .scenario-team-info span,
-        .scenario-field-right span {
+        .scenario-seed-status span {
           color:#9cabbc;
           font-size:11px;
         }
 
-        .scenario-field-right {
+        .scenario-seed-status {
+          display:flex;
+          flex-direction:column;
+          gap:5px;
           text-align:right;
-          flex-shrink:0;
-        }
-
-        .scenario-field-right strong {
-          font-size:15px;
         }
 
         .scenario-note,
@@ -779,17 +825,17 @@ export default function ScenarioSimulator({
         }
 
         .scenario-division {
+          min-width:0;
+          padding:18px;
           background:#171d26;
           border:1px solid #303947;
           border-radius:12px;
-          padding:18px;
-          min-width:0;
         }
 
         .scenario-division h3 {
+          margin:0 0 14px;
           color:#e9bd67;
           font-size:15px;
-          margin:0 0 14px;
         }
 
         .scenario-division-row {
@@ -802,8 +848,8 @@ export default function ScenarioSimulator({
         }
 
         .scenario-rank {
-          color:#8795a6;
           width:24px;
+          color:#8795a6;
         }
 
         .scenario-rank.leader {
@@ -811,17 +857,17 @@ export default function ScenarioSimulator({
           font-weight:900;
         }
 
-        .scenario-division-name {
+        .scenario-owner {
           flex:1;
         }
 
         .scenario-reset,
         .scenario-actions button {
-          background:#242c38;
+          padding:10px 14px;
           border:1px solid #806539;
+          background:#242c38;
           color:#e9bd67;
           border-radius:8px;
-          padding:10px 14px;
           font-size:12px;
           font-weight:800;
           cursor:pointer;
@@ -843,29 +889,27 @@ export default function ScenarioSimulator({
         }
 
         .scenario-week {
+          overflow:hidden;
           background:#171d26;
           border:1px solid #303947;
           border-radius:12px;
-          overflow:hidden;
         }
 
         .scenario-week-toggle {
           display:flex;
-          width:100%;
           align-items:center;
           justify-content:space-between;
-          gap:10px;
+          width:100%;
           padding:16px;
-          border:0;
           background:transparent;
+          border:0;
           color:#f5f6f8;
           font-size:13px;
-          font-weight:800;
           cursor:pointer;
           text-align:left;
         }
 
-        .scenario-week-toggle span:last-child {
+        .scenario-week-toggle span {
           color:#9cabbc;
           font-size:11px;
         }
@@ -879,4 +923,146 @@ export default function ScenarioSimulator({
           grid-template-columns:
             minmax(0,1fr)
             24px
-            minmax
+            minmax(0,1fr);
+          align-items:center;
+          gap:9px;
+          padding:9px 0;
+          border-top:1px solid #29313d;
+        }
+
+        .scenario-vs {
+          color:#7e8c9e;
+          font-size:10px;
+          font-weight:900;
+          text-align:center;
+        }
+
+        .scenario-pick {
+          min-width:0;
+          padding:11px 8px;
+          background:#242c38;
+          border:1px solid #394554;
+          border-radius:8px;
+          color:#d1d9e2;
+          font-size:12px;
+          font-weight:700;
+          cursor:pointer;
+          overflow-wrap:anywhere;
+        }
+
+        .scenario-pick.selected {
+          background:#3c3422;
+          border-color:#d7ad63;
+          color:#f3c979;
+        }
+
+        .scenario-empty {
+          padding:25px;
+          background:#171d26;
+          border:1px solid #303947;
+          border-radius:12px;
+          color:#9cabbc;
+          font-size:13px;
+        }
+
+        .scenario-select {
+          width:100%;
+          max-width:370px;
+          padding:13px;
+          background:#171d26;
+          border:1px solid #806539;
+          border-radius:9px;
+          color:#f5f6f8;
+          font-size:13px;
+        }
+
+        .scenario-team-detail {
+          display:flex;
+          flex-direction:column;
+          gap:15px;
+          padding:20px;
+          background:#171d26;
+          border:1px solid #303947;
+          border-radius:12px;
+        }
+
+        .scenario-team-summary {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+        }
+
+        .scenario-team-summary > div {
+          display:flex;
+          flex-direction:column;
+          gap:5px;
+        }
+
+        .scenario-team-summary h3 {
+          margin:0;
+          font-size:17px;
+        }
+
+        .scenario-team-summary span {
+          color:#9cabbc;
+          font-size:11px;
+        }
+
+        .scenario-team-summary > div:last-child {
+          text-align:right;
+        }
+
+        .scenario-actions {
+          display:flex;
+          flex-wrap:wrap;
+          gap:10px;
+        }
+
+        .scenario-outlook {
+          padding:13px;
+          background:#24291f;
+          border-radius:8px;
+          color:#e9bd67;
+          font-size:12px;
+          line-height:1.6;
+        }
+
+        @media(max-width:700px) {
+          .scenario-divisions {
+            grid-template-columns:1fr;
+          }
+        }
+
+        @media(max-width:480px) {
+          .scenario-heading h2 {
+            font-size:19px;
+          }
+
+          .scenario-seed {
+            gap:9px;
+            padding:13px;
+          }
+
+          .scenario-seed-number {
+            font-size:20px;
+            width:30px;
+          }
+
+          .scenario-team-info strong {
+            font-size:13px;
+          }
+
+          .scenario-game {
+            gap:5px;
+          }
+
+          .scenario-pick {
+            font-size:11px;
+            padding:10px 5px;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
