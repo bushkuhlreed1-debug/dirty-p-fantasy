@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 const CURRENT_SEASON = 2026;
 const PLAYOFF_TEAMS = 4;
 
-const ASSIGNED_RIVALS = [
+const RIVALS = [
   ["Reed Bushkuhl", "Austin Lloyd"],
   ["Ryan Goodlett", "Matthew Aitkens"],
   ["Tyler Guenther", "Edward Wachtel"],
@@ -22,7 +22,7 @@ const ASSIGNED_RIVALS = [
 // HELPERS
 // =====================================================
 
-function numberOrNull(value) {
+function valueOrNull(value) {
   if (
     value === null ||
     value === undefined ||
@@ -35,57 +35,51 @@ function numberOrNull(value) {
   return Number(value);
 }
 
-function num(value) {
-  return numberOrNull(value) ?? 0;
+function n(value) {
+  return valueOrNull(value) ?? 0;
 }
 
-function formatScore(value) {
-  const number = numberOrNull(value);
-
-  return number === null
-    ? "—"
-    : number.toFixed(2);
+function points(value) {
+  const result = valueOrNull(value);
+  return result === null ? "—" : result.toFixed(2);
 }
 
-function formatOne(value) {
-  const number = numberOrNull(value);
-
-  return number === null
-    ? "—"
-    : number.toFixed(1);
+function one(value) {
+  const result = valueOrNull(value);
+  return result === null ? "—" : result.toFixed(1);
 }
 
-function formatRecord(wins, losses, ties = 0) {
-  const base = `${num(wins)}-${num(losses)}`;
+function record(team) {
+  if (!team) return "—";
 
-  return num(ties)
-    ? `${base}-${num(ties)}`
+  const base = `${n(team.wins)}-${n(team.losses)}`;
+
+  return n(team.ties)
+    ? `${base}-${n(team.ties)}`
     : base;
 }
 
-function firstName(name) {
+function first(name) {
   return String(name || "").trim().split(" ")[0] || "Owner";
 }
 
-function isAssignedRival(a, b) {
-  const first = String(a || "").trim().toLowerCase();
-  const second = String(b || "").trim().toLowerCase();
+function isRival(a, b) {
+  const x = String(a || "").toLowerCase();
+  const y = String(b || "").toLowerCase();
 
-  return ASSIGNED_RIVALS.some(([x, y]) => {
-    const xName = x.toLowerCase();
-    const yName = y.toLowerCase();
+  return RIVALS.some(([one, two]) => {
+    one = one.toLowerCase();
+    two = two.toLowerCase();
 
     return (
-      (first === xName && second === yName) ||
-      (first === yName && second === xName)
+      (x === one && y === two) ||
+      (x === two && y === one)
     );
   });
 }
 
-function isCompleted(game) {
-  const winner = String(game?.winner || "")
-    .trim()
-    .toUpperCase();
+function isFinal(game) {
+  const winner = String(game?.winner || "").toUpperCase();
 
   return (
     game?.completed === true ||
@@ -95,149 +89,112 @@ function isCompleted(game) {
   );
 }
 
-function gameWinnerId(game) {
-  if (!game || !isCompleted(game)) {
-    return null;
-  }
+function pairKey(game) {
+  const a = n(game.home_owner_id);
+  const b = n(game.away_owner_id);
 
-  const winner = String(game.winner || "")
-    .trim()
-    .toUpperCase();
+  return `${Math.min(a, b)}-${Math.max(a, b)}`;
+}
 
-  if (winner === "HOME") {
-    return Number(game.home_owner_id);
-  }
+function getWinner(game) {
+  const winner = String(game?.winner || "").toUpperCase();
 
-  if (winner === "AWAY") {
-    return Number(game.away_owner_id);
-  }
+  if (winner === "HOME") return n(game.home_owner_id);
+  if (winner === "AWAY") return n(game.away_owner_id);
+  if (winner === "TIE") return null;
 
-  if (
-    numberOrNull(game.home_score) === null ||
-    numberOrNull(game.away_score) === null
-  ) {
-    return null;
-  }
+  if (!isFinal(game)) return null;
 
-  if (num(game.home_score) > num(game.away_score)) {
-    return Number(game.home_owner_id);
-  }
+  const home = valueOrNull(game.home_score);
+  const away = valueOrNull(game.away_score);
 
-  if (num(game.away_score) > num(game.home_score)) {
-    return Number(game.away_owner_id);
-  }
+  if (home === null || away === null) return null;
+
+  if (home > away) return n(game.home_owner_id);
+  if (away > home) return n(game.away_owner_id);
 
   return null;
 }
 
-function matchupKey(game) {
-  const away = Number(game.away_owner_id);
-  const home = Number(game.home_owner_id);
-
-  return `${Math.min(away, home)}-${Math.max(away, home)}`;
-}
-
-function getSeries(games, firstId, secondId) {
-  let firstWins = 0;
-  let secondWins = 0;
+function headToHead(games, a, b) {
+  let aWins = 0;
+  let bWins = 0;
   let ties = 0;
 
-  for (const game of games || []) {
-    const home = Number(game.home_owner_id);
-    const away = Number(game.away_owner_id);
+  for (const game of games) {
+    const home = n(game.home_owner_id);
+    const away = n(game.away_owner_id);
 
-    const matches =
-      (home === firstId && away === secondId) ||
-      (home === secondId && away === firstId);
-
-    if (!matches || !isCompleted(game)) {
+    if (
+      !(
+        (home === a && away === b) ||
+        (home === b && away === a)
+      ) ||
+      !isFinal(game)
+    ) {
       continue;
     }
 
-    const winner = String(game.winner || "")
-      .trim()
-      .toUpperCase();
-
-    if (winner === "TIE") {
+    if (String(game.winner).toUpperCase() === "TIE") {
       ties++;
       continue;
     }
 
-    const winnerId = gameWinnerId(game);
+    const winner = getWinner(game);
 
-    if (winnerId === firstId) firstWins++;
-    if (winnerId === secondId) secondWins++;
+    if (winner === a) aWins++;
+    if (winner === b) bWins++;
   }
 
-  return {
-    firstWins,
-    secondWins,
-    ties,
-    total: firstWins + secondWins + ties,
-  };
+  return { aWins, bWins, ties };
 }
 
-function getSeriesText(series, firstOwner, secondOwner) {
-  if (!series?.total) {
+function seriesText(series, a, b) {
+  const { aWins, bWins, ties } = series;
+
+  if (!aWins && !bWins && !ties) {
     return "No previous completed meetings";
   }
 
-  if (series.firstWins > series.secondWins) {
-    return `${firstOwner} leads the all-time series ${series.firstWins}-${series.secondWins}`;
+  if (aWins > bWins) {
+    return `${a} leads the all-time series ${aWins}-${bWins}`;
   }
 
-  if (series.secondWins > series.firstWins) {
-    return `${secondOwner} leads the all-time series ${series.secondWins}-${series.firstWins}`;
+  if (bWins > aWins) {
+    return `${b} leads the all-time series ${bWins}-${aWins}`;
   }
 
-  return `All-time series tied ${series.firstWins}-${series.secondWins}`;
-}
-
-function getTopPlayers(intel, limit = 3) {
-  return Array.isArray(intel?.impactPlayers)
-    ? intel.impactPlayers.slice(0, limit)
-    : [];
-}
-
-function getPlayerOutlook(player) {
-  if (player?.matchupGrade === "GOOD") return "Favorable";
-  if (player?.matchupGrade === "TOUGH") return "Tough";
-
-  return "Matchup";
+  return `All-time series tied ${aWins}-${bWins}`;
 }
 
 // =====================================================
 // STANDINGS
 // =====================================================
 
-function buildStandings(currentTeams, results, owners) {
-  const ownerMap = new Map(
-    (owners || []).map((owner) => [
-      Number(owner.id),
-      owner.name,
-    ])
+function buildStandings(teams, results, owners) {
+  const ownerNames = new Map(
+    owners.map((owner) => [n(owner.id), owner.name])
   );
 
-  const resultMap = new Map(
-    (results || []).map((result) => [
-      Number(result.owner_id),
+  const resultsByOwner = new Map(
+    results.map((result) => [
+      n(result.owner_id),
       result,
     ])
   );
 
-  return (currentTeams || [])
+  return teams
     .map((team) => {
-      const ownerId = Number(
-        team.owner_id ?? team.ownerId ?? 0
+      const ownerId = n(
+        team.owner_id ?? team.ownerId
       );
 
-      const result = resultMap.get(ownerId);
+      const result = resultsByOwner.get(ownerId);
 
       return {
         ownerId,
-
         ownerName:
-          ownerMap.get(ownerId) ||
+          ownerNames.get(ownerId) ||
           team.ownerName ||
           "Unknown Owner",
 
@@ -246,14 +203,13 @@ function buildStandings(currentTeams, results, owners) {
           team.teamName ||
           "Unknown Team",
 
-        espnTeamId: Number(
+        espnTeamId: n(
           team.espnTeamId ??
           team.espn_team_id ??
-          team.id ??
-          0
+          team.id
         ),
 
-        seed: num(
+        seed: n(
           team.playoffSeed ??
           team.playoff_seed ??
           team.seed
@@ -264,17 +220,22 @@ function buildStandings(currentTeams, results, owners) {
           team.divisionId ??
           null,
 
-        wins: num(team.wins ?? result?.wins),
-        losses: num(team.losses ?? result?.losses),
-        ties: num(team.ties ?? result?.ties),
+        divisionName:
+          team.division_name ??
+          team.divisionName ??
+          null,
 
-        pointsFor: num(
+        wins: n(team.wins ?? result?.wins),
+        losses: n(team.losses ?? result?.losses),
+        ties: n(team.ties ?? result?.ties),
+
+        pointsFor: n(
           team.pointsFor ??
           team.points_for ??
           result?.points_for
         ),
 
-        pointsAgainst: num(
+        pointsAgainst: n(
           team.pointsAgainst ??
           team.points_against ??
           result?.points_against
@@ -283,27 +244,18 @@ function buildStandings(currentTeams, results, owners) {
     })
     .filter((team) => team.ownerId > 0)
     .sort((a, b) => {
-      const aSeed = a.seed > 0 ? a.seed : 999;
-      const bSeed = b.seed > 0 ? b.seed : 999;
+      const aSeed = a.seed || 999;
+      const bSeed = b.seed || 999;
 
-      if (aSeed !== bSeed) {
-        return aSeed - bSeed;
-      }
-
-      if (b.wins !== a.wins) {
-        return b.wins - a.wins;
-      }
-
-      return b.pointsFor - a.pointsFor;
+      return (
+        aSeed - bSeed ||
+        b.wins - a.wins ||
+        b.pointsFor - a.pointsFor
+      );
     });
 }
 
-// =====================================================
-// PLAYOFF STATUS
-// =====================================================
-
-function calculatePlayoffStatuses(standings, playoffCount) {
-  const statuses = new Map();
+function playoffStatuses(standings, playoffCount) {
   const divisions = new Map();
 
   for (const team of standings) {
@@ -315,61 +267,39 @@ function calculatePlayoffStatuses(standings, playoffCount) {
       continue;
     }
 
-    const key = String(team.divisionId);
+    const id = String(team.divisionId);
 
-    if (!divisions.has(key)) {
-      divisions.set(key, []);
-    }
+    if (!divisions.has(id)) divisions.set(id, []);
 
-    divisions.get(key).push(team);
+    divisions.get(id).push(team);
   }
 
-  const divisionLeaders = [];
+  const leaders = [];
 
   for (const teams of divisions.values()) {
-    const sorted = [...teams].sort((a, b) => {
-      const aSeed = a.seed > 0 ? a.seed : 999;
-      const bSeed = b.seed > 0 ? b.seed : 999;
+    const sorted = [...teams].sort(
+      (a, b) =>
+        (a.seed || 999) - (b.seed || 999) ||
+        b.wins - a.wins ||
+        b.pointsFor - a.pointsFor
+    );
 
-      if (aSeed !== bSeed) return aSeed - bSeed;
-      if (b.wins !== a.wins) return b.wins - a.wins;
-
-      return b.pointsFor - a.pointsFor;
-    });
-
-    if (sorted[0]) {
-      divisionLeaders.push(sorted[0]);
-    }
+    if (sorted[0]) leaders.push(sorted[0].ownerId);
   }
 
-  const leaderIds = new Set(
-    divisionLeaders.map((team) => team.ownerId)
-  );
-
-  const playoffIds = new Set(
-    standings
-      .filter(
-        (team) =>
-          team.seed > 0 &&
-          team.seed <= playoffCount
-      )
-      .map((team) => team.ownerId)
-  );
-
-  const divisionsAvailable =
-    divisions.size === 2 &&
-    divisionLeaders.length === 2;
+  const hasDivisions = divisions.size === 2;
+  const statuses = new Map();
 
   for (const team of standings) {
     let status = "Outside";
 
-    if (
-      divisionsAvailable &&
-      leaderIds.has(team.ownerId)
-    ) {
+    if (hasDivisions && leaders.includes(team.ownerId)) {
       status = "Division Leader";
-    } else if (playoffIds.has(team.ownerId)) {
-      status = divisionsAvailable
+    } else if (
+      team.seed > 0 &&
+      team.seed <= playoffCount
+    ) {
+      status = hasDivisions
         ? "Wild Card"
         : "Playoff Position";
     }
@@ -381,7 +311,269 @@ function calculatePlayoffStatuses(standings, playoffCount) {
 }
 
 // =====================================================
-// LIVE STARTING LINEUPS
+// WEEKLY RECAP
+// =====================================================
+
+function buildRecap(games, week, ownerMap) {
+  const unique = new Map();
+
+  for (const game of games) {
+    if (
+      n(game.matchup_period) !== week ||
+      !isFinal(game) ||
+      valueOrNull(game.home_score) === null ||
+      valueOrNull(game.away_score) === null
+    ) {
+      continue;
+    }
+
+    unique.set(pairKey(game), game);
+  }
+
+  if (!unique.size) return null;
+
+  const results = [...unique.values()].map((game) => {
+    const awayId = n(game.away_owner_id);
+    const homeId = n(game.home_owner_id);
+    const awayScore = n(game.away_score);
+    const homeScore = n(game.home_score);
+
+    return {
+      id: pairKey(game),
+      awayId,
+      homeId,
+      awayName: ownerMap.get(awayId) || "Away",
+      homeName: ownerMap.get(homeId) || "Home",
+      awayScore,
+      homeScore,
+      margin: Math.abs(awayScore - homeScore),
+      total: awayScore + homeScore,
+      winnerId: getWinner(game),
+    };
+  });
+
+  const performances = results.flatMap((game) => [
+    {
+      ownerId: game.awayId,
+      name: game.awayName,
+      score: game.awayScore,
+    },
+    {
+      ownerId: game.homeId,
+      name: game.homeName,
+      score: game.homeScore,
+    },
+  ]);
+
+  const highest = [...performances].sort(
+    (a, b) => b.score - a.score
+  )[0];
+
+  const lowest = [...performances].sort(
+    (a, b) => a.score - b.score
+  )[0];
+
+  const decisive = results.filter(
+    (game) => game.awayScore !== game.homeScore
+  );
+
+  const blowout = [...decisive].sort(
+    (a, b) => b.margin - a.margin
+  )[0] || null;
+
+  const closest = [...results].sort(
+    (a, b) => a.margin - b.margin
+  )[0];
+
+  const shootout = [...results].sort(
+    (a, b) => b.total - a.total
+  )[0];
+
+  const average =
+    performances.reduce(
+      (sum, item) => sum + item.score,
+      0
+    ) / performances.length;
+
+  const totalPoints =
+    performances.reduce(
+      (sum, item) => sum + item.score,
+      0
+    );
+
+  return {
+    week,
+    results,
+    highest,
+    lowest,
+    blowout,
+    closest,
+    shootout,
+    average,
+    totalPoints,
+  };
+}
+
+function RecapStat({ label, name, value, detail }) {
+  return (
+    <div className="dp-recap-stat">
+      <span>{label}</span>
+      <strong>{name}</strong>
+      <b>{value}</b>
+      {detail && <small>{detail}</small>}
+    </div>
+  );
+}
+
+function AroundTheLeague({ recap }) {
+  if (!recap) return null;
+
+  const {
+    week,
+    results,
+    highest,
+    lowest,
+    blowout,
+    closest,
+    shootout,
+    average,
+    totalPoints,
+  } = recap;
+
+  function winnerName(game) {
+    if (!game) return "—";
+
+    if (game.winnerId === game.awayId) {
+      return game.awayName;
+    }
+
+    if (game.winnerId === game.homeId) {
+      return game.homeName;
+    }
+
+    return "Tie";
+  }
+
+  return (
+    <section className="section-block">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">
+            WEEK {week} RECAP
+          </p>
+          <h2>Around the League</h2>
+        </div>
+        <span>{results.length} Final Matchups</span>
+      </div>
+
+      <p className="dp-recap-description">
+        The biggest performances, closest finishes,
+        and standout results from Week {week}.
+      </p>
+
+      <div className="dp-recap-grid">
+        <RecapStat
+          label="🏆 HIGHEST SCORER"
+          name={highest?.name || "—"}
+          value={`${points(highest?.score)} PTS`}
+          detail="Best team performance"
+        />
+
+        {blowout && (
+          <RecapStat
+            label="💥 BIGGEST BLOWOUT"
+            name={winnerName(blowout)}
+            value={`${points(blowout.margin)} PTS`}
+            detail="Largest winning margin"
+          />
+        )}
+
+        {closest && (
+          <RecapStat
+            label="🔥 CLOSEST GAME"
+            name={`${first(closest.awayName)} vs ${first(
+              closest.homeName
+            )}`}
+            value={`${points(closest.margin)} PTS`}
+            detail={`${points(closest.awayScore)} – ${points(
+              closest.homeScore
+            )}`}
+          />
+        )}
+
+        {shootout && (
+          <RecapStat
+            label="🚀 HIGHEST-SCORING MATCHUP"
+            name={`${first(shootout.awayName)} vs ${first(
+              shootout.homeName
+            )}`}
+            value={`${points(shootout.total)} PTS`}
+            detail="Combined team points"
+          />
+        )}
+
+        <RecapStat
+          label="📊 LEAGUE AVERAGE"
+          name="Weekly Team Average"
+          value={`${points(average)} PTS`}
+          detail={`${points(totalPoints)} total league points`}
+        />
+
+        <RecapStat
+          label="🛡️ LOWEST SCORER"
+          name={lowest?.name || "—"}
+          value={`${points(lowest?.score)} PTS`}
+          detail="Lowest fantasy team score"
+        />
+      </div>
+
+      <div className="dp-recap-results">
+        <h3>Week {week} Results</h3>
+
+        <div className="dp-recap-results-grid">
+          {results.map((game) => (
+            <div className="dp-recap-result" key={game.id}>
+              <span className="dp-recap-final">
+                FINAL
+              </span>
+
+              <div
+                className={
+                  "dp-recap-result-team " +
+                  (game.winnerId === game.awayId
+                    ? "winner"
+                    : "")
+                }
+              >
+                <Link href={`/owners/${game.awayId}`}>
+                  {game.awayName}
+                </Link>
+                <strong>{points(game.awayScore)}</strong>
+              </div>
+
+              <div
+                className={
+                  "dp-recap-result-team " +
+                  (game.winnerId === game.homeId
+                    ? "winner"
+                    : "")
+                }
+              >
+                <Link href={`/owners/${game.homeId}`}>
+                  {game.homeName}
+                </Link>
+                <strong>{points(game.homeScore)}</strong>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// =====================================================
+// PREGAME / LIVE PLAYERS
 // =====================================================
 
 const BENCH_SLOTS = new Set([
@@ -389,77 +581,56 @@ const BENCH_SLOTS = new Set([
   "BN",
   "BENCH",
   "IR",
-  "RESERVE",
   "20",
   "21",
 ]);
 
 const SLOT_NAMES = {
-  "0": "QB",
-  "2": "RB",
-  "3": "RB/WR",
-  "4": "WR",
-  "5": "WR/TE",
-  "6": "TE",
-  "16": "D/ST",
-  "17": "K",
-  "20": "BE",
-  "21": "IR",
-  "23": "FLEX",
+  0: "QB",
+  2: "RB",
+  3: "RB/WR",
+  4: "WR",
+  5: "WR/TE",
+  6: "TE",
+  16: "D/ST",
+  17: "K",
+  20: "BE",
+  21: "IR",
+  23: "FLEX",
 };
 
-function getSlot(entry) {
-  const raw =
+function lineupSlot(entry) {
+  const value =
     entry?.lineupSlot ??
-    entry?.lineup_slot ??
     entry?.lineupSlotId ??
     entry?.lineup_slot_id ??
     entry?.slot ??
     null;
 
-  if (raw === null || raw === undefined) {
-    return null;
-  }
+  if (value === null) return null;
 
-  const value = String(raw).trim().toUpperCase();
-
-  return SLOT_NAMES[value] || value;
+  return SLOT_NAMES[value] ||
+    String(value).toUpperCase();
 }
 
-function getStartingLineup(team) {
-  if (!team) return [];
-
+function liveStarters(team) {
   const entries =
-    team.startingLineup ??
-    team.starters ??
-    team.roster?.entries ??
-    team.rosterEntries ??
-    team.players ??
+    team?.startingLineup ??
+    team?.starters ??
+    team?.roster?.entries ??
     [];
 
-  if (!Array.isArray(entries)) {
-    return [];
-  }
+  if (!Array.isArray(entries)) return [];
 
   return entries
     .filter((entry) => {
-      if (
-        entry?.isStarter === false ||
-        entry?.starter === false
-      ) {
-        return false;
-      }
+      if (entry.isStarter === false) return false;
 
-      const slot = getSlot(entry);
-
-      if (slot && BENCH_SLOTS.has(slot)) {
-        return false;
-      }
+      const slot = lineupSlot(entry);
 
       return (
-        entry?.isStarter === true ||
-        entry?.starter === true ||
-        Boolean(slot)
+        slot &&
+        !BENCH_SLOTS.has(slot)
       );
     })
     .map((entry, index) => {
@@ -471,519 +642,37 @@ function getStartingLineup(team) {
       const name =
         player?.fullName ??
         player?.name ??
-        player?.displayName ??
-        entry?.name ??
-        null;
+        entry?.name;
 
       if (!name) return null;
 
-      const stats = Array.isArray(player?.stats)
-        ? player.stats
-        : [];
-
-      const actualStat = stats.find(
-        (stat) =>
-          Number(stat?.statSourceId) === 0 &&
-          numberOrNull(stat?.appliedTotal) !== null
-      );
-
-      const points =
-        numberOrNull(
-          entry?.currentPoints ??
-          entry?.actualPoints ??
-          entry?.livePoints ??
-          actualStat?.appliedTotal
-        );
-
       return {
         id:
-          player?.id ??
           entry?.playerId ??
+          player?.id ??
           `${name}-${index}`,
-
         name,
-        slot: getSlot(entry),
-
+        slot: lineupSlot(entry),
         position:
           entry?.position ??
           player?.position ??
-          null,
-
+          "",
         nflTeam:
           entry?.nflTeam ??
           player?.proTeamAbbreviation ??
-          null,
-
-        points,
+          "",
+        score:
+          valueOrNull(
+            entry?.currentPoints ??
+            entry?.actualPoints ??
+            entry?.livePoints
+          ),
       };
     })
     .filter(Boolean);
 }
 
-// =====================================================
-// AROUND THE LEAGUE — AUTOMATIC WEEKLY RECAP
-//
-// Works for every completed week.
-//
-// Uses actual completed fantasy matchups.
-//
-// Shows:
-// - Highest scorer
-// - Biggest blowout
-// - Closest matchup
-// - Highest combined score
-// - Weekly scoring average
-// - Every completed matchup result
-//
-// No fabricated MVPs or upset rankings.
-// =====================================================
-
-function buildWeeklyRecap(games, week, ownerMap) {
-  const completed = (games || []).filter(
-    (game) =>
-      Number(game.matchup_period) === Number(week) &&
-      isCompleted(game) &&
-      numberOrNull(game.home_score) !== null &&
-      numberOrNull(game.away_score) !== null
-  );
-
-  const seen = new Set();
-
-  const uniqueGames = completed.filter((game) => {
-    const key = matchupKey(game);
-
-    if (seen.has(key)) {
-      return false;
-    }
-
-    seen.add(key);
-    return true;
-  });
-
-  if (!uniqueGames.length) {
-    return null;
-  }
-
-  const results = uniqueGames.map((game) => {
-    const homeId = Number(game.home_owner_id);
-    const awayId = Number(game.away_owner_id);
-
-    const homeName =
-      ownerMap.get(homeId) || "Unknown Owner";
-
-    const awayName =
-      ownerMap.get(awayId) || "Unknown Owner";
-
-    const homeScore = num(game.home_score);
-    const awayScore = num(game.away_score);
-
-    const winnerId = gameWinnerId(game);
-
-    const tied = homeScore === awayScore;
-
-    const winnerName = tied
-      ? "Tie"
-      : winnerId === homeId
-      ? homeName
-      : winnerId === awayId
-      ? awayName
-      : homeScore > awayScore
-      ? homeName
-      : awayName;
-
-    const loserName = tied
-      ? "Tie"
-      : winnerName === homeName
-      ? awayName
-      : homeName;
-
-    return {
-      key: matchupKey(game),
-      homeId,
-      awayId,
-      homeName,
-      awayName,
-      homeScore,
-      awayScore,
-      winnerName,
-      loserName,
-      margin: Math.abs(homeScore - awayScore),
-      combined: homeScore + awayScore,
-      tied,
-    };
-  });
-
-  const performances = results.flatMap((game) => [
-    {
-      ownerId: game.homeId,
-      ownerName: game.homeName,
-      points: game.homeScore,
-    },
-    {
-      ownerId: game.awayId,
-      ownerName: game.awayName,
-      points: game.awayScore,
-    },
-  ]);
-
-  const sortedPerformances = [...performances].sort(
-    (a, b) => b.points - a.points
-  );
-
-  const decisiveGames = results.filter(
-    (game) => !game.tied
-  );
-
-  const biggestBlowout = [...decisiveGames].sort(
-    (a, b) => b.margin - a.margin
-  )[0] || null;
-
-  const closestGame = [...results].sort(
-    (a, b) => a.margin - b.margin
-  )[0] || null;
-
-  const highestCombined = [...results].sort(
-    (a, b) => b.combined - a.combined
-  )[0] || null;
-
-  const lowestCombined = [...results].sort(
-    (a, b) => a.combined - b.combined
-  )[0] || null;
-
-  const totalPoints = performances.reduce(
-    (sum, performance) => sum + performance.points,
-    0
-  );
-
-  const averageScore = performances.length
-    ? totalPoints / performances.length
-    : 0;
-
-  return {
-    week,
-    results,
-    matchupCount: results.length,
-    highestScorer: sortedPerformances[0] || null,
-    lowestScorer:
-      sortedPerformances[sortedPerformances.length - 1] ||
-      null,
-    biggestBlowout,
-    closestGame,
-    highestCombined,
-    lowestCombined,
-    averageScore,
-    totalPoints,
-  };
-}
-
-// =====================================================
-// AROUND THE LEAGUE COMPONENTS
-// =====================================================
-
-function RecapHighlight({
-  label,
-  title,
-  value,
-  detail,
-  featured = false,
-}) {
-  return (
-    <div
-      className={`dp-recap-highlight ${
-        featured ? "dp-recap-featured" : ""
-      }`}
-    >
-      <span className="dp-recap-label">
-        {label}
-      </span>
-
-      <strong className="dp-recap-name">
-        {title}
-      </strong>
-
-      <div className="dp-recap-value">
-        {value}
-      </div>
-
-      {detail && (
-        <p className="dp-recap-detail">
-          {detail}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function AroundTheLeague({ recap }) {
-  if (!recap) {
-    return null;
-  }
-
-  const {
-    week,
-    results,
-    matchupCount,
-    highestScorer,
-    biggestBlowout,
-    closestGame,
-    highestCombined,
-    lowestCombined,
-    averageScore,
-  } = recap;
-
-  return (
-    <section className="section-block">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">
-            WEEK {week} RECAP
-          </p>
-
-          <h2>
-            Around the League
-          </h2>
-        </div>
-
-        <span>
-          {matchupCount} Final Matchups
-        </span>
-      </div>
-
-      <div className="dp-recap-intro">
-        <strong>
-          The Week {week} Rundown
-        </strong>
-
-        <p>
-          The biggest performances, closest finishes,
-          and standout results from Week {week}.
-        </p>
-      </div>
-
-      <div className="dp-recap-highlights">
-
-        {highestScorer && (
-          <RecapHighlight
-            featured
-            label="🏆 TOP WEEKLY PERFORMANCE"
-            title={highestScorer.ownerName}
-            value={`${formatScore(
-              highestScorer.points
-            )} PTS`}
-            detail="Highest-scoring fantasy team of the week"
-          />
-        )}
-
-        {biggestBlowout && (
-          <RecapHighlight
-            label="💥 BIGGEST BLOWOUT"
-            title={biggestBlowout.winnerName}
-            value={`${formatScore(
-              biggestBlowout.margin
-            )}-point win`}
-            detail={`Defeated ${firstName(
-              biggestBlowout.loserName
-            )}`}
-          />
-        )}
-
-        {closestGame && (
-          <RecapHighlight
-            label="🔥 CLOSEST MATCHUP"
-            title={
-              `${firstName(closestGame.awayName)} vs ` +
-              `${firstName(closestGame.homeName)}`
-            }
-            value={
-              closestGame.tied
-                ? "Tied"
-                : `${formatScore(
-                    closestGame.margin
-                  )}-point margin`
-            }
-            detail={
-              `${formatScore(
-                closestGame.awayScore
-              )} – ${formatScore(
-                closestGame.homeScore
-              )}`
-            }
-          />
-        )}
-
-        {highestCombined && (
-          <RecapHighlight
-            label="🚀 HIGHEST-SCORING MATCHUP"
-            title={
-              `${firstName(highestCombined.awayName)} vs ` +
-              `${firstName(highestCombined.homeName)}`
-            }
-            value={`${formatScore(
-              highestCombined.combined
-            )} PTS`}
-            detail="Most combined points in a matchup"
-          />
-        )}
-
-        <RecapHighlight
-          label="📊 WEEKLY SCORING AVERAGE"
-          title="League Average"
-          value={`${formatScore(averageScore)} PTS`}
-          detail="Average fantasy team score this week"
-        />
-
-        {lowestCombined && (
-          <RecapHighlight
-            label="🛡️ LOWEST-SCORING MATCHUP"
-            title={
-              `${firstName(lowestCombined.awayName)} vs ` +
-              `${firstName(lowestCombined.homeName)}`
-            }
-            value={`${formatScore(
-              lowestCombined.combined
-            )} PTS`}
-            detail="Fewest combined points in a matchup"
-          />
-        )}
-
-      </div>
-
-      {/* EVERY WEEKLY RESULT */}
-
-      <div className="dp-recap-results">
-        <div className="dp-recap-results-heading">
-          <div>
-            <span className="dp-recap-label">
-              FULL WEEKLY RESULTS
-            </span>
-
-            <h3>
-              Week {week} Scoreboard
-            </h3>
-          </div>
-
-          <span className="dp-recap-final-count">
-            {matchupCount} FINAL
-          </span>
-        </div>
-
-        <div className="dp-recap-results-grid">
-          {results.map((game) => {
-            const awayWon =
-              game.awayScore > game.homeScore;
-
-            const homeWon =
-              game.homeScore > game.awayScore;
-
-            return (
-              <article
-                className="dp-recap-result"
-                key={game.key}
-              >
-                <div className="dp-recap-result-top">
-                  <span>FINAL</span>
-
-                  <span>
-                    {game.tied
-                      ? "TIE"
-                      : `${formatScore(
-                          game.margin
-                        )}-POINT MARGIN`}
-                  </span>
-                </div>
-
-                <div
-                  className={`dp-recap-result-team ${
-                    awayWon ? "winner" : ""
-                  }`}
-                >
-                  <Link
-                    href={`/owners/${game.awayId}`}
-                  >
-                    {game.awayName}
-                  </Link>
-
-                  <strong>
-                    {formatScore(game.awayScore)}
-                  </strong>
-                </div>
-
-                <div
-                  className={`dp-recap-result-team ${
-                    homeWon ? "winner" : ""
-                  }`}
-                >
-                  <Link
-                    href={`/owners/${game.homeId}`}
-                  >
-                    {game.homeName}
-                  </Link>
-
-                  <strong>
-                    {formatScore(game.homeScore)}
-                  </strong>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// =====================================================
-// MATCHUP COMPONENTS
-// =====================================================
-
-function OwnerMatchupSide({
-  owner,
-  team,
-  standing,
-  points,
-  projection,
-  live,
-}) {
-  return (
-    <div className="dp-matchup-side">
-      <Link
-        href={`/owners/${owner}`}
-        className="dp-owner-link"
-      >
-        {team}
-      </Link>
-
-      <div className="dp-matchup-owner">
-        {standing?.ownerName || "Unknown Owner"}
-      </div>
-
-      {standing && (
-        <div className="dp-matchup-record">
-          {formatRecord(
-            standing.wins,
-            standing.losses,
-            standing.ties
-          )}
-        </div>
-      )}
-
-      {numberOrNull(points) !== null && (
-        <div className="dp-matchup-score">
-          {formatScore(points)}
-        </div>
-      )}
-
-      {!live &&
-        numberOrNull(projection) !== null && (
-          <div className="dp-matchup-projection">
-            Projected points · {formatOne(projection)}
-          </div>
-        )}
-    </div>
-  );
-}
-
-function PlayersToWatch({ title, players }) {
+function PregamePlayers({ title, players }) {
   return (
     <div className="dp-players-panel">
       <div className="dp-players-heading">
@@ -997,82 +686,61 @@ function PlayersToWatch({ title, players }) {
             key={player.playerId || index}
           >
             <strong>{player.name}</strong>
-
             <span>
               {player.position || "Player"}
-
-              {numberOrNull(player.projection) !== null &&
-                ` · ${formatOne(
-                  player.projection
-                )} projected`}
-
-              {player.opponent &&
-                ` · vs ${player.opponent}`}
-
-              {` · ${getPlayerOutlook(player)}`}
+              {valueOrNull(player.projection) !== null
+                ? ` · ${one(player.projection)} projected`
+                : ""}
+              {player.opponent
+                ? ` · vs ${player.opponent}`
+                : ""}
             </span>
           </div>
         ))
       ) : (
-        <div className="dp-player-row">
-          <span>
-            Player projections unavailable.
-          </span>
-        </div>
+        <p className="dp-muted">
+          Player projections unavailable.
+        </p>
       )}
     </div>
   );
 }
 
-function LiveLineup({ title, team }) {
-  const starters = getStartingLineup(team);
+function LiveLineup({ name, team }) {
+  const starters = liveStarters(team);
 
   return (
     <div className="dp-live-lineup">
-      <div className="dp-live-lineup-heading">
-        <strong>{title}</strong>
-
-        <span>STARTING LINEUP</span>
-      </div>
+      <h4>{name} · STARTERS</h4>
 
       {starters.length ? (
-        <div className="dp-live-players">
-          {starters.map((player) => (
-            <div
-              className="dp-live-player"
-              key={player.id}
-            >
-              <div className="dp-live-player-slot">
-                {player.slot ||
-                  player.position ||
-                  "—"}
-              </div>
+        starters.map((player) => (
+          <div
+            className="dp-live-player"
+            key={player.id}
+          >
+            <span className="dp-live-slot">
+              {player.slot}
+            </span>
 
-              <div className="dp-live-player-info">
-                <strong>
-                  {player.name}
-                </strong>
-
-                <span>
-                  {[
-                    player.position,
-                    player.nflTeam,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || "Starter"}
-                </span>
-              </div>
-
-              <div className="dp-live-player-score">
-                {formatScore(player.points)}
-              </div>
+            <div className="dp-live-player-name">
+              <strong>{player.name}</strong>
+              <small>
+                {[
+                  player.position,
+                  player.nflTeam,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </small>
             </div>
-          ))}
-        </div>
+
+            <b>{points(player.score)}</b>
+          </div>
+        ))
       ) : (
-        <p className="dp-lineup-unavailable">
-          Live starting lineup data is
-          not currently available.
+        <p className="dp-muted">
+          Live lineup data is not available.
         </p>
       )}
     </div>
@@ -1081,45 +749,42 @@ function LiveLineup({ title, team }) {
 
 function MatchupCard({
   matchup,
-  featured = false,
   live = false,
+  featured = false,
 }) {
-  const awayPoints =
-    matchup.awayLive?.currentPoints ??
-    (live ? matchup.game.away_score : null);
-
-  const homePoints =
-    matchup.homeLive?.currentPoints ??
-    (live ? matchup.game.home_score : null);
-
-  const awayProjection =
-    matchup.awayIntel?.projectedPoints;
-
-  const homeProjection =
-    matchup.homeIntel?.projectedPoints;
-
-  const awayPlayers = getTopPlayers(
-    matchup.awayIntel,
-    featured ? 3 : 2
-  );
-
-  const homePlayers = getTopPlayers(
-    matchup.homeIntel,
-    featured ? 3 : 2
-  );
-
-  const final = isCompleted(matchup.game);
+  const sides = [
+    {
+      ownerId: matchup.awayId,
+      name: matchup.awayName,
+      standing: matchup.awayStanding,
+      intel: matchup.awayIntel,
+      liveTeam: matchup.awayLive,
+      score:
+        matchup.awayLive?.currentPoints ??
+        (live ? matchup.game.away_score : null),
+    },
+    {
+      ownerId: matchup.homeId,
+      name: matchup.homeName,
+      standing: matchup.homeStanding,
+      intel: matchup.homeIntel,
+      liveTeam: matchup.homeLive,
+      score:
+        matchup.homeLive?.currentPoints ??
+        (live ? matchup.game.home_score : null),
+    },
+  ];
 
   return (
     <article
-      className={`dp-matchup-card ${
-        featured ? "dp-featured-matchup" : ""
-      }`}
+      className={
+        "dp-matchup-card " +
+        (featured ? "dp-featured-matchup" : "")
+      }
     >
       <div className="dp-matchup-top">
         <span>
-          {matchup.assignedRivals &&
-          matchup.week === 11
+          {matchup.rival && matchup.week === 11
             ? "RIVALRY WEEK"
             : featured
             ? "FEATURED MATCHUP"
@@ -1128,89 +793,85 @@ function MatchupCard({
 
         <span>
           {live
-            ? final
+            ? isFinal(matchup.game)
               ? "FINAL"
               : "LIVE SCORES"
             : "MATCHUP PREVIEW"}
         </span>
       </div>
 
-      <div className="dp-versus-row">
-        <OwnerMatchupSide
-          owner={matchup.awayId}
-          team={
-            matchup.awayStanding?.teamName ||
-            matchup.awayName
-          }
-          standing={matchup.awayStanding}
-          points={awayPoints}
-          projection={awayProjection}
-          live={live}
-        />
+      <div className="dp-matchup-versus">
+        {sides.map((side, index) => (
+          <div
+            className="dp-matchup-versus-item"
+            key={side.ownerId}
+          >
+            {index === 1 && (
+              <span className="dp-vs">VS</span>
+            )}
 
-        <div className="dp-versus-label">
-          VS
-        </div>
+            <div className="dp-matchup-team">
+              <Link href={`/owners/${side.ownerId}`}>
+                {side.standing?.teamName ||
+                  side.name}
+              </Link>
 
-        <OwnerMatchupSide
-          owner={matchup.homeId}
-          team={
-            matchup.homeStanding?.teamName ||
-            matchup.homeName
-          }
-          standing={matchup.homeStanding}
-          points={homePoints}
-          projection={homeProjection}
-          live={live}
-        />
+              <small>{side.name}</small>
+
+              <small>{record(side.standing)}</small>
+
+              {valueOrNull(side.score) !== null && (
+                <strong>{points(side.score)}</strong>
+              )}
+
+              {!live &&
+                valueOrNull(
+                  side.intel?.projectedPoints
+                ) !== null && (
+                  <small className="dp-gold">
+                    Projected:{" "}
+                    {one(side.intel.projectedPoints)}
+                  </small>
+                )}
+            </div>
+          </div>
+        ))}
       </div>
 
       {live ? (
-        <div className="dp-live-lineups-grid">
-          <LiveLineup
-            title={firstName(matchup.awayName)}
-            team={matchup.awayLive}
-          />
-
-          <LiveLineup
-            title={firstName(matchup.homeName)}
-            team={matchup.homeLive}
-          />
+        <div className="dp-two-columns">
+          {sides.map((side) => (
+            <LiveLineup
+              key={side.ownerId}
+              name={first(side.name)}
+              team={side.liveTeam}
+            />
+          ))}
         </div>
       ) : (
         <>
-          {matchup.analysis && (
-            <div className="dp-matchup-description">
-              {matchup.analysis}
-            </div>
-          )}
+          <p className="dp-matchup-analysis">
+            {matchup.analysis}
+          </p>
 
-          <div className="dp-series-line">
-            {getSeriesText(
-              matchup.series,
-              matchup.awayName,
-              matchup.homeName
-            )}
+          <p className="dp-matchup-series">
+            {matchup.series}
+          </p>
+
+          <div className="dp-two-columns">
+            {sides.map((side) => (
+              <PregamePlayers
+                key={side.ownerId}
+                title={`${first(side.name)} · PLAYERS TO WATCH`}
+                players={
+                  side.intel?.impactPlayers?.slice(
+                    0,
+                    featured ? 3 : 2
+                  ) || []
+                }
+              />
+            ))}
           </div>
-
-          {(awayPlayers.length > 0 ||
-            homePlayers.length > 0) && (
-            <div className="dp-players-grid">
-              <PlayersToWatch
-                title={`${firstName(
-                  matchup.awayName
-                )} · PLAYERS TO WATCH`}
-                players={awayPlayers}
-              />
-
-              <PlayersToWatch
-                title={`${firstName(
-                  matchup.homeName
-                )} · PLAYERS TO WATCH`}
-                players={homePlayers}
-              />
-            </div>
-          )}
         </>
       )}
     </article>
@@ -1222,19 +883,15 @@ function MatchupCard({
 // =====================================================
 
 export default async function Home() {
-  let data;
+  let league;
 
   try {
-    data = await getLeagueData();
+    league = await getLeagueData();
   } catch (error) {
     return (
       <main className="page-shell">
         <h1>Dirty P Fantasy Football</h1>
-
-        <p>
-          {error?.message ||
-            "Unable to load league data."}
-        </p>
+        <p>{error?.message || "Unable to load league data."}</p>
       </main>
     );
   }
@@ -1251,33 +908,17 @@ export default async function Home() {
     historicalMatchups = [],
     matchups = [],
     unmatchedEspnOwners = [],
-  } = data;
+  } = league;
 
-  // ===================================================
-  // DEFENDING CHAMPION
-  // ===================================================
+  const season = n(currentSeason);
+  const week = n(currentWeek);
 
-  const { data: previousChampions } =
-    await supabase
-      .from("seasons")
-      .select(`
-        year,
-        championship_score,
-        champion:champion_owner_id(name),
-        runner_up:runner_up_owner_id(name)
-      `)
-      .lt("year", currentSeason)
-      .order("year", {
-        ascending: false,
-      })
-      .limit(1);
-
-  const defendingSeason =
-    previousChampions?.[0] || null;
-
-  // ===================================================
-  // STANDINGS
-  // ===================================================
+  const ownerMap = new Map(
+    owners.map((owner) => [
+      n(owner.id),
+      owner.name,
+    ])
+  );
 
   const standings = buildStandings(
     currentTeams,
@@ -1285,505 +926,365 @@ export default async function Home() {
     owners
   );
 
-  const standingMap = new Map(
+  const standingsByOwner = new Map(
     standings.map((team) => [
       team.ownerId,
       team,
     ])
   );
 
-  const ownerMap = new Map(
-    owners.map((owner) => [
-      Number(owner.id),
-      owner.name,
-    ])
+  const statusMap = playoffStatuses(
+    standings,
+    n(playoffTeamCount) || PLAYOFF_TEAMS
   );
 
-  const playoffCount =
-    Number(playoffTeamCount) ||
-    PLAYOFF_TEAMS;
-
-  const playoffStatuses =
-    calculatePlayoffStatuses(
-      standings,
-      playoffCount
-    );
-
   // ===================================================
-  // COMPLETED WEEKS
+  // DEFENDING CHAMPION
   // ===================================================
 
-  const allCompletedMatchups = [
+  const { data: championRows } = await supabase
+    .from("seasons")
+    .select(`
+      year,
+      champion:champion_owner_id(name),
+      runner_up:runner_up_owner_id(name)
+    `)
+    .lt("year", season)
+    .order("year", { ascending: false })
+    .limit(1);
+
+  const defending = championRows?.[0] || null;
+
+  // ===================================================
+  // COMPLETED WEEKLY MATCHUPS
+  // ===================================================
+
+  const completedGames = [
     ...completedCurrentMatchups,
-    ...currentSeasonMatchups.filter(isCompleted),
+    ...currentSeasonMatchups.filter(isFinal),
   ];
 
   const completedByWeek = new Map();
 
-  for (const game of allCompletedMatchups) {
-    const week = Number(game.matchup_period);
-
-    if (!Number.isFinite(week) || week < 1) {
-      continue;
-    }
-
-    if (!isCompleted(game)) {
-      continue;
-    }
+  for (const game of completedGames) {
+    const gameWeek = n(game.matchup_period);
 
     if (
-      numberOrNull(game.home_score) === null ||
-      numberOrNull(game.away_score) === null
+      gameWeek < 1 ||
+      !isFinal(game) ||
+      valueOrNull(game.home_score) === null ||
+      valueOrNull(game.away_score) === null
     ) {
       continue;
     }
 
-    if (!completedByWeek.has(week)) {
-      completedByWeek.set(week, new Map());
+    if (!completedByWeek.has(gameWeek)) {
+      completedByWeek.set(gameWeek, new Map());
     }
 
     completedByWeek
-      .get(week)
-      .set(matchupKey(game), game);
+      .get(gameWeek)
+      .set(pairKey(game), game);
   }
+
+  const regularGames = currentSeasonMatchups.filter(
+    (game) =>
+      game.is_playoff !== true &&
+      game.is_consolation !== true
+  );
+
+  const availableWeeks = [
+    ...new Set(
+      regularGames
+        .map((game) => n(game.matchup_period))
+        .filter((item) => item > 0)
+    ),
+  ].sort((a, b) => a - b);
+
+  const displayWeek =
+    availableWeeks.includes(week)
+      ? week
+      : availableWeeks.find(
+          (item) => item >= week
+        ) ||
+        availableWeeks[availableWeeks.length - 1] ||
+        week;
+
+  const weeklyGames = regularGames.filter(
+    (game) => n(game.matchup_period) === displayWeek
+  );
+
+  // Only show a recap once every scheduled
+  // matchup from that week is completed.
 
   const completedWeeks = [
     ...completedByWeek.keys(),
   ].sort((a, b) => b - a);
 
-  const latestCompletedWeek =
-    completedWeeks[0] || 0;
-
-  // ===================================================
-  // CURRENT MATCHUP WEEK
-  //
-  // Keep ESPN's current week when possible.
-  // This prevents skipping to the next week
-  // just because one matchup has finished.
-  // ===================================================
-
-  const regularMatchups =
-    currentSeasonMatchups.filter(
-      (game) =>
-        game.is_playoff !== true &&
-        game.is_consolation !== true
-    );
-
-  const scheduleWeeks = [
-    ...new Set(
-      regularMatchups
-        .map((game) =>
-          Number(game.matchup_period)
-        )
-        .filter(
-          (week) =>
-            Number.isFinite(week) &&
-            week > 0
-        )
-    ),
-  ].sort((a, b) => a - b);
-
-  const espnCurrentWeek =
-    Number(currentWeek) || 1;
-
-  const previewWeek =
-    scheduleWeeks.includes(espnCurrentWeek)
-      ? espnCurrentWeek
-      : scheduleWeeks.find(
-          (week) =>
-            week >= espnCurrentWeek
-        ) ||
-        scheduleWeeks[scheduleWeeks.length - 1] ||
-        espnCurrentWeek;
-
-  const upcomingGames =
-    regularMatchups.filter(
-      (game) =>
-        Number(game.matchup_period) ===
-        previewWeek
-    );
-
-  // ===================================================
-  // MATCHUP INTEL
-  // ===================================================
-
-  let matchupIntel = null;
-
-  try {
-    matchupIntel =
-      await getMatchupIntel(previewWeek);
-  } catch (error) {
-    console.error(
-      "Matchup intel error:",
-      error
-    );
-  }
-
-  // ===================================================
-  // LIVE ESPN FANTASY SCORES
-  // ===================================================
-
-  let liveScores = new Map();
-
-  try {
-    liveScores =
-      await getEspnLiveScoreMap(
-        currentSeason,
-        previewWeek
-      );
-  } catch (error) {
-    console.error(
-      "ESPN live score error:",
-      error
-    );
-  }
-
-  const liveScoreValues =
-    Array.from(liveScores.values());
-
-  const hasActualFantasyScoring =
-    liveScoreValues.some(
-      (team) =>
-        num(team?.currentPoints) > 0
-    );
-
-  const currentWeekCompletedGames =
-    currentSeasonMatchups.filter(
-      (game) =>
-        Number(game.matchup_period) ===
-          previewWeek &&
-        isCompleted(game)
-    );
-
-  const showLiveScoreboard = Boolean(
-    matchupIntel?.weekStarted ||
-    hasActualFantasyScoring ||
-    currentWeekCompletedGames.length > 0
-  );
-
-  const showPregamePreviews =
-    !showLiveScoreboard;
-
-  // ===================================================
-  // WEEKLY RECAP SELECTION
-  //
-  // Show the latest fully completed week.
-  //
-  // Hide Around the League when the current
-  // week's games are underway.
-  //
-  // Generate this automatically every week.
-  // ===================================================
-
   const recapWeek = completedWeeks.find(
-    (week) => {
-      const finishedCount =
-        completedByWeek.get(week)?.size || 0;
-
-      const scheduledGames =
-        regularMatchups.filter(
-          (game) =>
-            Number(game.matchup_period) ===
-            week
-        );
+    (completedWeek) => {
+      const scheduled = regularGames.filter(
+        (game) =>
+          n(game.matchup_period) === completedWeek
+      );
 
       const scheduledCount = new Set(
-        scheduledGames.map(matchupKey)
+        scheduled.map(pairKey)
       ).size;
 
-      // Do not present a partial week's results
-      // as though the entire week has finished.
+      const completedCount =
+        completedByWeek.get(completedWeek)?.size || 0;
+
       return (
-        finishedCount > 0 &&
         scheduledCount > 0 &&
-        finishedCount >= scheduledCount
+        completedCount >= scheduledCount
       );
     }
-  ) || null;
+  );
 
-  const recapGames = recapWeek
-    ? Array.from(
-        completedByWeek.get(recapWeek)?.values() ||
-        []
-      )
-    : [];
-
-  const weeklyRecap = recapWeek
-    ? buildWeeklyRecap(
-        recapGames,
+  const recap = recapWeek
+    ? buildRecap(
+        [
+          ...completedByWeek
+            .get(recapWeek)
+            .values(),
+        ],
         recapWeek,
         ownerMap
       )
     : null;
 
-  const showAroundTheLeague =
-    !showLiveScoreboard &&
-    weeklyRecap !== null;
-
   // ===================================================
-  // MATCHUP PLAYER DATA
+  // MATCHUP INTEL + LIVE SCORING
   // ===================================================
 
-  const teamMap = new Map(
-    standings.map((team) => [
-      team.ownerId,
-      team,
-    ])
+  let intel = null;
+  let liveScores = new Map();
+
+  try {
+    intel = await getMatchupIntel(displayWeek);
+  } catch (error) {
+    console.error("Matchup intel failed:", error);
+  }
+
+  try {
+    liveScores = await getEspnLiveScoreMap(
+      season,
+      displayWeek
+    );
+  } catch (error) {
+    console.error("Live scores failed:", error);
+  }
+
+  const hasLivePoints = [
+    ...liveScores.values(),
+  ].some(
+    (team) =>
+      valueOrNull(team?.currentPoints) !== null &&
+      n(team.currentPoints) > 0
   );
 
-  function getTeamIntel(ownerId) {
-    const team = teamMap.get(ownerId);
+  const hasFinishedMatchup = weeklyGames.some(isFinal);
 
-    if (
-      !team ||
-      !matchupIntel?.teamMap
-    ) {
-      return null;
-    }
+  const live = Boolean(
+    intel?.weekStarted ||
+    hasLivePoints ||
+    hasFinishedMatchup
+  );
 
-    return (
-      matchupIntel.teamMap.get(
-        team.espnTeamId
-      ) || null
-    );
+  const pregame = !live;
+
+  // Hide Around the League while games are live.
+  // Show only the most recently completed week.
+  // Do not show an older recap when the current
+  // displayed week has already finished.
+
+  const showRecap = Boolean(
+    !live &&
+    recap &&
+    recapWeek < displayWeek
+  );
+
+  function teamIntel(ownerId) {
+    const espnTeamId =
+      standingsByOwner.get(ownerId)?.espnTeamId;
+
+    return intel?.teamMap?.get(espnTeamId) || null;
   }
 
-  function getLiveTeam(ownerId) {
-    const team = teamMap.get(ownerId);
+  function teamLive(ownerId) {
+    const espnTeamId =
+      standingsByOwner.get(ownerId)?.espnTeamId;
 
-    if (!team?.espnTeamId) {
-      return null;
-    }
-
-    return (
-      liveScores.get(
-        team.espnTeamId
-      ) || null
-    );
+    return liveScores.get(espnTeamId) || null;
   }
 
   // ===================================================
-  // GAME OF THE WEEK
+  // RANK MATCHUPS
   // ===================================================
 
-  const seriesGames = (
-    historicalMatchups?.length
+  const historical = (
+    historicalMatchups.length
       ? historicalMatchups
       : matchups
   ).filter(
-    (game) =>
-      Number(game.season_year) <
-      Number(currentSeason)
+    (game) => n(game.season_year) < season
   );
 
-  const previewMatchups =
-    upcomingGames.map((game) => {
-      const awayId =
-        Number(game.away_owner_id);
-
-      const homeId =
-        Number(game.home_owner_id);
+  const rankedMatchups = weeklyGames
+    .map((game) => {
+      const awayId = n(game.away_owner_id);
+      const homeId = n(game.home_owner_id);
 
       const awayStanding =
-        standingMap.get(awayId);
+        standingsByOwner.get(awayId);
 
       const homeStanding =
-        standingMap.get(homeId);
+        standingsByOwner.get(homeId);
 
       const awayName =
-        ownerMap.get(awayId) ||
-        "Unknown Owner";
+        ownerMap.get(awayId) || "Away";
 
       const homeName =
-        ownerMap.get(homeId) ||
-        "Unknown Owner";
+        ownerMap.get(homeId) || "Home";
 
-      const series = getSeries(
-        seriesGames,
+      const awaySeed = awayStanding?.seed || 999;
+      const homeSeed = homeStanding?.seed || 999;
+
+      const series = headToHead(
+        historical,
         awayId,
         homeId
       );
 
-      const awaySeed =
-        awayStanding?.seed || 999;
+      const rival = isRival(
+        awayName,
+        homeName
+      );
 
-      const homeSeed =
-        homeStanding?.seed || 999;
+      const playoffCount =
+        n(playoffTeamCount) || PLAYOFF_TEAMS;
 
-      const awayInPlayoffs =
-        awaySeed <= playoffCount;
-
-      const homeInPlayoffs =
-        homeSeed <= playoffCount;
-
-      const assignedRivals =
-        isAssignedRival(
-          awayName,
-          homeName
-        );
-
-      let hypeScore = 0;
+      let hype = 0;
 
       if (
-        awayInPlayoffs &&
-        homeInPlayoffs
+        awaySeed <= playoffCount &&
+        homeSeed <= playoffCount
       ) {
-        hypeScore += 15;
+        hype += 15;
       } else if (
-        awayInPlayoffs ||
-        homeInPlayoffs
+        awaySeed <= playoffCount ||
+        homeSeed <= playoffCount
       ) {
-        hypeScore += 7;
+        hype += 7;
       }
 
-      hypeScore +=
-        num(awayStanding?.wins) +
-        num(homeStanding?.wins);
+      hype +=
+        n(awayStanding?.wins) +
+        n(homeStanding?.wins);
 
       if (
         awaySeed < 999 &&
         homeSeed < 999
       ) {
-        hypeScore += Math.max(
+        hype += Math.max(
           0,
-          8 - Math.abs(
-            awaySeed - homeSeed
-          )
+          8 - Math.abs(awaySeed - homeSeed)
         );
       }
 
-      if (
-        assignedRivals &&
-        previewWeek === 11
-      ) {
-        hypeScore += 20;
+      if (rival && displayWeek === 11) {
+        hype += 20;
       }
 
       if (
-        series.total > 0 &&
         Math.abs(
-          series.firstWins -
-          series.secondWins
-        ) <= 2
+          series.aWins - series.bWins
+        ) <= 2 &&
+        series.aWins + series.bWins > 0
       ) {
-        hypeScore += 3;
+        hype += 3;
       }
 
       const notes = [];
 
-      if (
-        assignedRivals &&
-        previewWeek === 11
-      ) {
+      if (rival && displayWeek === 11) {
         notes.push(
           "An official Rivalry Week matchup with bragging rights on the line."
         );
       }
 
       if (
-        awayInPlayoffs &&
-        homeInPlayoffs
+        awaySeed <= playoffCount &&
+        homeSeed <= playoffCount
       ) {
         notes.push(
-          `Both owners currently occupy playoff positions (#${awaySeed} and #${homeSeed}).`
-        );
-      } else if (
-        awayInPlayoffs ||
-        homeInPlayoffs
-      ) {
-        notes.push(
-          "This matchup features an owner currently inside the playoff field."
+          `Both owners occupy playoff positions (#${awaySeed} and #${homeSeed}).`
         );
       }
 
-      if (
-        awayStanding &&
-        homeStanding
-      ) {
+      if (awayStanding && homeStanding) {
         notes.push(
-          `${awayName} enters ${formatRecord(
-            awayStanding.wins,
-            awayStanding.losses,
-            awayStanding.ties
-          )}, while ${homeName} is ${formatRecord(
-            homeStanding.wins,
-            homeStanding.losses,
-            homeStanding.ties
+          `${awayName} enters ${record(
+            awayStanding
+          )}, while ${homeName} is ${record(
+            homeStanding
           )}.`
         );
       }
 
       return {
         game,
-        week: previewWeek,
         awayId,
         homeId,
         awayName,
         homeName,
         awayStanding,
         homeStanding,
-        awayIntel: getTeamIntel(awayId),
-        homeIntel: getTeamIntel(homeId),
-        awayLive: getLiveTeam(awayId),
-        homeLive: getLiveTeam(homeId),
-        series,
-        assignedRivals,
-        hypeScore,
+        awayIntel: teamIntel(awayId),
+        homeIntel: teamIntel(homeId),
+        awayLive: teamLive(awayId),
+        homeLive: teamLive(homeId),
+        rival,
+        week: displayWeek,
+        hype,
         analysis: notes.join(" "),
+        series: seriesText(
+          series,
+          awayName,
+          homeName
+        ),
       };
-    });
+    })
+    .sort((a, b) => b.hype - a.hype);
 
-  const rankedMatchups = [
-    ...previewMatchups,
-  ].sort(
-    (a, b) =>
-      b.hypeScore - a.hypeScore
-  );
-
-  const gameOfTheWeek =
-    rankedMatchups[0] || null;
-
-  const otherMatchups =
-    rankedMatchups.slice(1);
+  const gameOfTheWeek = rankedMatchups[0];
+  const otherMatchups = rankedMatchups.slice(1);
 
   // ===================================================
-  // PAGE
+  // RENDER
   // ===================================================
 
   return (
     <main className="page-shell">
-      <AutoRefresh
-        enabled
-        intervalMs={30000}
-      />
-
-      {/* HEADER */}
+      <AutoRefresh enabled intervalMs={30000} />
 
       <header className="site-header">
         <div className="site-title">
           <Link href="/">
-            <strong>
-              DIRTY P FANTASY FOOTBALL
-            </strong>
+            <strong>DIRTY P FANTASY FOOTBALL</strong>
           </Link>
-
-          <span>
-            THE LEAGUE ARCHIVE · EST. 2014
-          </span>
+          <span>THE LEAGUE ARCHIVE · EST. 2014</span>
         </div>
       </header>
-
-      {/* HERO */}
 
       <section className="owners-hero">
         <div>
           <p className="eyebrow">
-            {currentSeason} FANTASY FOOTBALL
+            {season} FANTASY FOOTBALL
           </p>
 
-          <h1>
-            Dirty P Fantasy Football
-          </h1>
+          <h1>Dirty P Fantasy Football</h1>
 
           <p>
             Live standings, weekly matchups,
@@ -1793,29 +1294,21 @@ export default async function Home() {
         </div>
 
         <div className="owners-count">
-          <strong>
-            {currentWeek}
-          </strong>
-
-          <span>
-            CURRENT WEEK
-          </span>
+          <strong>{week}</strong>
+          <span>CURRENT WEEK</span>
         </div>
       </section>
 
       {/* DEFENDING CHAMPION */}
 
-      {defendingSeason?.champion && (
+      {defending?.champion && (
         <section className="section-block">
           <div className="section-heading">
             <div>
               <p className="eyebrow">
                 DEFENDING CHAMPION
               </p>
-
-              <h2>
-                {defendingSeason.champion.name}
-              </h2>
+              <h2>{defending.champion.name}</h2>
             </div>
 
             <Link href="/champions">
@@ -1823,20 +1316,16 @@ export default async function Home() {
             </Link>
           </div>
 
-          <div className="dp-feature-panel">
-            <span>
-              {defendingSeason.year}
-              {" "}DIRTY P CHAMPION
+          <div className="dp-panel">
+            <span className="dp-gold">
+              {defending.year} DIRTY P CHAMPION
             </span>
 
-            <strong>
-              {defendingSeason.champion.name}
-            </strong>
+            <h3>{defending.champion.name}</h3>
 
-            {defendingSeason.runner_up?.name && (
+            {defending.runner_up?.name && (
               <p>
-                Defeated{" "}
-                {defendingSeason.runner_up.name}
+                Defeated {defending.runner_up.name}
                 {" "}in the championship game.
               </p>
             )}
@@ -1844,25 +1333,20 @@ export default async function Home() {
         </section>
       )}
 
-      {/* ESPN OWNER MAPPING WARNING */}
+      {/* OWNER MAPPING */}
 
       {unmatchedEspnOwners.length > 0 && (
         <section className="section-block">
-          <div className="dp-feature-panel">
-            <strong>
-              ESPN Owner Mapping Warning
-            </strong>
-
+          <div className="dp-panel">
+            <h3>ESPN Owner Mapping Warning</h3>
             <p>
-              Some current ESPN owners could
-              not be matched to the league archive.
-            </p>
-
-            <p>
+              Some ESPN owners could not be
+              matched to the archive:
+              {" "}
               {unmatchedEspnOwners
                 .map(
-                  (owner) =>
-                    `${owner.ownerName} (${owner.teamName})`
+                  (item) =>
+                    `${item.ownerName} (${item.teamName})`
                 )
                 .join(", ")}
             </p>
@@ -1876,17 +1360,11 @@ export default async function Home() {
         <div className="section-heading">
           <div>
             <p className="eyebrow">
-              {currentSeason} SEASON
+              {season} SEASON
             </p>
-
-            <h2>
-              Current Standings
-            </h2>
+            <h2>Current Standings</h2>
           </div>
-
-          <span>
-            {standings.length} Owners
-          </span>
+          <span>{standings.length} Owners</span>
         </div>
 
         <div className="dp-table-wrapper">
@@ -1904,12 +1382,8 @@ export default async function Home() {
             <tbody>
               {standings.map((team) => {
                 const status =
-                  playoffStatuses.get(
-                    team.ownerId
-                  ) || "Outside";
-
-                const inField =
-                  status !== "Outside";
+                  statusMap.get(team.ownerId) ||
+                  "Outside";
 
                 return (
                   <tr key={team.ownerId}>
@@ -1919,39 +1393,30 @@ export default async function Home() {
 
                     <td>
                       <Link
-                        href={`/owners/${team.ownerId}`}
                         className="dp-standing-owner"
+                        href={`/owners/${team.ownerId}`}
                       >
                         <strong>
                           {team.ownerName}
                         </strong>
-
                         <span>
                           {team.teamName}
                         </span>
                       </Link>
                     </td>
 
-                    <td>
-                      {formatRecord(
-                        team.wins,
-                        team.losses,
-                        team.ties
-                      )}
-                    </td>
+                    <td>{record(team)}</td>
 
                     <td>
-                      {formatScore(
-                        team.pointsFor
-                      )}
+                      {points(team.pointsFor)}
                     </td>
 
                     <td>
                       <span
                         className={
-                          inField
-                            ? "dp-status-playoff"
-                            : "dp-status-out"
+                          status === "Outside"
+                            ? "dp-status-out"
+                            : "dp-status-playoff"
                         }
                       >
                         {status}
@@ -1964,36 +1429,41 @@ export default async function Home() {
           </table>
         </div>
 
-        <p className="dp-standings-note">
-          Division leaders and wild cards reflect
-          current ESPN playoff positions.
-          They are not mathematically clinched berths.
-        </p>
+        {/* SMALL LINK IN BOTTOM-RIGHT */}
+
+        <div className="dp-standings-bottom">
+          <p className="dp-standings-note">
+            Division leaders and wild cards
+            reflect current ESPN positions.
+            Not mathematically clinched.
+          </p>
+
+          <Link
+            href="/playoff-scenarios"
+            className="dp-scenarios-link"
+          >
+            🏆 {season} Playoff Scenarios ↗
+          </Link>
+        </div>
       </section>
 
-      {/* AROUND THE LEAGUE
-          AUTOMATICALLY UPDATES EVERY WEEK.
-          HIDDEN WHEN LIVE SCORING BEGINS.
-      */}
+      {/* AUTOMATIC WEEKLY RECAP */}
 
-      {showAroundTheLeague && (
-        <AroundTheLeague
-          recap={weeklyRecap}
-        />
+      {showRecap && (
+        <AroundTheLeague recap={recap} />
       )}
 
       {/* LIVE SCOREBOARD */}
 
-      {showLiveScoreboard && (
+      {live && (
         <section className="section-block">
           <div className="section-heading">
             <div>
               <p className="eyebrow">
-                LIVE · WEEK {previewWeek}
+                LIVE · WEEK {displayWeek}
               </p>
-
               <h2>
-                Week {previewWeek} Scoreboard
+                Week {displayWeek} Scoreboard
               </h2>
             </div>
 
@@ -2002,44 +1472,30 @@ export default async function Home() {
             </span>
           </div>
 
-          {rankedMatchups.length ? (
-            <div className="dp-matchup-grid">
-              {rankedMatchups.map(
-                (matchup) => (
-                  <MatchupCard
-                    key={`${matchup.awayId}-${matchup.homeId}`}
-                    matchup={matchup}
-                    live
-                  />
-                )
-              )}
-            </div>
-          ) : (
-            <div className="dp-empty">
-              No matchups currently available.
-            </div>
-          )}
+          <div className="dp-matchup-grid">
+            {rankedMatchups.map((matchup) => (
+              <MatchupCard
+                key={pairKey(matchup.game)}
+                matchup={matchup}
+                live
+              />
+            ))}
+          </div>
         </section>
       )}
 
       {/* GAME OF THE WEEK — PREGAME ONLY */}
 
-      {showPregamePreviews && (
+      {pregame && (
         <section className="section-block">
           <div className="section-heading">
             <div>
               <p className="eyebrow">
-                WEEK {previewWeek} SPOTLIGHT
+                WEEK {displayWeek} SPOTLIGHT
               </p>
-
-              <h2>
-                Game of the Week
-              </h2>
+              <h2>Game of the Week</h2>
             </div>
-
-            <span>
-              Featured Fantasy Matchup
-            </span>
+            <span>Featured Fantasy Matchup</span>
           </div>
 
           {gameOfTheWeek ? (
@@ -2050,7 +1506,7 @@ export default async function Home() {
           ) : (
             <div className="dp-empty">
               Game of the Week will appear
-              when the weekly schedule is available.
+              when the schedule is available.
             </div>
           )}
         </section>
@@ -2058,95 +1514,83 @@ export default async function Home() {
 
       {/* MATCHUP PREVIEWS — PREGAME ONLY */}
 
-      {showPregamePreviews && (
+      {pregame && (
         <section className="section-block">
           <div className="section-heading">
             <div>
               <p className="eyebrow">
-                WEEK {previewWeek}
+                WEEK {displayWeek}
               </p>
-
-              <h2>
-                Matchup Previews
-              </h2>
+              <h2>Matchup Previews</h2>
             </div>
 
             <span>
-              Players to Watch · Head-to-Head History
+              Players to Watch · Head-to-Head
             </span>
           </div>
 
           {otherMatchups.length ? (
             <div className="dp-matchup-grid">
-              {otherMatchups.map(
-                (matchup) => (
-                  <MatchupCard
-                    key={`${matchup.awayId}-${matchup.homeId}`}
-                    matchup={matchup}
-                  />
-                )
-              )}
+              {otherMatchups.map((matchup) => (
+                <MatchupCard
+                  key={pairKey(matchup.game)}
+                  matchup={matchup}
+                />
+              ))}
             </div>
           ) : (
             <div className="dp-empty">
-              Additional matchup previews will
-              appear when the schedule is available.
+              Additional previews will appear
+              when the weekly schedule is available.
             </div>
           )}
         </section>
       )}
 
-      {/* FOOTER */}
-
       <footer className="site-footer">
         <strong>
           Dirty P Fantasy Football
         </strong>
-
         <span>
           The League Archive · Est. 2014
         </span>
-
         <p>
           Independent fantasy league archive.
           Not affiliated with or endorsed by ESPN.
         </p>
       </footer>
 
-      {/* PAGE STYLES */}
-
       <style>{`
+        .dp-gold {
+          color:#e9bd67;
+          font-size:11px;
+          font-weight:800;
+        }
 
-        .dp-feature-panel {
+        .dp-muted {
+          color:#94a3b8;
+          font-size:12px;
+          line-height:1.6;
+        }
+
+        .dp-panel,
+        .dp-empty {
           background:#171d26;
           border:1px solid #303947;
           border-radius:14px;
           padding:22px;
-        }
-
-        .dp-feature-panel > span {
-          display:block;
-          color:#e9bd67;
-          font-size:11px;
-          font-weight:800;
-          letter-spacing:1.3px;
-          margin-bottom:10px;
-        }
-
-        .dp-feature-panel > strong {
-          display:block;
-          color:#f5f7fa;
-          font-size:23px;
-          margin-bottom:8px;
-        }
-
-        .dp-feature-panel p {
           color:#aeb9c7;
-          font-size:14px;
-          line-height:1.6;
         }
 
-        /* STANDINGS */
+        .dp-panel h3 {
+          color:#f5f6f8;
+          font-size:22px;
+          margin:10px 0;
+        }
+
+        .dp-empty {
+          text-align:center;
+        }
 
         .dp-table-wrapper {
           width:100%;
@@ -2157,29 +1601,31 @@ export default async function Home() {
         }
 
         .dp-standings-table {
-          width:100%;
           border-collapse:collapse;
+          width:100%;
           min-width:560px;
         }
 
-        .dp-standings-table th {
+        .dp-standings-table th,
+        .dp-standings-table td {
           text-align:left;
-          color:#9aa7b8;
-          font-size:11px;
-          letter-spacing:.7px;
           padding:15px 14px;
           border-bottom:1px solid #303947;
+          font-size:12px;
+        }
+
+        .dp-standings-table th {
+          color:#9aa7b8;
+          font-size:10px;
+          letter-spacing:.7px;
         }
 
         .dp-standings-table td {
-          padding:15px 14px;
-          border-bottom:1px solid #252e39;
           color:#e6eaf0;
-          font-size:13px;
         }
 
         .dp-standings-table tr:last-child td {
-          border-bottom:none;
+          border-bottom:0;
         }
 
         .dp-standing-owner {
@@ -2192,212 +1638,167 @@ export default async function Home() {
 
         .dp-standing-owner span {
           color:#929ead;
-          font-size:12px;
+          font-size:11px;
         }
 
         .dp-status-playoff {
-          display:inline-block;
           color:#e9bd67;
-          font-size:11px;
           font-weight:800;
-          white-space:nowrap;
+          font-size:11px;
         }
 
         .dp-status-out {
           color:#8895a5;
-          font-size:11px;
           font-weight:700;
+          font-size:11px;
+        }
+
+        /* PLAYOFF SCENARIOS LINK */
+
+        .dp-standings-bottom {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          flex-wrap:wrap;
+          gap:12px;
+          margin-top:12px;
         }
 
         .dp-standings-note {
           color:#909cab;
           font-size:12px;
           line-height:1.5;
-          margin-top:12px;
-        }
-
-        /* AROUND THE LEAGUE */
-
-        .dp-recap-intro {
-          background:#171d26;
-          border:1px solid #303947;
-          border-radius:14px;
-          padding:20px 22px;
-          margin-bottom:15px;
-        }
-
-        .dp-recap-intro strong {
-          display:block;
-          color:#f5f6f8;
-          font-size:18px;
-          margin-bottom:7px;
-        }
-
-        .dp-recap-intro p {
-          color:#aeb9c7;
-          font-size:13px;
-          line-height:1.6;
           margin:0;
         }
 
-        .dp-recap-highlights {
+        .dp-scenarios-link {
+          margin-left:auto;
+          display:inline-flex;
+          align-items:center;
+          padding:8px 12px;
+          border:1px solid #806539;
+          background:#25291f;
+          border-radius:7px;
+          text-decoration:none;
+          color:#e9bd67;
+          font-size:12px;
+          font-weight:800;
+          white-space:nowrap;
+        }
+
+        .dp-scenarios-link:hover {
+          background:#333526;
+        }
+
+        /* WEEKLY RECAP */
+
+        .dp-recap-description {
+          font-size:13px;
+          color:#aeb9c7;
+          margin:0 0 15px;
+        }
+
+        .dp-recap-grid {
           display:grid;
-          grid-template-columns:
-            repeat(3,minmax(0,1fr));
+          grid-template-columns:repeat(3,minmax(0,1fr));
           gap:14px;
         }
 
-        .dp-recap-highlight {
-          min-width:0;
+        .dp-recap-stat {
+          display:flex;
+          flex-direction:column;
+          gap:9px;
           background:#171d26;
           border:1px solid #303947;
           border-radius:12px;
           padding:19px;
-          display:flex;
-          flex-direction:column;
-          gap:9px;
         }
 
-        .dp-recap-featured {
+        .dp-recap-stat:first-child {
           border-color:#806539;
-          background:
-            linear-gradient(
-              135deg,
-              #25281f,
-              #171d26 75%
-            );
         }
 
-        .dp-recap-label {
-          display:block;
-          color:#d7ad63;
+        .dp-recap-stat > span {
           font-size:10px;
-          font-weight:900;
-          letter-spacing:.65px;
-          line-height:1.5;
-        }
-
-        .dp-recap-name {
-          display:block;
-          color:#f4f6f8;
-          font-size:15px;
+          letter-spacing:.7px;
           font-weight:800;
-          line-height:1.5;
-          overflow-wrap:anywhere;
-        }
-
-        .dp-recap-value {
           color:#e9bd67;
-          font-size:23px;
-          font-weight:900;
-          font-variant-numeric:tabular-nums;
-          overflow-wrap:anywhere;
         }
 
-        .dp-recap-detail {
+        .dp-recap-stat > strong {
+          color:#f5f6f8;
+          font-size:15px;
+        }
+
+        .dp-recap-stat > b {
+          font-size:21px;
+          color:#e9bd67;
+        }
+
+        .dp-recap-stat > small {
           color:#aeb9c7;
-          font-size:12px;
-          line-height:1.6;
-          margin:0;
+          font-size:11px;
         }
 
         .dp-recap-results {
-          margin-top:22px;
           background:#171d26;
           border:1px solid #303947;
           border-radius:14px;
           padding:20px;
+          margin-top:20px;
         }
 
-        .dp-recap-results-heading {
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:12px;
-          margin-bottom:18px;
-        }
-
-        .dp-recap-results-heading h3 {
+        .dp-recap-results h3 {
+          margin:0 0 16px;
           color:#f5f6f8;
-          font-size:17px;
-          margin:6px 0 0;
-        }
-
-        .dp-recap-final-count {
-          color:#aeb9c7;
-          font-size:11px;
-          font-weight:800;
         }
 
         .dp-recap-results-grid {
           display:grid;
-          grid-template-columns:
-            repeat(2,minmax(0,1fr));
+          grid-template-columns:repeat(2,minmax(0,1fr));
           gap:12px;
         }
 
         .dp-recap-result {
           background:#1d2530;
+          padding:15px;
           border:1px solid #303947;
           border-radius:10px;
-          padding:15px;
-          min-width:0;
         }
 
-        .dp-recap-result-top {
-          display:flex;
-          justify-content:space-between;
-          gap:8px;
-          color:#91a0b1;
+        .dp-recap-final {
+          display:block;
+          color:#9aa7b8;
           font-size:10px;
           font-weight:800;
-          padding-bottom:10px;
-          margin-bottom:10px;
-          border-bottom:1px solid #303947;
+          margin-bottom:8px;
         }
 
         .dp-recap-result-team {
           display:flex;
-          align-items:center;
           justify-content:space-between;
-          gap:12px;
+          align-items:center;
+          gap:10px;
           padding:7px 0;
+          font-size:12px;
           color:#aeb9c7;
-          font-size:13px;
         }
 
         .dp-recap-result-team a {
           color:inherit;
           text-decoration:none;
-          overflow-wrap:anywhere;
-        }
-
-        .dp-recap-result-team a:hover {
-          color:#e9bd67;
-        }
-
-        .dp-recap-result-team strong {
-          font-size:15px;
-          font-weight:800;
-          font-variant-numeric:tabular-nums;
-          flex-shrink:0;
         }
 
         .dp-recap-result-team.winner {
-          color:#f4f6f8;
-          font-weight:800;
-        }
-
-        .dp-recap-result-team.winner strong {
           color:#e9bd67;
+          font-weight:800;
         }
 
         /* MATCHUPS */
 
         .dp-matchup-grid {
           display:grid;
-          grid-template-columns:
-            repeat(2,minmax(0,1fr));
+          grid-template-columns:repeat(2,minmax(0,1fr));
           gap:16px;
         }
 
@@ -2411,135 +1812,109 @@ export default async function Home() {
 
         .dp-featured-matchup {
           border-color:#806539;
-          box-shadow:
-            0 0 0 1px
-            rgba(233,189,103,.1);
         }
 
         .dp-matchup-top {
           display:flex;
           justify-content:space-between;
-          align-items:center;
-          gap:10px;
+          gap:8px;
           padding:14px 17px;
-          color:#aab6c3;
           border-bottom:1px solid #303947;
+          color:#e9bd67;
           font-size:10px;
           font-weight:800;
-          letter-spacing:1px;
         }
 
-        .dp-matchup-top span:first-child {
-          color:#e9bd67;
+        .dp-matchup-top span:last-child {
+          color:#aab6c3;
         }
 
-        .dp-versus-row {
+        .dp-matchup-versus {
           display:grid;
-          grid-template-columns:
-            minmax(0,1fr)
-            40px
-            minmax(0,1fr);
-          align-items:center;
-          padding:25px 13px 20px;
-          gap:6px;
+          grid-template-columns:repeat(2,minmax(0,1fr));
+          padding:20px 10px;
         }
 
-        .dp-matchup-side {
+        .dp-matchup-versus-item {
+          position:relative;
           min-width:0;
           text-align:center;
+        }
+
+        .dp-vs {
+          position:absolute;
+          left:0;
+          top:50%;
+          transform:translate(-50%,-50%);
+          color:#e9bd67;
+          font-weight:900;
+          font-size:11px;
+        }
+
+        .dp-matchup-team {
           display:flex;
           flex-direction:column;
           align-items:center;
-          gap:6px;
+          gap:7px;
+          padding:0 10px;
         }
 
-        .dp-owner-link {
+        .dp-matchup-team a {
           color:#f3f5f7;
-          font-size:15px;
+          font-size:14px;
           font-weight:800;
           text-decoration:none;
-          line-height:1.4;
           overflow-wrap:anywhere;
         }
 
-        .dp-owner-link:hover {
-          color:#e9bd67;
-        }
-
-        .dp-matchup-owner {
+        .dp-matchup-team small {
           color:#aeb9c7;
-          font-size:12px;
-          line-height:1.4;
-        }
-
-        .dp-matchup-record {
-          color:#8896a7;
-          font-size:12px;
-        }
-
-        .dp-matchup-score {
-          color:#f4f6f8;
-          font-size:27px;
-          font-weight:900;
-          margin-top:7px;
-          font-variant-numeric:tabular-nums;
-        }
-
-        .dp-matchup-projection {
           font-size:11px;
-          color:#d4b57d;
         }
 
-        .dp-versus-label {
-          text-align:center;
-          color:#e9bd67;
-          font-size:12px;
-          font-weight:900;
-          letter-spacing:1px;
+        .dp-matchup-team strong {
+          color:#f5f6f8;
+          font-size:26px;
         }
 
-        /* PREGAME PREVIEWS */
-
-        .dp-matchup-description {
+        .dp-matchup-analysis,
+        .dp-matchup-series {
           color:#aeb9c7;
-          font-size:13px;
-          line-height:1.7;
-          padding:0 18px 16px;
           text-align:center;
-        }
-
-        .dp-series-line {
-          border-top:1px solid #303947;
-          padding:13px 18px;
-          text-align:center;
-          color:#d6b77c;
+          padding:0 18px 15px;
           font-size:12px;
-          font-weight:700;
+          line-height:1.6;
         }
 
-        .dp-players-grid {
+        .dp-matchup-series {
+          border-top:1px solid #303947;
+          padding:13px;
+          color:#d6b77c;
+          margin:0;
+        }
+
+        .dp-two-columns {
           display:grid;
-          grid-template-columns:
-            repeat(2,minmax(0,1fr));
+          grid-template-columns:repeat(2,minmax(0,1fr));
           border-top:1px solid #303947;
         }
 
-        .dp-players-panel {
-          padding:15px;
-          min-width:0;
-        }
-
-        .dp-players-panel +
-        .dp-players-panel {
+        .dp-two-columns > div + div {
           border-left:1px solid #303947;
         }
 
-        .dp-players-heading {
+        .dp-players-panel,
+        .dp-live-lineup {
+          min-width:0;
+          padding:14px;
+        }
+
+        .dp-players-heading,
+        .dp-live-lineup h4 {
           font-size:10px;
-          letter-spacing:.7px;
+          font-weight:900;
           color:#e9bd67;
-          font-weight:800;
-          margin-bottom:12px;
+          margin:0 0 14px;
         }
 
         .dp-player-row {
@@ -2548,133 +1923,59 @@ export default async function Home() {
           gap:4px;
           padding:9px 0;
           border-bottom:1px solid #29313d;
-        }
-
-        .dp-player-row:last-child {
-          border-bottom:none;
+          font-size:11px;
         }
 
         .dp-player-row strong {
           color:#f0f2f5;
-          font-size:12px;
         }
 
         .dp-player-row span {
           color:#9ba8b7;
-          font-size:11px;
-          line-height:1.5;
-        }
-
-        /* LIVE STARTING LINEUPS */
-
-        .dp-live-lineups-grid {
-          display:grid;
-          grid-template-columns:
-            repeat(2,minmax(0,1fr));
-          border-top:1px solid #303947;
-        }
-
-        .dp-live-lineup {
-          min-width:0;
-          padding:15px;
-        }
-
-        .dp-live-lineup +
-        .dp-live-lineup {
-          border-left:1px solid #303947;
-        }
-
-        .dp-live-lineup-heading {
-          display:flex;
-          flex-direction:column;
-          gap:3px;
-          color:#e9bd67;
-          font-size:13px;
-          font-weight:800;
-          margin-bottom:13px;
-        }
-
-        .dp-live-lineup-heading span {
-          color:#8998a9;
-          font-size:9px;
-          letter-spacing:.8px;
-        }
-
-        .dp-live-players {
-          display:flex;
-          flex-direction:column;
         }
 
         .dp-live-player {
           display:grid;
-          grid-template-columns:
-            37px minmax(0,1fr) 55px;
-          gap:8px;
+          grid-template-columns:36px minmax(0,1fr) 50px;
           align-items:center;
+          gap:6px;
           padding:10px 0;
           border-bottom:1px solid #29313d;
         }
 
-        .dp-live-player:last-child {
-          border-bottom:none;
-        }
-
-        .dp-live-player-slot {
+        .dp-live-slot {
           color:#e9bd67;
           font-size:10px;
-          font-weight:900;
-          text-align:center;
+          font-weight:800;
         }
 
-        .dp-live-player-info {
+        .dp-live-player-name {
           display:flex;
           flex-direction:column;
-          gap:4px;
+          gap:3px;
           min-width:0;
         }
 
-        .dp-live-player-info strong {
+        .dp-live-player-name strong {
           color:#f3f5f7;
-          font-size:12px;
+          font-size:11px;
           overflow-wrap:anywhere;
         }
 
-        .dp-live-player-info span {
+        .dp-live-player-name small {
           color:#8f9cac;
           font-size:10px;
         }
 
-        .dp-live-player-score {
+        .dp-live-player > b {
           color:#f5f6f8;
-          font-size:13px;
-          font-weight:900;
-          font-variant-numeric:tabular-nums;
           text-align:right;
+          font-size:12px;
         }
-
-        .dp-lineup-unavailable {
-          color:#8f9cac;
-          font-size:11px;
-          line-height:1.6;
-          margin:8px 0;
-        }
-
-        .dp-empty {
-          background:#171d26;
-          border:1px solid #303947;
-          border-radius:14px;
-          color:#9ba8b7;
-          text-align:center;
-          padding:30px;
-          font-size:14px;
-        }
-
-        /* RESPONSIVE */
 
         @media(max-width:1000px) {
-          .dp-recap-highlights {
-            grid-template-columns:
-              repeat(2,minmax(0,1fr));
+          .dp-recap-grid {
+            grid-template-columns:repeat(2,minmax(0,1fr));
           }
         }
 
@@ -2684,68 +1985,35 @@ export default async function Home() {
           }
         }
 
-        @media(max-width:650px) {
+        @media(max-width:600px) {
           .dp-recap-results-grid {
             grid-template-columns:1fr;
           }
         }
 
         @media(max-width:480px) {
-          .dp-recap-highlights {
+          .dp-recap-grid {
             grid-template-columns:1fr;
           }
 
-          .dp-recap-highlight {
-            padding:16px;
-          }
-
-          .dp-recap-value {
-            font-size:20px;
-          }
-
-          .dp-recap-results {
-            padding:14px;
-          }
-
-          .dp-versus-row {
-            grid-template-columns:
-              minmax(0,1fr)
-              28px
-              minmax(0,1fr);
-            padding:20px 9px;
-          }
-
-          .dp-owner-link {
-            font-size:13px;
-          }
-
-          .dp-matchup-score {
-            font-size:23px;
-          }
-
+          .dp-live-lineup,
           .dp-players-panel {
-            padding:11px;
-          }
-
-          .dp-live-lineup {
             padding:10px;
           }
 
           .dp-live-player {
-            grid-template-columns:
-              30px minmax(0,1fr) 44px;
-            gap:5px;
+            grid-template-columns:28px minmax(0,1fr) 43px;
+            gap:4px;
           }
 
-          .dp-live-player-info strong {
-            font-size:11px;
-          }
-
-          .dp-live-player-score {
+          .dp-matchup-team a {
             font-size:12px;
           }
-        }
 
+          .dp-matchup-team strong {
+            font-size:23px;
+          }
+        }
       `}</style>
     </main>
   );
