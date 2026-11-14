@@ -3,183 +3,162 @@
 
 import { useMemo, useState } from "react";
 
-const MONTE_CARLO_RUNS = 25000;
-const EXACT_LIMIT = 16;
-const PAGE_SIZE = 8;
+// =====================================================
+// DIRTY P PLAYOFF PREDICTOR
+// =====================================================
 
-const pct = value =>
-  `${((value || 0) * 100).toFixed(1)}%`;
-
-const played = team =>
-  team.wins + team.losses + team.ties;
-
-const winRate = team =>
-  played(team)
-    ? (team.wins + team.ties * 0.5) / played(team)
-    : 0.5;
-
-const average = team =>
-  played(team)
-    ? team.pointsFor / played(team)
-    : 100;
-
-const divisionId = team =>
-  team.divisionId == null || team.divisionId === ""
-    ? null
-    : String(team.divisionId);
-
-const clone = teams =>
-  teams.map(team => ({ ...team }));
-
-const CATEGORY = {
-  guaranteed: "Guaranteed Berth",
-  potential: "Potential Berth",
-  tiebreaker: "Tiebreaker Help",
-  eliminated: "Eliminated"
-};
+const REGULAR_SEASON_END_WEEK = 14;
+const SIMULATION_COUNT = 25000;
+const EXACT_GAME_LIMIT = 16;
+const COMBINATIONS_PER_PAGE = 10;
 
 const COLORS = {
-  guaranteed: "#58c996",
-  potential: "#e6b75d",
-  tiebreaker: "#80a9ef",
-  eliminated: "#e47d83"
+  clinch: "#55c993",
+  hunt: "#e6b65b",
+  out: "#e47d83"
 };
 
-// ==============================================
-// PLAYOFF RULES
-// ==============================================
+const number = x =>
+  Number.isFinite(Number(x)) ? Number(x) : 0;
 
-function compareTeams(a, b, target = null, preference = 0) {
+const percent = x =>
+  `${(100 * (x || 0)).toFixed(1)}%`;
+
+const played = t =>
+  number(t.wins) +
+  number(t.losses) +
+  number(t.ties);
+
+const winPct = t =>
+  played(t)
+    ? (number(t.wins) + number(t.ties) / 2) / played(t)
+    : 0.5;
+
+const avgPoints = t =>
+  played(t)
+    ? number(t.pointsFor) / played(t)
+    : 100;
+
+const clone = teams =>
+  teams.map(t => ({ ...t }));
+
+const divisionKey = t =>
+  t.divisionId == null || t.divisionId === ""
+    ? null
+    : String(t.divisionId);
+
+function compare(a, b, target = null, favor = 0) {
   const recordDifference =
-    winRate(b) - winRate(a) ||
-    b.wins - a.wins;
+    winPct(b) - winPct(a) ||
+    number(b.wins) - number(a.wins);
 
-  if (Math.abs(recordDifference) > 1e-9) {
+  if (Math.abs(recordDifference) > 0.00000001) {
     return recordDifference;
   }
 
-  // Model the best and worst possible future
-  // points tiebreaker for the selected owner.
   if (
-    target != null &&
-    preference !== 0 &&
+    target !== null &&
+    favor !== 0 &&
     (a.ownerId === target || b.ownerId === target)
   ) {
-    return a.ownerId === target
-      ? -preference
-      : preference;
+    return a.ownerId === target ? -favor : favor;
   }
 
   return (
-    b.pointsFor - a.pointsFor ||
-    a.ownerName.localeCompare(b.ownerName)
+    number(b.pointsFor) - number(a.pointsFor) ||
+    String(a.ownerName).localeCompare(
+      String(b.ownerName)
+    )
   );
 }
 
-function playoffField(
+// =====================================================
+// LEAGUE PLAYOFF FIELD
+// =====================================================
+
+function getPlayoffField(
   teams,
-  slots,
+  playoffCount,
   target = null,
-  preference = 0
+  favor = 0
 ) {
-  const compare = (a, b) =>
-    compareTeams(a, b, target, preference);
+  const sorter = (a, b) =>
+    compare(a, b, target, favor);
 
   const divisions = new Map();
 
-  for (const team of teams) {
-    const id = divisionId(team);
+  for (const t of teams) {
+    const key = divisionKey(t);
 
-    if (id === null) continue;
+    if (key === null) continue;
 
-    if (!divisions.has(id)) {
-      divisions.set(id, []);
+    if (!divisions.has(key)) {
+      divisions.set(key, []);
     }
 
-    divisions.get(id).push(team);
+    divisions.get(key).push(t);
   }
 
   const useDivisions =
     divisions.size === 2 &&
-    teams.every(t => divisionId(t) !== null);
+    teams.every(t => divisionKey(t) !== null);
 
   if (!useDivisions) {
     return new Set(
       [...teams]
-        .sort(compare)
-        .slice(0, slots)
+        .sort(sorter)
+        .slice(0, playoffCount)
         .map(t => t.ownerId)
     );
   }
 
-  const leaders = [...divisions.values()]
-    .map(group => [...group].sort(compare)[0])
-    .sort(compare)
-    .slice(0, slots);
+  const divisionWinners = [...divisions.values()]
+    .map(group => [...group].sort(sorter)[0])
+    .sort(sorter)
+    .slice(0, playoffCount);
 
-  const leaderIds = new Set(
-    leaders.map(t => t.ownerId)
+  const divisionWinnerIds = new Set(
+    divisionWinners.map(t => t.ownerId)
   );
 
-  const wildcards = teams
-    .filter(t => !leaderIds.has(t.ownerId))
-    .sort(compare)
-    .slice(0, Math.max(0, slots - leaders.length));
+  const wildCards = teams
+    .filter(t => !divisionWinnerIds.has(t.ownerId))
+    .sort(sorter)
+    .slice(
+      0,
+      Math.max(
+        0,
+        playoffCount - divisionWinners.length
+      )
+    );
 
   return new Set(
-    [...leaders, ...wildcards].map(t => t.ownerId)
+    [...divisionWinners, ...wildCards]
+      .map(t => t.ownerId)
   );
 }
 
-// ==============================================
-// GAME OUTCOMES
-// ==============================================
-
-function applyWinner(lookup, game, winnerId) {
-  const home = lookup.get(game.homeId);
-  const away = lookup.get(game.awayId);
-
-  if (!home || !away) return;
-
-  if (winnerId === game.homeId) {
-    home.wins++;
-    away.losses++;
-  } else if (winnerId === game.awayId) {
-    away.wins++;
-    home.losses++;
-  }
-}
-
-function seasonAfter(teams, games, winners) {
-  const state = clone(teams);
-  const lookup = new Map(
-    state.map(t => [t.ownerId, t])
-  );
-
-  games.forEach((game, i) => {
-    applyWinner(lookup, game, winners[i]);
-  });
-
-  return state;
-}
+// =====================================================
+// TEAM STRENGTH / MATCHUP ODDS
+// =====================================================
 
 function matchupProbability(a, b) {
   if (!a || !b) return 0.5;
 
-  const strength = team => {
-    const weight =
-      played(team) / (played(team) + 4);
+  const strength = t => {
+    const reliability =
+      played(t) / (played(t) + 4);
 
     const scoring = Math.max(
-      -0.15,
+      -0.16,
       Math.min(
-        0.15,
-        (average(team) - 100) / 270
+        0.16,
+        (avgPoints(t) - 100) / 260
       )
     );
 
-    return weight * (
-      0.33 * (winRate(team) - 0.5) +
+    return reliability * (
+      0.34 * (winPct(t) - 0.5) +
       scoring
     );
   };
@@ -194,114 +173,176 @@ function matchupProbability(a, b) {
 }
 
 function seededRandom(seed) {
-  let value = seed >>> 0;
+  let state = seed >>> 0;
 
   return () => {
-    value = (value + 0x6d2b79f5) >>> 0;
+    state = (state + 0x6d2b79f5) >>> 0;
 
-    let x = value;
+    let t = state;
 
-    x = Math.imul(
-      x ^ (x >>> 15),
-      x | 1
+    t = Math.imul(
+      t ^ (t >>> 15),
+      t | 1
     );
 
-    x ^= x + Math.imul(
-      x ^ (x >>> 7),
-      x | 61
+    t ^= t + Math.imul(
+      t ^ (t >>> 7),
+      t | 61
     );
 
     return (
-      ((x ^ (x >>> 14)) >>> 0) /
+      ((t ^ (t >>> 14)) >>> 0) /
       4294967296
     );
   };
 }
 
-// ==============================================
-// FOUR EXCLUSIVE OUTCOME CATEGORIES
-// ==============================================
+// =====================================================
+// APPLY OUTCOMES
+// =====================================================
 
-function classifyOutcome(state, slots) {
-  const actual = playoffField(state, slots);
+function applyGames(teams, games, winners) {
+  const state = clone(teams);
 
+  const byId = new Map(
+    state.map(t => [t.ownerId, t])
+  );
+
+  games.forEach((game, index) => {
+    const home = byId.get(game.homeId);
+    const away = byId.get(game.awayId);
+
+    if (!home || !away) return;
+
+    if (winners[index] === game.homeId) {
+      home.wins++;
+      away.losses++;
+    } else {
+      away.wins++;
+      home.losses++;
+    }
+  });
+
+  return state;
+}
+
+// =====================================================
+// THREE MUTUALLY EXCLUSIVE OUTCOME CATEGORIES
+//
+// CLINCH: Qualified even with unfavorable
+//         future points tiebreakers.
+//
+// HUNT:   Can qualify, but some points
+//         tiebreaker uncertainty remains.
+//
+// OUT:    Cannot qualify, even with a
+//         favorable points tiebreaker.
+//
+// These categories are based on modeled rules,
+// not official ESPN clinching decisions.
+// =====================================================
+
+function classify(state, playoffCount, finalScoresKnown) {
   const categories = new Map();
+
+  if (finalScoresKnown) {
+    const field = getPlayoffField(
+      state,
+      playoffCount
+    );
+
+    for (const team of state) {
+      categories.set(
+        team.ownerId,
+        field.has(team.ownerId)
+          ? "clinch"
+          : "out"
+      );
+    }
+
+    return categories;
+  }
 
   for (const team of state) {
     const id = team.ownerId;
 
-    const possible = playoffField(
+    const possible = getPlayoffField(
       state,
-      slots,
+      playoffCount,
       id,
       1
     ).has(id);
 
-    // If the regular season has finished,
-    // actual points are no longer unknown.
-    // This is addressed by the engine below.
-
     if (!possible) {
-      categories.set(id, "eliminated");
+      categories.set(id, "out");
       continue;
     }
 
-    const guaranteed = playoffField(
+    const guaranteed = getPlayoffField(
       state,
-      slots,
+      playoffCount,
       id,
       -1
     ).has(id);
 
-    if (guaranteed) {
-      categories.set(id, "guaranteed");
-    } else if (actual.has(id)) {
-      categories.set(id, "potential");
-    } else {
-      categories.set(id, "tiebreaker");
-    }
+    categories.set(
+      id,
+      guaranteed ? "clinch" : "hunt"
+    );
   }
 
   return categories;
 }
 
-// ==============================================
-// COMPLETE PREDICTION ENGINE
-// ==============================================
+// =====================================================
+// MAIN PREDICTION ENGINE
+// =====================================================
 
-function calculateModel(
+function runModel({
   teams,
   games,
-  slots,
+  playoffCount,
   picks = {},
-  season = 2026
-) {
-  const pending = games
-    .map((game, index) => ({ ...game, index }))
-    .filter(game => !picks[game.id]);
+  season,
+  finalScoresKnown = false
+}) {
+  const indexedGames = games.map(
+    (game, index) => ({
+      ...game,
+      index
+    })
+  );
 
-  const exact = pending.length <= EXACT_LIMIT;
+  const pending = indexedGames.filter(
+    game => !picks[game.id]
+  );
+
+  const exact =
+    pending.length <= EXACT_GAME_LIMIT;
 
   const iterations = exact
     ? 2 ** pending.length
-    : MONTE_CARLO_RUNS;
+    : SIMULATION_COUNT;
 
-  const original = new Map(
+  const teamMap = new Map(
     teams.map(t => [t.ownerId, t])
   );
 
   const probabilities = pending.map(game =>
     matchupProbability(
-      original.get(game.homeId),
-      original.get(game.awayId)
+      teamMap.get(game.homeId),
+      teamMap.get(game.awayId)
     )
   );
 
   const random = seededRandom(
-    season + 20261113 +
+    season +
+    7919 +
     Object.entries(picks).reduce(
-      (sum, [key, value]) =>
-        sum + key.length * 13 + Number(value),
+      (sum, [key, id]) =>
+        sum +
+        String(key).length * 17 +
+        Number(id),
       0
     )
   );
@@ -310,103 +351,90 @@ function calculateModel(
     teams.map(t => [
       t.ownerId,
       {
-        guaranteed: 0,
-        potential: 0,
-        tiebreaker: 0,
-        eliminated: 0,
-        qualifying: 0,
+        clinch: 0,
+        hunt: 0,
+        out: 0,
+        playoff: 0,
         weighted: 0
       }
     ])
   );
 
   const entries = [];
-
   let totalWeight = 0;
 
-  for (let iteration = 0; iteration < iterations; iteration++) {
+  for (
+    let iteration = 0;
+    iteration < iterations;
+    iteration++
+  ) {
     const winners = Array(games.length);
-    const bits = Array(games.length);
 
     let weight = 1;
 
-    games.forEach((game, index) => {
+    indexedGames.forEach(game => {
       if (!picks[game.id]) return;
 
-      const homeWins =
-        Number(picks[game.id]) === game.homeId;
-
-      winners[index] =
-        homeWins ? game.homeId : game.awayId;
-
-      bits[index] = homeWins ? "1" : "0";
+      winners[game.index] =
+        Number(picks[game.id]) === game.homeId
+          ? game.homeId
+          : game.awayId;
     });
 
-    pending.forEach((game, index) => {
-      const probability = probabilities[index];
+    pending.forEach((game, j) => {
+      const p = probabilities[j];
 
       const homeWins = exact
-        ? Boolean((iteration >> index) & 1)
-        : random() < probability;
+        ? Boolean((iteration >> j) & 1)
+        : random() < p;
 
       if (exact) {
-        weight *= homeWins
-          ? probability
-          : 1 - probability;
+        weight *= homeWins ? p : 1 - p;
       }
 
-      winners[game.index] =
-        homeWins ? game.homeId : game.awayId;
-
-      bits[game.index] =
-        homeWins ? "1" : "0";
+      winners[game.index] = homeWins
+        ? game.homeId
+        : game.awayId;
     });
 
-    const state = seasonAfter(
+    const state = applyGames(
       teams,
       games,
       winners
     );
 
-    let categories;
+    const categories = classify(
+      state,
+      playoffCount,
+      finalScoresKnown && games.length === 0
+    );
 
-    if (pending.length === 0) {
-      const finalField = playoffField(state, slots);
-
-      categories = new Map(
-        teams.map(t => [
-          t.ownerId,
-          finalField.has(t.ownerId)
-            ? "guaranteed"
-            : "eliminated"
-        ])
-      );
-    } else {
-      categories = classifyOutcome(state, slots);
-    }
+    const nominal = getPlayoffField(
+      state,
+      playoffCount
+    );
 
     totalWeight += weight;
 
-    const nominal = playoffField(state, slots);
-
     for (const team of teams) {
-      const id = team.ownerId;
-      const category = categories.get(id);
-      const result = totals.get(id);
+      const stat = totals.get(team.ownerId);
 
-      result[category]++;
+      const category = categories.get(
+        team.ownerId
+      );
 
-      if (category !== "eliminated") {
-        result.qualifying++;
+      stat[category]++;
+
+      if (category !== "out") {
+        stat.playoff++;
       }
 
-      if (nominal.has(id)) {
-        result.weighted += weight;
+      if (nominal.has(team.ownerId)) {
+        stat.weighted += weight;
       }
     }
 
     entries.push({
-      bits: bits.join(""),
       winners,
       categories,
       weight
@@ -426,52 +454,106 @@ function calculateModel(
   };
 }
 
-// ==============================================
-// SCORING TIEBREAKERS
-// ==============================================
+// =====================================================
+// CONDITIONAL PLAYOFF ODDS
+// =====================================================
 
-function pointsTarget(team, rival) {
-  const difference = Math.round(
-    (rival.pointsFor - team.pointsFor) * 100
-  );
-
-  if (difference >= 0) {
-    return (
-      `Outscore ${rival.ownerName} by at least ` +
-      `${((difference + 1) / 100).toFixed(2)} ` +
-      `combined fantasy points over the remaining games.`
-    );
-  }
-
-  const lead = -difference / 100;
-
-  return (
-    `Currently ahead of ${rival.ownerName} ` +
-    `by ${lead.toFixed(2)} points. ` +
-    `Protect that lead through the end of the season.`
-  );
-}
-
-function isQualifying(category) {
-  return category !== "eliminated";
-}
-
-// ==============================================
-// THIS WEEK ANALYTICS
-// ==============================================
-
-function weeklyAdvice(
+function conditionalOdds(
   model,
   ownerId,
+  gameIndex,
+  winnerId
+) {
+  let total = 0;
+  let qualified = 0;
+
+  for (const entry of model.entries) {
+    if (
+      entry.winners[gameIndex] !== winnerId
+    ) {
+      continue;
+    }
+
+    total += entry.weight;
+
+    if (
+      entry.categories.get(ownerId) !== "out"
+    ) {
+      // Possible playoff qualification.
+      qualified += entry.weight;
+    }
+  }
+
+  return {
+    probability: total
+      ? qualified / total
+      : null,
+    sampleCount: total
+  };
+}
+
+function nominalConditionalOdds(
+  model,
+  ownerId,
+  gameIndex,
+  winnerId,
+  teams,
+  games,
+  playoffCount
+) {
+  let total = 0;
+  let qualified = 0;
+
+  for (const entry of model.entries) {
+    if (
+      entry.winners[gameIndex] !== winnerId
+    ) {
+      continue;
+    }
+
+    total += entry.weight;
+
+    const state = applyGames(
+      teams,
+      games,
+      entry.winners
+    );
+
+    if (
+      getPlayoffField(
+        state,
+        playoffCount
+      ).has(ownerId)
+    ) {
+      qualified += entry.weight;
+    }
+  }
+
+  return total
+    ? qualified / total
+    : null;
+}
+
+// =====================================================
+// THIS WEEK'S ANALYTICS
+// =====================================================
+
+function weeklyReport(
+  model,
+  ownerId,
+  teams,
   games,
   week,
-  name
+  playoffCount
 ) {
-  if (!model || !ownerId) return null;
+  if (!ownerId || week == null) return null;
 
-  const weekGames = games.filter(
-    game => game.week === week
-  );
+  const weekGames = games
+    .map((game, index) => ({
+      ...game,
+      index
+    }))
+    .filter(game => game.week === week);
 
   const ownGame = weekGames.find(
     game =>
@@ -479,58 +561,43 @@ function weeklyAdvice(
       game.awayId === ownerId
   );
 
-  const qualifying = entry =>
-    isQualifying(
-      entry.categories.get(ownerId)
+  let win = null;
+  let loss = null;
+
+  if (ownGame) {
+    const opponent =
+      ownGame.homeId === ownerId
+        ? ownGame.awayId
+        : ownGame.homeId;
+
+    win = nominalConditionalOdds(
+      model,
+      ownerId,
+      ownGame.index,
+      ownerId,
+      teams,
+      games,
+      playoffCount
     );
 
-  const qualifyingEntries =
-    model.entries.filter(qualifying);
-
-  const ownResults = ownGame
-    ? {
-        win: qualifyingEntries.filter(
-          entry =>
-            entry.winners[games.indexOf(ownGame)] ===
-            ownerId
-        ).length,
-
-        loss: qualifyingEntries.filter(
-          entry =>
-            entry.winners[games.indexOf(ownGame)] !==
-            ownerId
-        ).length
-      }
-    : null;
-
-  let headline = "Playoff race still open";
-
-  if (model.exact) {
-    if (!qualifyingEntries.length) {
-      headline = "No qualifying path in the model";
-    } else if (!ownGame) {
-      headline = "No matchup available this week";
-    } else if (
-      ownResults.win > 0 &&
-      ownResults.loss === 0
-    ) {
-      headline = "MUST WIN THIS WEEK";
-    } else if (
-      ownResults.win > 0 &&
-      ownResults.loss > 0
-    ) {
-      headline = "CAN AFFORD A LOSS";
-    } else if (
-      ownResults.win === 0 &&
-      ownResults.loss > 0
-    ) {
-      headline = "LOSS REQUIRED FOR A MODELED PATH";
-    }
-  } else {
-    headline = "Projected weekly outlook";
+    loss = nominalConditionalOdds(
+      model,
+      ownerId,
+      ownGame.index,
+      opponent,
+      teams,
+      games,
+      playoffCount
+    );
   }
 
-  const outside = [];
+  const qualifying = entry =>
+    entry.categories.get(ownerId) !== "out";
+
+  const possibleEntries =
+    model.entries.filter(qualifying);
+
+  const gamesToWatch = [];
 
   for (const game of weekGames) {
     if (
@@ -540,60 +607,189 @@ function weeklyAdvice(
       continue;
     }
 
-    const index = games.indexOf(game);
+    const homeResult = conditionalOdds(
+      model,
+      ownerId,
+      game.index,
+      game.homeId
+    );
 
-    const homePaths = qualifyingEntries.filter(
-      entry =>
-        entry.winners[index] === game.homeId
+    const awayResult = conditionalOdds(
+      model,
+      ownerId,
+      game.index,
+      game.awayId
+    );
+
+    if (
+      homeResult.probability === null ||
+      awayResult.probability === null
+    ) {
+      continue;
+    }
+
+    const homePaths = possibleEntries.filter(
+      e => e.winners[game.index] === game.homeId
     ).length;
 
-    const awayPaths = qualifyingEntries.filter(
-      entry =>
-        entry.winners[index] === game.awayId
+    const awayPaths = possibleEntries.filter(
+      e => e.winners[game.index] === game.awayId
     ).length;
 
-    if (!homePaths && !awayPaths) continue;
+    const difference =
+      homeResult.probability -
+      awayResult.probability;
 
-    if (model.exact && homePaths === 0) {
-      outside.push({
-        text:
-          `${name(game.awayId)} must beat ` +
-          `${name(game.homeId)}`,
-        type: "required",
-        game
+    gamesToWatch.push({
+      ...game,
+      homePaths,
+      awayPaths,
+      preferredWinner:
+        difference >= 0
+          ? game.homeId
+          : game.awayId,
+      homeOdds: homeResult.probability,
+      awayOdds: awayResult.probability,
+      impact: Math.abs(difference),
+      requiredWinner: model.exact
+        ? homePaths === 0 && awayPaths > 0
+          ? game.awayId
+          : awayPaths === 0 && homePaths > 0
+          ? game.homeId
+          : null
+        : null
+    });
+  }
+
+  gamesToWatch.sort(
+    (a, b) => b.impact - a.impact
+  );
+
+  const weeklyIndexes = weekGames.map(
+    g => g.index
+  );
+
+  const combinations = new Map();
+
+  for (const entry of model.entries) {
+    const key = weeklyIndexes
+      .map(index => entry.winners[index])
+      .join("|");
+
+    if (!combinations.has(key)) {
+      combinations.set(key, {
+        winners: weeklyIndexes.map(
+          index => entry.winners[index]
+        ),
+        total: 0,
+        qualifies: 0,
+        count: 0
       });
-    } else if (model.exact && awayPaths === 0) {
-      outside.push({
-        text:
-          `${name(game.homeId)} must beat ` +
-          `${name(game.awayId)}`,
-        type: "required",
-        game
-      });
-    } else {
-      // Both results preserve at least one path.
-      // Do not incorrectly label one as required.
-      outside.push({
-        text:
-          `${name(game.awayId)} vs ${name(game.homeId)}: ` +
-          `either winner leaves a possible path`,
-        type: "optional",
-        game
-      });
+    }
+
+    const group = combinations.get(key);
+
+    group.total += entry.weight;
+    group.count++;
+
+    if (qualifying(entry)) {
+      group.qualifies += entry.weight;
+    }
+  }
+
+  const danger = [...combinations.values()]
+    .map(group => ({
+      ...group,
+      probability:
+        group.total
+          ? group.qualifies / group.total
+          : 0
+    }))
+    .sort(
+      (a, b) =>
+        a.probability - b.probability
+    );
+
+  const bestCase =
+    danger.length
+      ? danger[danger.length - 1]
+      : null;
+
+  const worstCase =
+    danger.length
+      ? danger[0]
+      : null;
+
+  let headline = "Playoff race remains open";
+
+  if (ownGame && model.exact) {
+    const winPaths = possibleEntries.filter(
+      e =>
+        e.winners[ownGame.index] === ownerId
+    ).length;
+
+    const lossPaths = possibleEntries.filter(
+      e =>
+        e.winners[ownGame.index] !== ownerId
+    ).length;
+
+    if (winPaths > 0 && lossPaths === 0) {
+      headline = "Must win this week";
+    } else if (
+      winPaths > 0 &&
+      lossPaths > 0
+    ) {
+      headline = "Can survive a loss";
+    } else if (
+      winPaths === 0 &&
+      lossPaths === 0
+    ) {
+      headline = "No remaining modeled path";
     }
   }
 
   return {
     headline,
     ownGame,
-    ownResults,
-    outside
+    win,
+    loss,
+    gamesToWatch,
+    bestCase,
+    worstCase,
+    weekGames
   };
 }
 
-// ==============================================
+// =====================================================
+// POINTS TIEBREAKERS
+// =====================================================
+
+function pointsRequirement(team, rival) {
+  const difference = Math.round(
+    (
+      number(rival.pointsFor) -
+      number(team.pointsFor)
+    ) * 100
+  );
+
+  if (difference >= 0) {
+    return (
+      `Outscore ${rival.ownerName} by at least ` +
+      `${((difference + 1) / 100).toFixed(2)} ` +
+      `combined fantasy points over the remaining weeks.`
+    );
+  }
+
+  return (
+    `Currently ahead of ${rival.ownerName} by ` +
+    `${(-difference / 100).toFixed(2)} points. ` +
+    `Protect that advantage.`
+  );
+}
+
+// =====================================================
 // MAIN COMPONENT
-// ==============================================
+// =====================================================
 
 export default function ScenarioSimulator({
   teams = [],
@@ -605,33 +801,30 @@ export default function ScenarioSimulator({
   const [picks, setPicks] = useState({});
   const [submitted, setSubmitted] = useState(null);
 
-  const [selectedOwner, setSelectedOwner] =
+  const [ownerSelection, setOwnerSelection] =
     useState("");
 
   const [finish, setFinish] = useState("all");
-  const [category, setCategory] = useState("all");
-
   const [page, setPage] = useState(1);
-  const [openCombination, setOpenCombination] =
+  const [expandedPath, setExpandedPath] =
     useState(null);
 
   const [openWeeks, setOpenWeeks] = useState({
     [currentWeek]: true
   });
 
-  const [showAllResults, setShowAllResults] =
+  const [showFullResults, setShowFullResults] =
     useState(false);
 
-  const ownerMap = useMemo(
-    () =>
-      new Map(
-        teams.map(t => [t.ownerId, t])
-      ),
+  const teamMap = useMemo(
+    () => new Map(
+      teams.map(t => [t.ownerId, t])
+    ),
     [teams]
   );
 
   const name = id =>
-    ownerMap.get(id)?.ownerName || "Unknown owner";
+    teamMap.get(id)?.ownerName || "Unknown Owner";
 
   const weeks = useMemo(
     () =>
@@ -641,28 +834,25 @@ export default function ScenarioSimulator({
   );
 
   const baseline = useMemo(
-    () =>
-      calculateModel(
-        teams,
-        games,
-        playoffCount,
-        {},
-        season
-      ),
+    () => runModel({
+      teams,
+      games,
+      playoffCount,
+      season
+    }),
     [teams, games, playoffCount, season]
   );
 
-  const whatIf = useMemo(
-    () =>
-      submitted === null
-        ? null
-        : calculateModel(
-            teams,
-            games,
-            playoffCount,
-            submitted,
-            season
-          ),
+  const simulated = useMemo(
+    () => submitted === null
+      ? null
+      : runModel({
+          teams,
+          games,
+          playoffCount,
+          picks: submitted,
+          season
+        }),
     [
       teams,
       games,
@@ -672,59 +862,75 @@ export default function ScenarioSimulator({
     ]
   );
 
-  const activeModel = whatIf || baseline;
+  const active = simulated || baseline;
+
+  const finalTwoWeeks =
+    currentWeek >=
+      REGULAR_SEASON_END_WEEK - 1 &&
+    currentWeek <= REGULAR_SEASON_END_WEEK;
+
+  const seasonOver =
+    currentWeek > REGULAR_SEASON_END_WEEK;
+
+  const remainingWeek =
+    weeks.find(w => w >= currentWeek) ??
+    weeks[0] ??
+    null;
 
   const eligibleOwners = teams
-    .filter(team => {
-      if (!activeModel.exact) return true;
-
-      const stat = activeModel.totals.get(
-        team.ownerId
+    .filter(t => {
+      const stat = active.totals.get(
+        t.ownerId
       );
 
+      if (!stat) return false;
+
+      if (!active.exact) {
+        // Sampled 0% is not proof of elimination.
+        return true;
+      }
+
       return (
-        stat.qualifying > 0 &&
-        stat.guaranteed < activeModel.iterations
+        stat.playoff > 0 &&
+        stat.clinch < active.iterations
       );
     })
     .sort(
       (a, b) =>
-        a.ownerName.localeCompare(b.ownerName)
+        a.ownerName.localeCompare(
+          b.ownerName
+        )
     );
 
-  const actualSelectedId = Number(selectedOwner);
+  const requestedId = Number(ownerSelection);
 
-  const chosenOwner = eligibleOwners.some(
-    t => t.ownerId === actualSelectedId
+  const selectedId = eligibleOwners.some(
+    t => t.ownerId === requestedId
   )
-    ? actualSelectedId
+    ? requestedId
     : eligibleOwners[0]?.ownerId || 0;
 
-  const owner = ownerMap.get(chosenOwner);
+  const selectedTeam = teamMap.get(selectedId);
 
-  const ownerStats =
-    activeModel.totals.get(chosenOwner);
+  const selectedStats =
+    active.totals.get(selectedId);
 
-  const currentAvailableWeek =
-    weeks.includes(currentWeek)
-      ? currentWeek
-      : weeks.find(w => w > currentWeek);
-
-  const advice = useMemo(
-    () =>
-      weeklyAdvice(
-        activeModel,
-        chosenOwner,
-        games,
-        currentAvailableWeek,
-        name
-      ),
-    [
-      activeModel,
-      chosenOwner,
+  const weekly = useMemo(
+    () => weeklyReport(
+      active,
+      selectedId,
+      teams,
       games,
-      currentAvailableWeek,
-      ownerMap
+      remainingWeek,
+      playoffCount
+    ),
+    [
+      active,
+      selectedId,
+      teams,
+      games,
+      remainingWeek,
+      playoffCount
     ]
   );
 
@@ -735,126 +941,118 @@ export default function ScenarioSimulator({
     }))
     .filter(
       game =>
-        game.homeId === chosenOwner ||
-        game.awayId === chosenOwner
+        game.homeId === selectedId ||
+        game.awayId === selectedId
     );
 
-  const qualifyingEntries = owner
-    ? activeModel.entries.filter(entry => {
-        const status =
-          entry.categories.get(chosenOwner);
+  const qualifyingCombinations =
+    finalTwoWeeks &&
+    active.exact &&
+    selectedTeam
+      ? active.entries.filter(entry => {
+          if (
+            entry.categories.get(selectedId) ===
+            "out"
+          ) {
+            return false;
+          }
 
-        if (
-          category !== "all" &&
-          status !== category
-        ) {
-          return false;
-        }
+          if (finish === "all") return true;
 
-        if (
-          category === "all" &&
-          status === "eliminated"
-        ) {
-          return false;
-        }
-
-        if (finish === "all") {
-          return true;
-        }
-
-        const pattern = ownGames
-          .map(game =>
-            entry.winners[game.index] === chosenOwner
-              ? "W"
-              : "L"
-          )
-          .join("");
-
-        return pattern === finish;
-      })
-    : [];
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(qualifyingEntries.length / PAGE_SIZE)
-  );
-
-  const currentPage = Math.min(page, totalPages);
-
-  const visible = qualifyingEntries.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
-
-  const finishOptions = ownGames.length <= 5
-    ? Array.from(
-        {
-          length: 2 ** ownGames.length
-        },
-        (_, mask) =>
-          ownGames
-            .map((_, i) =>
-              mask & (1 << i)
+          const resultPattern = ownGames
+            .map(game =>
+              entry.winners[game.index] ===
+                selectedId
                 ? "W"
                 : "L"
             )
-            .join("")
-      ).sort(
-        (a, b) =>
-          b.split("W").length -
-            a.split("W").length ||
-          a.localeCompare(b)
-      )
-    : [];
+            .join("");
 
-  function chooseWinner(game, id) {
+          return resultPattern === finish;
+        })
+      : [];
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(
+      qualifyingCombinations.length /
+      COMBINATIONS_PER_PAGE
+    )
+  );
+
+  const currentPage = Math.min(
+    page,
+    totalPages
+  );
+
+  const visibleCombinations =
+    qualifyingCombinations.slice(
+      (currentPage - 1) *
+        COMBINATIONS_PER_PAGE,
+      currentPage *
+        COMBINATIONS_PER_PAGE
+    );
+
+  const finishOptions =
+    ownGames.length <= 4
+      ? Array.from(
+          { length: 2 ** ownGames.length },
+          (_, mask) =>
+            ownGames.map((_, i) =>
+              mask & (1 << i) ? "W" : "L"
+            ).join("")
+        ).sort(
+          (a, b) =>
+            b.split("W").length -
+              a.split("W").length ||
+            a.localeCompare(b)
+        )
+      : [];
+
+  function chooseWinner(game, winnerId) {
     setPicks(old => {
       const next = { ...old };
 
-      if (next[game.id] === id) {
+      if (next[game.id] === winnerId) {
         delete next[game.id];
       } else {
-        next[game.id] = id;
+        next[game.id] = winnerId;
       }
 
       return next;
     });
   }
 
-  function reset() {
+  function runScenario() {
+    setSubmitted({ ...picks });
+    setPage(1);
+    setExpandedPath(null);
+  }
+
+  function resetScenario() {
     setPicks({});
     setSubmitted(null);
     setPage(1);
-    setOpenCombination(null);
+    setExpandedPath(null);
   }
 
-  function chooseOwner(value) {
-    setSelectedOwner(value);
+  function changeOwner(value) {
+    setOwnerSelection(value);
     setFinish("all");
-    setCategory("all");
     setPage(1);
-    setOpenCombination(null);
+    setExpandedPath(null);
   }
 
-  function chooseFilter(type, value) {
-    if (type === "finish") {
-      setFinish(value);
-    } else {
-      setCategory(value);
-    }
-
-    setPage(1);
-    setOpenCombination(null);
-  }
-
-  // ============================================
+  // ===================================================
   // RENDER
-  // ============================================
+  // ===================================================
 
   return (
     <div className="dp-root">
 
-      {/* SECTION 1: PLAYOFF ODDS */}
+      {/* --------------------------------------------
+          1. PLAYOFF PERCENTAGES
+      -------------------------------------------- */}
 
       <section className="dp-panel">
         <span className="dp-kicker">
@@ -864,9 +1062,9 @@ export default function ScenarioSimulator({
         <h2>Playoff Percentages</h2>
 
         <p className="dp-muted">
-          Estimated playoff odds using actual
-          league records, fantasy scoring,
-          and remaining matchups.
+          Estimated playoff chances based on
+          records, scoring averages, and
+          remaining matchups.
         </p>
 
         <div className="dp-odds-grid">
@@ -877,8 +1075,9 @@ export default function ScenarioSimulator({
                 baseline.totals.get(a.ownerId).odds
             )
             .map(team => {
-              const stat =
-                baseline.totals.get(team.ownerId);
+              const stat = baseline.totals.get(
+                team.ownerId
+              );
 
               return (
                 <div
@@ -891,39 +1090,23 @@ export default function ScenarioSimulator({
                     </strong>
 
                     <strong className="dp-gold">
-                      {pct(stat.odds)}
+                      {percent(stat.odds)}
                     </strong>
                   </div>
 
                   <div className="dp-track">
-                    <div
-                      style={{
-                        width: `${stat.odds * 100}%`
-                      }}
-                    />
+                    <div style={{
+                      width: `${stat.odds * 100}%`
+                    }} />
                   </div>
 
                   <small>
-                    {stat.qualifying.toLocaleString()}
+                    {stat.playoff.toLocaleString()}
                     {" / "}
                     {baseline.iterations.toLocaleString()}
                     {" "}
-                    possible qualifying{" "}
-                    {baseline.exact
-                      ? "combinations"
-                      : "simulations"}
+                    outcomes with a possible berth
                   </small>
-
-                  {baseline.exact && (
-                    <small>
-                      {stat.qualifying === 0
-                        ? "No modeled playoff path"
-                        : stat.guaranteed ===
-                          baseline.iterations
-                        ? "Clinched in modeled outcomes"
-                        : "Still in the race"}
-                    </small>
-                  )}
                 </div>
               );
             })}
@@ -931,37 +1114,37 @@ export default function ScenarioSimulator({
 
         <p className="dp-muted">
           {baseline.exact
-            ? `All ${baseline.iterations.toLocaleString()} remaining win/loss combinations evaluated.`
-            : `${MONTE_CARLO_RUNS.toLocaleString()} Monte Carlo simulations.`}
-          {" "}Percentages are probability
-          estimates, not official ESPN odds.
+            ? `Evaluated all ${baseline.iterations.toLocaleString()} available W/L combinations.`
+            : `${SIMULATION_COUNT.toLocaleString()} Monte Carlo simulations.`}
+          {" "}Probabilities are estimated,
+          not official ESPN odds.
         </p>
       </section>
 
-      {/* SECTION 2: THIS WEEK */}
+      {/* --------------------------------------------
+          2. THIS WEEK: WHAT YOU NEED
+      -------------------------------------------- */}
 
       <section className="dp-panel">
         <span className="dp-kicker">
-          WEEKLY PLAYOFF SURVIVAL
+          WEEKLY PLAYOFF INTELLIGENCE
         </span>
 
-        <h2>
-          This Week: What You Need
-        </h2>
+        <h2>This Week: What You Need</h2>
 
         <p className="dp-muted">
-          A quick look at what an owner needs
-          to do and which other games matter.
-          Select an owner to get their report.
+          Find out how a win or loss changes
+          your chances, who to root for,
+          and which results could hurt you.
         </p>
 
         {eligibleOwners.length > 0 ? (
           <>
             <select
               className="dp-select"
-              value={chosenOwner}
+              value={selectedId}
               onChange={e =>
-                chooseOwner(e.target.value)
+                changeOwner(e.target.value)
               }
             >
               {eligibleOwners.map(team => (
@@ -974,140 +1157,272 @@ export default function ScenarioSimulator({
               ))}
             </select>
 
-            {owner && advice && (
+            {selectedTeam && weekly && (
               <div className="dp-week-report">
                 <div className="dp-between">
                   <div>
                     <span className="dp-kicker">
-                      {currentAvailableWeek
-                        ? `WEEK ${currentAvailableWeek}`
-                        : "CURRENT OUTLOOK"}
+                      WEEK {remainingWeek}
                     </span>
 
-                    <h3>{owner.ownerName}</h3>
+                    <h3>{selectedTeam.ownerName}</h3>
                   </div>
 
                   <span className="dp-status">
-                    {advice.headline}
+                    {weekly.headline}
                   </span>
                 </div>
 
-                {advice.ownGame ? (
-                  <div className="dp-important">
-                    <strong>
-                      Your Matchup
-                    </strong>
-
-                    <p>
-                      {owner.ownerName} vs{" "}
+                {weekly.ownGame && (
+                  <>
+                    <p className="dp-muted">
+                      Playing{" "}
                       {name(
-                        advice.ownGame.homeId ===
-                          chosenOwner
-                          ? advice.ownGame.awayId
-                          : advice.ownGame.homeId
+                        weekly.ownGame.homeId ===
+                          selectedId
+                          ? weekly.ownGame.awayId
+                          : weekly.ownGame.homeId
                       )}
                     </p>
 
-                    {activeModel.exact && (
-                      <>
-                        <p>
-                          Win:{" "}
-                          <b>
-                            {advice.ownResults.win.toLocaleString()}
-                          </b>
-                          {" "}qualifying combinations
-                        </p>
+                    <div className="dp-two-grid">
+                      <div className="dp-metric">
+                        <small>
+                          IF YOU WIN
+                        </small>
+
+                        <strong style={{
+                          color: COLORS.clinch
+                        }}>
+                          {weekly.win === null
+                            ? "—"
+                            : percent(weekly.win)}
+                        </strong>
+
+                        <span>
+                          Projected playoff odds
+                        </span>
+                      </div>
+
+                      <div className="dp-metric">
+                        <small>
+                          IF YOU LOSE
+                        </small>
+
+                        <strong style={{
+                          color: COLORS.out
+                        }}>
+                          {weekly.loss === null
+                            ? "—"
+                            : percent(weekly.loss)}
+                        </strong>
+
+                        <span>
+                          Projected playoff odds
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <h4>Who You Should Root For</h4>
+
+                {weekly.gamesToWatch.length ? (
+                  weekly.gamesToWatch.map(game => (
+                    <div
+                      className="dp-watch"
+                      key={game.id}
+                    >
+                      <div>
+                        <strong>
+                          {name(game.awayId)}
+                          {" vs "}
+                          {name(game.homeId)}
+                        </strong>
 
                         <p>
-                          Loss:{" "}
-                          <b>
-                            {advice.ownResults.loss.toLocaleString()}
+                          Root for:{" "}
+                          <b className="dp-gold">
+                            {name(
+                              game.preferredWinner
+                            )}
                           </b>
-                          {" "}qualifying combinations
                         </p>
-                      </>
-                    )}
-                  </div>
+
+                        {game.requiredWinner && (
+                          <small className="dp-danger">
+                            Required winner to preserve
+                            at least one modeled path:{" "}
+                            {name(game.requiredWinner)}
+                          </small>
+                        )}
+                      </div>
+
+                      <div className="dp-watch-right">
+                        <strong>
+                          {(
+                            game.impact * 100
+                          ).toFixed(1)}
+                          {" pp"}
+                        </strong>
+
+                        <small>
+                          Possible-berth odds swing
+                        </small>
+
+                        <small>
+                          {name(game.homeId)} wins:
+                          {" "}{percent(game.homeOdds)}
+                        </small>
+
+                        <small>
+                          {name(game.awayId)} wins:
+                          {" "}{percent(game.awayOdds)}
+                        </small>
+                      </div>
+                    </div>
+                  ))
                 ) : (
                   <p className="dp-muted">
-                    No upcoming matchup was
-                    supplied for this owner.
+                    No other matchups are available
+                    for this week.
                   </p>
                 )}
 
                 <h4>
-                  Other Games to Watch
+                  What You Cannot Afford
                 </h4>
 
-                {advice.outside.filter(
-                  item => item.type === "required"
-                ).length > 0 ? (
-                  advice.outside
-                    .filter(item =>
-                      item.type === "required"
-                    )
-                    .map(item => (
-                      <div
-                        className="dp-requirement"
-                        key={item.game.id}
-                      >
-                        <strong>
-                          {item.text}
-                        </strong>
+                {weekly.worstCase ? (
+                  <div className="dp-situation">
+                    <div className="dp-between">
+                      <strong>
+                        Worst-Case Week
+                      </strong>
 
-                        <small>
-                          Required to preserve a
-                          qualifying path in the model
-                        </small>
-                      </div>
-                    ))
+                      <strong className="dp-danger">
+                        {percent(
+                          weekly.worstCase.probability
+                        )}
+                      </strong>
+                    </div>
+
+                    <p className="dp-muted">
+                      Possible qualification rate
+                      across the remaining modeled
+                      outcomes if these weekly
+                      results occur:
+                    </p>
+
+                    {weekly.weekGames.map(
+                      (game, index) => {
+                        const winner =
+                          weekly.worstCase
+                            .winners[index];
+
+                        return (
+                          <p key={game.id}>
+                            {name(winner)}
+                            {" "}beats{" "}
+                            {name(
+                              winner === game.homeId
+                                ? game.awayId
+                                : game.homeId
+                            )}
+                          </p>
+                        );
+                      }
+                    )}
+                  </div>
                 ) : (
                   <p className="dp-muted">
-                    No single outside matchup
-                    has a mandatory winner
-                    under the available paths.
+                    No weekly outcome combinations
+                    are available.
                   </p>
                 )}
 
-                {advice.outside.some(
-                  item => item.type === "optional"
-                ) && (
+                {weekly.bestCase && (
                   <details className="dp-details">
                     <summary>
-                      Other relevant games
+                      See Best-Case Week
+                      {" · "}
+                      {percent(
+                        weekly.bestCase.probability
+                      )}
                     </summary>
 
-                    {advice.outside
-                      .filter(item =>
-                        item.type === "optional"
-                      )
-                      .map(item => (
-                        <p key={item.game.id}>
-                          {item.text}
-                        </p>
-                      ))}
+                    {weekly.weekGames.map(
+                      (game, index) => {
+                        const winner =
+                          weekly.bestCase
+                            .winners[index];
+
+                        return (
+                          <p key={game.id}>
+                            {name(winner)}
+                            {" "}beats{" "}
+                            {name(
+                              winner === game.homeId
+                                ? game.awayId
+                                : game.homeId
+                            )}
+                          </p>
+                        );
+                      }
+                    )}
                   </details>
                 )}
 
+                <h4>Points-Scored Watch</h4>
+
+                {teams
+                  .filter(t =>
+                    t.ownerId !== selectedId
+                  )
+                  .sort(
+                    (a, b) =>
+                      Math.abs(
+                        a.pointsFor -
+                          selectedTeam.pointsFor
+                      ) -
+                      Math.abs(
+                        b.pointsFor -
+                          selectedTeam.pointsFor
+                      )
+                  )
+                  .slice(0, 3)
+                  .map(rival => (
+                    <p
+                      className="dp-muted"
+                      key={rival.ownerId}
+                    >
+                      {pointsRequirement(
+                        selectedTeam,
+                        rival
+                      )}
+                    </p>
+                  ))}
+
                 <p className="dp-muted">
-                  This week's requirements
-                  automatically reflect the
-                  current modeled playoff paths.
-                  When you run a What-If scenario,
-                  this report recalculates.
+                  Points targets apply only
+                  if the teams finish tied
+                  on record and total points
+                  is the applicable tiebreaker.
                 </p>
               </div>
             )}
           </>
         ) : (
           <p className="dp-muted">
-            No unresolved modeled playoff
-            berths are available.
+            No owners have unresolved
+            modeled playoff paths.
           </p>
         )}
       </section>
 
-      {/* SECTION 3: WHAT-IF */}
+      {/* --------------------------------------------
+          3. WHAT-IF SIMULATOR
+      -------------------------------------------- */}
 
       <section className="dp-panel">
         <div className="dp-between">
@@ -1121,23 +1436,20 @@ export default function ScenarioSimulator({
 
           <button
             className="dp-secondary"
-            onClick={reset}
+            onClick={resetScenario}
           >
             Reset
           </button>
         </div>
 
         <p className="dp-muted">
-          Choose winners and click Run Scenario.
-          Your choices will recalculate the
-          playoff odds and survival reports.
+          Pick winners, then click Run Scenario.
+          The weekly report and Road to the
+          Playoffs will recalculate too.
         </p>
 
         {weeks.map(week => (
-          <div
-            className="dp-week"
-            key={week}
-          >
+          <div className="dp-week" key={week}>
             <button
               className="dp-week-toggle"
               onClick={() =>
@@ -1157,9 +1469,7 @@ export default function ScenarioSimulator({
             {openWeeks[week] && (
               <div className="dp-week-games">
                 {games
-                  .filter(game =>
-                    game.week === week
-                  )
+                  .filter(g => g.week === week)
                   .map(game => (
                     <div
                       className="dp-game"
@@ -1168,7 +1478,7 @@ export default function ScenarioSimulator({
                       <button
                         className={
                           picks[game.id] ===
-                          game.awayId
+                            game.awayId
                             ? "active"
                             : ""
                         }
@@ -1187,7 +1497,7 @@ export default function ScenarioSimulator({
                       <button
                         className={
                           picks[game.id] ===
-                          game.homeId
+                            game.homeId
                             ? "active"
                             : ""
                         }
@@ -1209,47 +1519,47 @@ export default function ScenarioSimulator({
 
         <button
           className="dp-primary"
-          onClick={() => {
-            setSubmitted({ ...picks });
-            setPage(1);
-            setOpenCombination(null);
-          }}
+          onClick={runScenario}
         >
           Run Scenario
         </button>
 
-        {whatIf && (
+        {simulated && (
           <div className="dp-results">
             <h3>Scenario Results</h3>
 
             <p className="dp-muted">
-              Playoff probabilities compared
-              with the original projection.
+              Change in estimated playoff odds
+              compared with the original model.
             </p>
 
             {[...teams]
               .sort(
                 (a, b) =>
-                  whatIf.totals.get(b.ownerId).odds -
-                  whatIf.totals.get(a.ownerId).odds
+                  simulated.totals.get(
+                    b.ownerId
+                  ).odds -
+                  simulated.totals.get(
+                    a.ownerId
+                  ).odds
               )
               .map(team => {
-                const oldOdds =
+                const before =
                   baseline.totals.get(
                     team.ownerId
                   ).odds;
 
-                const stat =
-                  whatIf.totals.get(
+                const after =
+                  simulated.totals.get(
                     team.ownerId
-                  );
+                  ).odds;
 
                 const change =
-                  (stat.odds - oldOdds) * 100;
+                  (after - before) * 100;
 
                 return (
                   <div
-                    className="dp-result-row"
+                    className="dp-result"
                     key={team.ownerId}
                   >
                     <strong>
@@ -1257,33 +1567,22 @@ export default function ScenarioSimulator({
                     </strong>
 
                     <span>
-                      {pct(oldOdds)} →{" "}
-                      <b>{pct(stat.odds)}</b>
+                      {percent(before)}
+                      {" → "}
+                      {percent(after)}
                     </span>
 
                     <span
                       className={
-                        change > 0.05
+                        change >= 0
                           ? "positive"
-                          : change < -0.05
-                          ? "negative"
-                          : ""
+                          : "negative"
                       }
                     >
                       {change > 0 ? "+" : ""}
-                      {change.toFixed(1)} pp
+                      {change.toFixed(1)}
+                      {" pp"}
                     </span>
-
-                    <small>
-                      {stat.qualifying.toLocaleString()}
-                      {" / "}
-                      {whatIf.iterations.toLocaleString()}
-                      {" "}
-                      qualifying{" "}
-                      {whatIf.exact
-                        ? "combinations"
-                        : "simulations"}
-                    </small>
                   </div>
                 );
               })}
@@ -1291,41 +1590,43 @@ export default function ScenarioSimulator({
         )}
       </section>
 
-      {/* SECTION 4: ROAD TO PLAYOFFS */}
+      {/* --------------------------------------------
+          4. ROAD TO THE PLAYOFFS
+      -------------------------------------------- */}
 
       <section className="dp-panel">
         <span className="dp-kicker">
-          PLAYOFF SURVIVAL ANALYTICS
+          POSTSEASON SURVIVAL
         </span>
 
         <h2>Road to the Playoffs</h2>
 
         <p className="dp-muted">
-          Explore every remaining qualifying
-          combination for an owner. See what
-          they must do, who else must win,
-          and the points tiebreakers that
-          could determine their fate.
+          See how many remaining outcomes
+          guarantee a berth, keep an owner
+          in the hunt, or eliminate them.
+          Detailed combinations unlock
+          during the final two weeks.
         </p>
 
-        {!activeModel.exact && (
+        {!active.exact && (
           <p className="dp-warning">
-            More than {EXACT_LIMIT} games remain
-            unresolved. The outcomes shown are
-            sampled simulations, not every
-            mathematical possibility. Owners
-            cannot be officially classified
-            as eliminated from this sample.
+            More than {EXACT_GAME_LIMIT}
+            {" "}games are unresolved.
+            These are sampled simulation counts,
+            not exhaustive mathematical outcomes.
+            A zero count does not prove
+            elimination.
           </p>
         )}
 
-        {eligibleOwners.length > 0 && owner && (
+        {eligibleOwners.length > 0 && (
           <>
             <select
               className="dp-select"
-              value={chosenOwner}
+              value={selectedId}
               onChange={e =>
-                chooseOwner(e.target.value)
+                changeOwner(e.target.value)
               }
             >
               {eligibleOwners.map(team => (
@@ -1338,228 +1639,321 @@ export default function ScenarioSimulator({
               ))}
             </select>
 
-            <div className="dp-owner-overview">
-              <div className="dp-between">
-                <div>
-                  <span className="dp-kicker">
-                    PLAYOFF SURVIVAL REPORT
-                  </span>
+            {selectedTeam && selectedStats && (
+              <div className="dp-owner-report">
+                <div className="dp-between">
+                  <div>
+                    <span className="dp-kicker">
+                      PLAYOFF SURVIVAL REPORT
+                    </span>
 
-                  <h3>{owner.ownerName}</h3>
+                    <h3>
+                      {selectedTeam.ownerName}
+                    </h3>
+                  </div>
+
+                  <span className="dp-status">
+                    {active.exact
+                      ? "In the Hunt"
+                      : "Projected"}
+                  </span>
                 </div>
 
-                <span className="dp-status">
-                  {activeModel.exact
-                    ? "Still Alive"
-                    : "Projected"}
-                </span>
-              </div>
-
-              <div className="dp-category-grid">
-                {[
-                  "guaranteed",
-                  "potential",
-                  "tiebreaker",
-                  "eliminated"
-                ].map(key => (
-                  <button
-                    key={key}
-                    className={
-                      "dp-category " +
-                      (category === key
-                        ? "selected"
-                        : "")
+                <div className="dp-three-grid">
+                  {[
+                    {
+                      key: "clinch",
+                      label: "Clinch Berth"
+                    },
+                    {
+                      key: "hunt",
+                      label: "In the Hunt"
+                    },
+                    {
+                      key: "out",
+                      label: "Eliminated"
                     }
-                    onClick={() =>
-                      chooseFilter(
-                        "category",
-                        category === key
-                          ? "all"
-                          : key
-                      )
-                    }
-                  >
-                    <strong
-                      style={{
-                        color: COLORS[key]
-                      }}
+                  ].map(item => (
+                    <div
+                      className="dp-scenario-stat"
+                      key={item.key}
                     >
-                      {ownerStats[key].toLocaleString()}
+                      <strong style={{
+                        color: COLORS[item.key]
+                      }}>
+                        {selectedStats[
+                          item.key
+                        ].toLocaleString()}
+                      </strong>
+
+                      <small>
+                        {item.label}
+                      </small>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="dp-stacked-bar">
+                  {[
+                    "clinch",
+                    "hunt",
+                    "out"
+                  ].map(key => (
+                    <div
+                      key={key}
+                      style={{
+                        width: `${
+                          selectedStats[key] /
+                          active.iterations *
+                          100
+                        }%`,
+                        background: COLORS[key]
+                      }}
+                    />
+                  ))}
+                </div>
+
+                <p className="dp-muted">
+                  Out of{" "}
+                  {active.iterations.toLocaleString()}
+                  {" "}
+                  {active.exact
+                    ? "complete win/loss combinations"
+                    : "sampled seasons"}.
+                  {" "}Categories are mutually
+                  exclusive.
+                </p>
+
+                {!finalTwoWeeks && !seasonOver && (
+                  <div className="dp-locked">
+                    <strong>
+                      Detailed Playoff Scenarios
                     </strong>
 
-                    <span>
-                      {CATEGORY[key]}
-                    </span>
-                  </button>
-                ))}
-              </div>
+                    <p>
+                      Individual qualifying
+                      combinations, outside-help
+                      requirements, and points
+                      tiebreakers unlock during
+                      Weeks{" "}
+                      {REGULAR_SEASON_END_WEEK - 1}
+                      {"–"}
+                      {REGULAR_SEASON_END_WEEK}.
+                    </p>
 
-              <p className="dp-muted">
-                {activeModel.iterations.toLocaleString()}
-                {" "}
-                {activeModel.exact
-                  ? "remaining win/loss combinations"
-                  : "sampled seasons"}.
-                {" "}Each outcome is classified
-                into exactly one category.
-              </p>
-            </div>
+                    <p className="dp-muted">
+                      Until then, use This Week:
+                      What You Need for your
+                      weekly playoff outlook.
+                    </p>
+                  </div>
+                )}
 
-            <h3>Choose a Final Record Scenario</h3>
+                {finalTwoWeeks && (
+                  <div className="dp-paths">
+                    <h3>
+                      Every Qualifying Combination
+                    </h3>
 
-            <div className="dp-finish-options">
-              <button
-                className={
-                  finish === "all"
-                    ? "active"
-                    : ""
-                }
-                onClick={() =>
-                  chooseFilter(
-                    "finish",
-                    "all"
-                  )
-                }
-              >
-                All Finishes
-              </button>
+                    {!active.exact ? (
+                      <p className="dp-warning">
+                        Exact combinations are
+                        unavailable because more
+                        than {EXACT_GAME_LIMIT}
+                        {" "}games remain unresolved.
+                        The sampled results are
+                        not a complete list.
+                      </p>
+                    ) : (
+                      <>
+                        <p className="dp-muted">
+                          Choose the owner's
+                          finishing record.
+                          Open each combination
+                          to see their games,
+                          outside help, and
+                          points-tiebreaker targets.
+                        </p>
 
-              {finishOptions.map(pattern => {
-                const wins = pattern
-                  .split("")
-                  .filter(x => x === "W")
-                  .length;
+                        <div className="dp-finish-buttons">
+                          <button
+                            className={
+                              finish === "all"
+                                ? "active"
+                                : ""
+                            }
+                            onClick={() => {
+                              setFinish("all");
+                              setPage(1);
+                            }}
+                          >
+                            All Finishes
+                          </button>
 
-                const label = pattern.length
-                  ? `${wins}-${pattern.length - wins} (${pattern})`
-                  : "No Games";
+                          {finishOptions.map(
+                            pattern => {
+                              const wins =
+                                pattern.split("")
+                                  .filter(
+                                    x => x === "W"
+                                  ).length;
 
-                return (
-                  <button
-                    key={pattern}
-                    className={
-                      finish === pattern
-                        ? "active"
-                        : ""
-                    }
-                    onClick={() =>
-                      chooseFilter(
-                        "finish",
-                        pattern
-                      )
-                    }
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+                              return (
+                                <button
+                                  key={pattern}
+                                  className={
+                                    finish === pattern
+                                      ? "active"
+                                      : ""
+                                  }
+                                  onClick={() => {
+                                    setFinish(pattern);
+                                    setPage(1);
+                                  }}
+                                >
+                                  {wins}-
+                                  {pattern.length - wins}
+                                  {" "}
+                                  ({pattern})
+                                </button>
+                              );
+                            }
+                          )}
+                        </div>
 
-            <div className="dp-path-count">
-              <strong>
-                {qualifyingEntries.length.toLocaleString()}
-              </strong>
+                        <div className="dp-path-count">
+                          <strong>
+                            {qualifyingCombinations
+                              .length.toLocaleString()}
+                          </strong>
 
-              <span>
-                {category === "eliminated"
-                  ? "Eliminated outcomes"
-                  : "Qualifying combinations"}
-                {" "}matching your filters
-              </span>
-            </div>
+                          <span>
+                            Qualifying combinations
+                            for this finish
+                          </span>
+                        </div>
 
-            {visible.map((entry, index) => {
-              const key =
-                `${currentPage}-${index}-${entry.bits}`;
+                        {visibleCombinations.map(
+                          (entry, index) => {
+                            const pathNumber =
+                              (currentPage - 1) *
+                                COMBINATIONS_PER_PAGE +
+                              index +
+                              1;
 
-              return (
-                <PathCombination
-                  key={key}
-                  entry={entry}
-                  number={
-                    (currentPage - 1) *
-                      PAGE_SIZE +
-                    index +
-                    1
-                  }
-                  open={
-                    openCombination === key
-                  }
-                  onToggle={() => {
-                    setOpenCombination(
-                      openCombination === key
-                        ? null
-                        : key
-                    );
-                    setShowAllResults(false);
-                  }}
-                  owner={owner}
-                  games={games}
-                  teams={teams}
-                  playoffCount={playoffCount}
-                  byId={ownerMap}
-                  showAllResults={showAllResults}
-                  setShowAllResults={
-                    setShowAllResults
-                  }
-                />
-              );
-            })}
+                            const key =
+                              `${currentPage}-${index}`;
 
-            {qualifyingEntries.length === 0 && (
-              <p className="dp-muted">
-                No outcomes match these filters.
-              </p>
-            )}
+                            return (
+                              <PathCard
+                                key={key}
+                                number={pathNumber}
+                                entry={entry}
+                                owner={selectedTeam}
+                                teams={teams}
+                                games={games}
+                                playoffCount={
+                                  playoffCount
+                                }
+                                teamMap={teamMap}
+                                open={
+                                  expandedPath === key
+                                }
+                                onToggle={() => {
+                                  setExpandedPath(
+                                    expandedPath === key
+                                      ? null
+                                      : key
+                                  );
+                                  setShowFullResults(
+                                    false
+                                  );
+                                }}
+                                showFullResults={
+                                  showFullResults
+                                }
+                                setShowFullResults={
+                                  setShowFullResults
+                                }
+                              />
+                            );
+                          }
+                        )}
 
-            {totalPages > 1 && (
-              <div className="dp-pagination">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => {
-                    setPage(p => p - 1);
-                    setOpenCombination(null);
-                  }}
-                >
-                  Previous
-                </button>
+                        {!qualifyingCombinations
+                          .length && (
+                          <p className="dp-muted">
+                            No qualifying
+                            combinations for
+                            this finish.
+                          </p>
+                        )}
 
-                <span>
-                  Page {currentPage} of{" "}
-                  {totalPages}
-                </span>
+                        {totalPages > 1 && (
+                          <div className="dp-pagination">
+                            <button
+                              disabled={
+                                currentPage === 1
+                              }
+                              onClick={() => {
+                                setPage(
+                                  currentPage - 1
+                                );
+                                setExpandedPath(null);
+                              }}
+                            >
+                              Previous
+                            </button>
 
-                <button
-                  disabled={
-                    currentPage === totalPages
-                  }
-                  onClick={() => {
-                    setPage(p => p + 1);
-                    setOpenCombination(null);
-                  }}
-                >
-                  Next
-                </button>
+                            <span>
+                              Page {currentPage}
+                              {" / "}
+                              {totalPages}
+                            </span>
+
+                            <button
+                              disabled={
+                                currentPage ===
+                                totalPages
+                              }
+                              onClick={() => {
+                                setPage(
+                                  currentPage + 1
+                                );
+                                setExpandedPath(null);
+                              }}
+                            >
+                              Next
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </>
         )}
 
         <p className="dp-muted">
-          Exact outcomes use only the remaining
-          matchups supplied by your league data.
-          The model assumes division winners
+          Model assumptions: division winners
           qualify automatically when exactly
           two divisions exist, followed by
-          wild cards. Record and total points
-          are the modeled tiebreakers.
+          wild cards. Winning percentage,
+          wins, and total points scored
+          determine modeled ranking.
 
-          Confirm these match the actual
-          ESPN league settings before treating
-          any result as an official clinch
-          or elimination.
+          The complete remaining schedule
+          and exact league tiebreakers must
+          match ESPN before classifications
+          can be treated as official.
         </p>
       </section>
+
+      {/* --------------------------------------------
+          STYLING
+      -------------------------------------------- */}
 
       <style jsx>{`
         .dp-root {
@@ -1567,45 +1961,45 @@ export default function ScenarioSimulator({
           flex-direction:column;
           gap:22px;
           margin:24px 0 44px;
-          color:#f3f5f8;
+          color:#f4f5f7;
         }
 
         .dp-panel {
+          padding:20px;
           background:#171d26;
           border:1px solid #303947;
-          border-radius:14px;
-          padding:20px;
+          border-radius:13px;
           min-width:0;
         }
 
         .dp-kicker {
           color:#d7ad63;
           font-size:10px;
-          font-weight:900;
           letter-spacing:1.2px;
+          font-weight:900;
         }
 
-        .dp-panel h2 {
+        h2 {
+          color:#fff;
           font-size:23px;
           margin:7px 0 14px;
-          color:#fff;
         }
 
-        .dp-panel h3 {
+        h3 {
+          color:#e9bd67;
           font-size:18px;
-          color:#e9bd67;
-          margin:14px 0;
+          margin:12px 0;
         }
 
-        .dp-panel h4 {
-          font-size:13px;
+        h4 {
           color:#e9bd67;
-          margin:16px 0 8px;
+          font-size:14px;
+          margin:20px 0 12px;
         }
 
         .dp-muted {
+          color:#a9b6c6;
           font-size:12px;
-          color:#a8b6c6;
           line-height:1.7;
         }
 
@@ -1621,110 +2015,161 @@ export default function ScenarioSimulator({
           color:#e9bd67;
         }
 
+        .dp-danger {
+          color:#e47d83;
+        }
+
         .dp-odds-grid {
           display:grid;
           grid-template-columns:
             repeat(2,minmax(0,1fr));
           gap:10px;
-          margin:15px 0;
         }
 
         .dp-odds-card {
-          padding:14px;
           background:#232c38;
           border:1px solid #354050;
-          border-radius:10px;
+          padding:14px;
+          border-radius:9px;
         }
 
         .dp-odds-card small {
           display:block;
-          color:#a8b6c6;
+          margin-top:10px;
+          color:#a9b6c6;
           font-size:10px;
-          margin-top:8px;
         }
 
         .dp-track {
-          background:#394656;
+          background:#354050;
           height:8px;
-          border-radius:20px;
+          border-radius:99px;
           overflow:hidden;
-          margin-top:10px;
+          margin-top:11px;
         }
 
         .dp-track div {
           background:#d7ad63;
           height:100%;
-          border-radius:20px;
-        }
-
-        button {
-          cursor:pointer;
+          border-radius:99px;
         }
 
         .dp-select {
           width:100%;
-          max-width:520px;
-          padding:13px;
-          background:#283443;
+          max-width:460px;
+          background:#273240;
           color:#fff;
+          padding:13px;
           border:1px solid #806539;
           border-radius:9px;
           margin:12px 0;
         }
 
-        .dp-week-report {
+        .dp-week-report,
+        .dp-owner-report {
           background:#202936;
-          border:1px solid #3b4859;
-          border-radius:12px;
           padding:17px;
-          margin-top:10px;
+          border:1px solid #354050;
+          border-radius:12px;
         }
 
         .dp-status {
-          background:#403620;
           color:#e9bd67;
+          background:#413720;
           border:1px solid #806539;
           border-radius:8px;
-          font-size:11px;
-          font-weight:900;
           padding:9px 12px;
+          font-size:11px;
+          font-weight:800;
         }
 
-        .dp-important {
-          background:#19212c;
+        .dp-two-grid,
+        .dp-three-grid {
+          display:grid;
+          gap:10px;
+          margin:16px 0;
+        }
+
+        .dp-two-grid {
+          grid-template-columns:repeat(2,minmax(0,1fr));
+        }
+
+        .dp-three-grid {
+          grid-template-columns:repeat(3,minmax(0,1fr));
+        }
+
+        .dp-metric,
+        .dp-scenario-stat {
+          background:#171d26;
           border:1px solid #354050;
-          padding:14px;
           border-radius:9px;
-          margin-top:16px;
-          font-size:12px;
+          padding:14px;
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          text-align:center;
+          gap:9px;
         }
 
-        .dp-important p {
-          margin:10px 0;
+        .dp-metric strong,
+        .dp-scenario-stat strong {
+          font-size:25px;
+          font-weight:900;
         }
 
-        .dp-requirement {
-          border-bottom:1px solid #354050;
-          padding:12px 0;
-        }
-
-        .dp-requirement strong {
-          display:block;
-          font-size:12px;
-        }
-
-        .dp-requirement small {
-          display:block;
-          color:#a8b6c6;
+        .dp-metric small,
+        .dp-metric span,
+        .dp-scenario-stat small {
+          color:#a9b6c6;
           font-size:10px;
+        }
+
+        .dp-watch {
+          display:flex;
+          justify-content:space-between;
+          align-items:flex-start;
+          gap:12px;
+          background:#171d26;
+          border:1px solid #354050;
+          border-radius:9px;
+          padding:13px;
+          margin:9px 0;
+        }
+
+        .dp-watch strong {
+          font-size:12px;
+        }
+
+        .dp-watch p {
+          font-size:12px;
+        }
+
+        .dp-watch small {
+          display:block;
+          font-size:10px;
+          color:#a9b6c6;
           margin-top:6px;
         }
 
-        .dp-details {
+        .dp-watch-right {
+          text-align:right;
+          flex-shrink:0;
+        }
+
+        .dp-situation {
+          background:#171d26;
           border:1px solid #354050;
-          border-radius:8px;
-          padding:13px;
+          border-radius:9px;
+          padding:14px;
+          font-size:12px;
+        }
+
+        .dp-details {
+          background:#171d26;
+          border:1px solid #354050;
+          border-radius:9px;
           margin:12px 0;
+          padding:13px;
           font-size:12px;
         }
 
@@ -1734,11 +2179,17 @@ export default function ScenarioSimulator({
           font-weight:800;
         }
 
-        .dp-secondary {
-          background:#293441;
-          color:#e9bd67;
+        button {
+          cursor:pointer;
+        }
+
+        .dp-secondary,
+        .dp-finish-buttons button,
+        .dp-pagination button {
+          background:#293544;
           border:1px solid #806539;
           border-radius:8px;
+          color:#e9bd67;
           padding:10px 13px;
           font-size:12px;
           font-weight:800;
@@ -1753,12 +2204,12 @@ export default function ScenarioSimulator({
         }
 
         .dp-week-toggle {
-          display:flex;
-          justify-content:space-between;
-          width:100%;
           background:transparent;
           border:0;
           color:#fff;
+          width:100%;
+          display:flex;
+          justify-content:space-between;
           padding:15px;
         }
 
@@ -1769,22 +2220,22 @@ export default function ScenarioSimulator({
         .dp-game {
           display:grid;
           grid-template-columns:
-            minmax(0,1fr) 24px minmax(0,1fr);
+            minmax(0,1fr) 25px minmax(0,1fr);
           align-items:center;
-          gap:8px;
+          gap:7px;
           padding:8px 0;
           border-top:1px solid #354050;
         }
 
         .dp-game span {
           text-align:center;
-          color:#a8b6c6;
           font-size:10px;
+          color:#a9b6c6;
         }
 
         .dp-game button {
           background:#293544;
-          color:#edf1f5;
+          color:#f4f5f7;
           border:1px solid #465568;
           border-radius:8px;
           padding:12px 7px;
@@ -1793,138 +2244,113 @@ export default function ScenarioSimulator({
         }
 
         .dp-game button.active {
-          background:#413720;
-          color:#f1c775;
           border-color:#d7ad63;
+          background:#413720;
+          color:#e9bd67;
         }
 
         .dp-primary {
-          display:block;
           width:100%;
-          margin-top:16px;
           background:#d7ad63;
           color:#171d26;
           border:0;
           border-radius:8px;
-          padding:13px;
+          padding:14px;
           font-size:13px;
           font-weight:900;
+          margin-top:15px;
         }
 
         .dp-results {
-          margin-top:18px;
           border-top:1px solid #354050;
-          padding-top:12px;
+          padding-top:14px;
+          margin-top:17px;
         }
 
-        .dp-result-row {
+        .dp-result {
           display:grid;
           grid-template-columns:
-            minmax(0,1fr) 150px 80px;
+            minmax(0,1fr) 120px 75px;
           gap:9px;
           padding:12px 0;
           border-bottom:1px solid #354050;
           font-size:12px;
         }
 
-        .dp-result-row small {
-          grid-column:1/-1;
-          color:#a8b6c6;
-        }
-
         .positive {
-          color:#72d3a1;
+          color:#66d49c;
         }
 
         .negative {
-          color:#ef858d;
+          color:#e47d83;
         }
 
-        .dp-warning {
-          background:#352e20;
+        .dp-stacked-bar {
+          display:flex;
+          width:100%;
+          height:11px;
+          overflow:hidden;
+          border-radius:99px;
+          background:#354050;
+          margin:14px 0;
+        }
+
+        .dp-stacked-bar div {
+          height:100%;
+        }
+
+        .dp-locked {
+          margin-top:17px;
+          padding:16px;
           border:1px solid #806539;
-          color:#f1d09a;
           border-radius:9px;
-          padding:14px;
+          background:#302a1f;
+        }
+
+        .dp-locked strong {
+          color:#e9bd67;
+          font-size:14px;
+        }
+
+        .dp-locked p {
           font-size:12px;
           line-height:1.7;
         }
 
-        .dp-owner-overview {
-          background:#202936;
-          border:1px solid #354050;
-          border-radius:12px;
-          padding:17px;
-          margin:15px 0;
-        }
-
-        .dp-category-grid {
-          display:grid;
-          grid-template-columns:
-            repeat(4,minmax(0,1fr));
-          gap:8px;
-          margin-top:17px;
-        }
-
-        .dp-category {
-          display:flex;
-          flex-direction:column;
-          align-items:center;
-          gap:9px;
-          padding:15px 6px;
-          background:#171d26;
-          border:1px solid #354050;
+        .dp-warning {
+          padding:14px;
+          background:#352d20;
+          border:1px solid #806539;
           border-radius:9px;
-          color:#fff;
+          color:#edcd95;
+          font-size:12px;
+          line-height:1.7;
         }
 
-        .dp-category.selected {
-          border-color:#e9bd67;
-        }
-
-        .dp-category strong {
-          font-size:24px;
-        }
-
-        .dp-category span {
-          font-size:10px;
-          color:#a8b6c6;
-          text-align:center;
-        }
-
-        .dp-finish-options {
+        .dp-finish-buttons {
           display:flex;
           flex-wrap:wrap;
           gap:8px;
+          margin:15px 0;
         }
 
-        .dp-finish-options button {
-          background:#293544;
-          color:#fff;
-          border:1px solid #465568;
-          border-radius:8px;
-          padding:11px 13px;
-          font-size:12px;
-        }
-
-        .dp-finish-options button.active {
-          border-color:#d7ad63;
+        .dp-finish-buttons button.active {
           background:#413720;
-          color:#f1c775;
+          border-color:#d7ad63;
         }
 
         .dp-path-count {
           display:flex;
           align-items:center;
-          gap:11px;
-          margin:18px 0;
-          color:#a8b6c6;
+          gap:10px;
+          padding:13px 0;
+          color:#a9b6c6;
           font-size:12px;
         }
 
         .dp-path-count strong {
           color:#e9bd67;
-          font-size:25px;
+          font-size:24px;
         }
 
         .dp-pagination {
@@ -1932,42 +2358,47 @@ export default function ScenarioSimulator({
           justify-content:space-between;
           align-items:center;
           gap:10px;
-          margin:16px 0;
+          margin-top:15px;
           font-size:12px;
         }
 
-        .dp-pagination button {
-          background:#293544;
-          border:1px solid #806539;
-          border-radius:8px;
-          color:#e9bd67;
-          padding:10px 13px;
-        }
-
         .dp-pagination button:disabled {
-          opacity:.35;
+          opacity:0.35;
+          cursor:default;
         }
 
         @media(max-width:700px) {
-          .dp-odds-grid {
-            grid-template-columns:1fr;
-          }
-
-          .dp-category-grid {
-            grid-template-columns:
-              repeat(2,minmax(0,1fr));
-          }
-
           .dp-panel {
             padding:14px;
           }
 
-          .dp-result-row {
+          .dp-odds-grid {
+            grid-template-columns:1fr;
+          }
+
+          .dp-watch {
+            flex-direction:column;
+          }
+
+          .dp-watch-right {
+            text-align:left;
+          }
+
+          .dp-result {
             grid-template-columns:1fr 1fr;
           }
 
-          .dp-result-row strong {
+          .dp-result strong {
             grid-column:1/-1;
+          }
+
+          .dp-metric strong,
+          .dp-scenario-stat strong {
+            font-size:20px;
+          }
+
+          .dp-scenario-stat {
+            padding:11px 5px;
           }
         }
       `}</style>
@@ -1975,35 +2406,35 @@ export default function ScenarioSimulator({
   );
 }
 
-// ==============================================
-// INDIVIDUAL QUALIFYING COMBINATION
-// ==============================================
+// =====================================================
+// EXPANDABLE QUALIFYING COMBINATION
+// =====================================================
 
-function PathCombination({
-  entry,
+function PathCard({
   number,
+  entry,
+  owner,
+  teams,
+  games,
+  playoffCount,
+  teamMap,
   open,
   onToggle,
-  owner,
-  games,
-  teams,
-  playoffCount,
-  byId,
-  showAllResults,
-  setShowAllResults
+  showFullResults,
+  setShowFullResults
 }) {
   const id = owner.ownerId;
 
-  const status =
-    entry.categories.get(id);
+  const name = ownerId =>
+    teamMap.get(ownerId)?.ownerName ||
+    "Unknown Owner";
 
   const state = useMemo(
-    () =>
-      seasonAfter(
-        teams,
-        games,
-        entry.winners
-      ),
+    () => applyGames(
+      teams,
+      games,
+      entry.winners
+    ),
     [teams, games, entry]
   );
 
@@ -2011,73 +2442,70 @@ function PathCombination({
     t => t.ownerId === id
   );
 
-  const own = games
-    .map((game, index) => ({
+  const indexed = games.map(
+    (game, index) => ({
       ...game,
       index
-    }))
-    .filter(
-      game =>
-        game.homeId === id ||
-        game.awayId === id
-    );
-
-  const outside = games
-    .map((game, index) => ({
-      ...game,
-      index
-    }))
-    .filter(
-      game =>
-        game.homeId !== id &&
-        game.awayId !== id
-    );
-
-  const important = outside.filter(game => {
-    const changed = [...entry.winners];
-
-    changed[game.index] =
-      changed[game.index] === game.homeId
-        ? game.awayId
-        : game.homeId;
-
-    const alternateState = seasonAfter(
-      teams,
-      games,
-      changed
-    );
-
-    const alternateCategories =
-      classifyOutcome(
-        alternateState,
-        playoffCount
-      );
-
-    return (
-      alternateCategories.get(id) !== status
-    );
-  });
-
-  const displayedOutside =
-    showAllResults
-      ? outside
-      : important;
-
-  const tiedOpponents = state.filter(
-    t =>
-      t.ownerId !== id &&
-      t.wins === ownerFinal.wins &&
-      winRate(t) === winRate(ownerFinal)
+    })
   );
 
-  const name = ownerId =>
-    byId.get(ownerId)?.ownerName ||
-    "Unknown Owner";
+  const ownGames = indexed.filter(
+    g =>
+      g.homeId === id ||
+      g.awayId === id
+  );
+
+  const outsideGames = indexed.filter(
+    g =>
+      g.homeId !== id &&
+      g.awayId !== id
+  );
+
+  const relevantGames = outsideGames.filter(
+    game => {
+      const changed = [...entry.winners];
+
+      changed[game.index] =
+        changed[game.index] === game.homeId
+          ? game.awayId
+          : game.homeId;
+
+      const alternate = classify(
+        applyGames(
+          teams,
+          games,
+          changed
+        ),
+        playoffCount,
+        false
+      );
+
+      return (
+        alternate.get(id) !==
+        entry.categories.get(id)
+      );
+    }
+  );
+
+  const shownGames = showFullResults
+    ? outsideGames
+    : relevantGames;
+
+  const tiedCompetitors = state.filter(
+    t =>
+      t.ownerId !== id &&
+      number(t.wins) ===
+        number(ownerFinal.wins) &&
+      Math.abs(
+        winPct(t) -
+        winPct(ownerFinal)
+      ) < 0.00000001
+  );
 
   return (
     <div className="path-card">
       <button
-        className="path-heading"
+        className="path-title"
         onClick={onToggle}
       >
         <span>
@@ -2086,7 +2514,9 @@ function PathCombination({
           </strong>
 
           <small>
-            {CATEGORY[status]}
+            {entry.categories.get(id) === "clinch"
+              ? "Guaranteed berth in modeled outcome"
+              : "Possible berth — scoring may matter"}
           </small>
         </span>
 
@@ -2098,10 +2528,10 @@ function PathCombination({
       {open && (
         <div className="path-body">
           <h4>
-            What {owner.ownerName} Does
+            What {owner.ownerName} Must Do
           </h4>
 
-          {own.map(game => {
+          {ownGames.map(game => {
             const winner =
               entry.winners[game.index];
 
@@ -2124,10 +2554,12 @@ function PathCombination({
             );
           })}
 
-          <h4>Outside Help</h4>
+          <h4>
+            Outside Games Affecting This Path
+          </h4>
 
-          {displayedOutside.length ? (
-            displayedOutside.map(game => {
+          {shownGames.length ? (
+            shownGames.map(game => {
               const winner =
                 entry.winners[game.index];
 
@@ -2147,54 +2579,59 @@ function PathCombination({
             })
           ) : (
             <p>
-              No individually decisive outside
-              results are identified for this
-              combination.
+              No individually decisive
+              outside game was identified.
             </p>
           )}
 
           <button
             className="path-secondary"
             onClick={() =>
-              setShowAllResults(!showAllResults)
+              setShowFullResults(
+                !showFullResults
+              )
             }
           >
-            {showAllResults
-              ? "Hide Other Results"
-              : "Show Every Other Matchup"}
+            {showFullResults
+              ? "Hide Non-Decisive Games"
+              : "View Every Result in This Combination"}
           </button>
 
           <h4>
             Total Points Tiebreaker
           </h4>
 
-          {tiedOpponents.length ? (
-            tiedOpponents.map(rival => (
+          {tiedCompetitors.length ? (
+            tiedCompetitors.map(rival => (
               <p key={rival.ownerId}>
-                {pointsTarget(owner, rival)}
+                {pointsRequirement(
+                  owner,
+                  rival
+                )}
               </p>
             ))
           ) : (
             <p>
-              No competing owners share
-              the same final record in
-              this combination.
+              No opponents finish with
+              an identical modeled record
+              in this combination.
             </p>
           )}
 
-          <p className="path-caution">
-            These points targets describe
-            pairwise tiebreakers. An owner
-            may not need to pass every tied
-            competitor to qualify.
-
+          <p className="path-note">
             Outside games shown by default
-            are those whose individual
-            reversal changes the modeled
-            outcome category. Multiple
-            outside results can also work
-            together, so expand all results
-            to inspect the full combination.
+            are games whose individual reversal
+            changes the qualification category
+            for this path.
+
+            Other results may still matter
+            together, so the complete
+            combination can be expanded.
+
+            Points targets assume total fantasy
+            points is the relevant tiebreaker;
+            not every tied competitor must
+            necessarily be passed.
           </p>
         </div>
       )}
@@ -2208,21 +2645,21 @@ function PathCombination({
           overflow:hidden;
         }
 
-        .path-heading {
+        .path-title {
+          background:transparent;
+          border:0;
+          color:#fff;
+          width:100%;
+          padding:15px;
           display:flex;
           justify-content:space-between;
           align-items:center;
           gap:12px;
-          width:100%;
-          background:transparent;
-          border:0;
-          color:#fff;
           text-align:left;
-          padding:15px;
           cursor:pointer;
         }
 
-        .path-heading small {
+        .path-title small {
           display:block;
           color:#e9bd67;
           font-size:11px;
@@ -2232,16 +2669,16 @@ function PathCombination({
         .path-body {
           padding:0 15px 15px;
           border-top:1px solid #354050;
-          color:#dce4eb;
         }
 
-        .path-body h4 {
-          font-size:13px;
+        h4 {
           color:#e9bd67;
+          font-size:13px;
           margin:17px 0 9px;
         }
 
-        .path-body p {
+        p {
+          color:#dbe3ec;
           font-size:12px;
           line-height:1.7;
           padding:8px 0;
@@ -2250,18 +2687,19 @@ function PathCombination({
 
         .path-secondary {
           background:#293544;
+          color:#e9bd67;
           border:1px solid #806539;
           border-radius:8px;
-          color:#e9bd67;
           padding:10px 12px;
-          font-size:11px;
           font-weight:800;
+          font-size:11px;
+          margin-top:10px;
           cursor:pointer;
-          margin-top:9px;
         }
 
-        .path-caution {
-          color:#e7c98e;
+        .path-note {
+          color:#a9b6c6;
+          font-size:11px;
         }
       `}</style>
     </div>
