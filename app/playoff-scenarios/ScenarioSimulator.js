@@ -1,680 +1,484 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
 
-// =====================================================
-// HELPERS
-// =====================================================
+const SIMULATIONS = 25000;
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const num = (x) => Number.isFinite(Number(x)) ? Number(x) : 0;
+const pct = (x) => `${(100 * x).toFixed(1)}%`;
 
-const clamp = (value, min, max) =>
-  Math.max(min, Math.min(max, value));
-
-function record(team) {
-  return team.ties
-    ? `${team.wins}-${team.losses}-${team.ties}`
-    : `${team.wins}-${team.losses}`;
+function record(t) {
+  return `${t.wins}-${t.losses}${t.ties ? `-${t.ties}` : ""}`;
 }
 
-function winPct(team) {
-  const played = team.wins + team.losses + team.ties;
+function played(t) {
+  return t.wins + t.losses + t.ties;
+}
 
-  return played
-    ? (team.wins + team.ties * 0.5) / played
+function winRate(t) {
+  return played(t)
+    ? (t.wins + t.ties * 0.5) / played(t)
     : 0.5;
 }
 
-function compareTeams(a, b) {
+function average(t) {
+  return played(t) ? t.pointsFor / played(t) : 100;
+}
+
+function compare(a, b) {
   return (
-    winPct(b) - winPct(a) ||
+    winRate(b) - winRate(a) ||
     b.wins - a.wins ||
     b.pointsFor - a.pointsFor ||
     a.ownerName.localeCompare(b.ownerName)
   );
 }
 
-function percent(value) {
-  if (value === null || value === undefined) {
-    return "—";
-  }
-
-  if (value > 0 && value < 0.001) return "<0.1%";
-  if (value < 1 && value > 0.999) return ">99.9%";
-
-  return `${(value * 100).toFixed(1)}%`;
-}
-
-function divisionKey(team) {
-  return team.divisionId === null ||
-    team.divisionId === undefined ||
-    team.divisionId === ""
-    ? "unknown"
-    : String(team.divisionId);
-}
-
-// =====================================================
-// SEEDED RANDOM GENERATOR
-// =====================================================
-
-function seedFromString(value) {
-  let seed = 2166136261;
-
-  for (let index = 0; index < value.length; index++) {
-    seed ^= value.charCodeAt(index);
-    seed = Math.imul(seed, 16777619);
-  }
-
-  return seed >>> 0;
-}
-
-function randomGenerator(seed) {
-  let state = seed >>> 0;
-
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-
-    let t = state;
-
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-// =====================================================
-// RELATIVE TEAM STRENGTH
-// =====================================================
-
-// These weights estimate matchup probabilities.
-// They are NOT official ESPN projections.
-
-function matchupWinProbability(home, away) {
-  const homePct = winPct(home);
-  const awayPct = winPct(away);
-
-  const homeGames =
-    home.wins + home.losses + home.ties;
-
-  const awayGames =
-    away.wins + away.losses + away.ties;
-
-  const homeAverage =
-    homeGames > 0
-      ? home.pointsFor / homeGames
-      : 100;
-
-  const awayAverage =
-    awayGames > 0
-      ? away.pointsFor / awayGames
-      : 100;
-
-  const recordAdvantage =
-    (homePct - awayPct) * 0.42;
-
-  const scoringAdvantage = clamp(
-    (homeAverage - awayAverage) / 200,
-    -0.17,
-    0.17
+function teamStrength(t) {
+  const recordScore = winRate(t);
+  const scoringScore = clamp(
+    (average(t) - 100) / 100,
+    -0.6,
+    0.6
   );
 
+  const sampleWeight = played(t) / (played(t) + 4);
+
+  return (
+    0.5 +
+    sampleWeight * (
+      0.28 * (recordScore - 0.5) +
+      0.24 * scoringScore
+    )
+  );
+}
+
+function gameProbability(a, b) {
+  const strengthDiff = teamStrength(a) - teamStrength(b);
+
   return clamp(
-    0.5 + recordAdvantage + scoringAdvantage,
+    0.5 + strengthDiff,
     0.15,
     0.85
   );
 }
 
-// =====================================================
-// PROJECT PLAYOFF FIELD
-// =====================================================
+function randomSeed(text) {
+  let hash = 2166136261;
 
-function calculateField(teams, playoffCount) {
-  const divisions = new Map();
-
-  for (const team of teams) {
-    const key = divisionKey(team);
-
-    if (key === "unknown") continue;
-
-    if (!divisions.has(key)) {
-      divisions.set(key, []);
-    }
-
-    divisions.get(key).push(team);
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
   }
 
-  const hasDivisions = divisions.size === 2;
+  return hash >>> 0;
+}
+
+function seededRandom(seed) {
+  let state = seed >>> 0;
+
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function divisionKey(t) {
+  return t.divisionId === null ||
+    t.divisionId === undefined ||
+    t.divisionId === ""
+    ? null
+    : String(t.divisionId);
+}
+
+function calculateField(teams, playoffCount) {
+  const groups = new Map();
+
+  for (const team of teams) {
+    const id = divisionKey(team);
+    if (id === null) continue;
+
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id).push(team);
+  }
+
+  const hasDivisions =
+    groups.size === 2 &&
+    teams.every(t => divisionKey(t) !== null);
 
   if (!hasDivisions) {
+    const field = [...teams]
+      .sort(compare)
+      .slice(0, playoffCount);
+
     return {
       hasDivisions: false,
       leaders: [],
       wildCards: [],
-      field: [...teams]
-        .sort(compareTeams)
-        .slice(0, playoffCount),
+      field
     };
   }
 
-  const leaders = [...divisions.values()]
-    .map(
-      (division) =>
-        [...division].sort(compareTeams)[0]
-    )
-    .filter(Boolean)
-    .sort(compareTeams);
+  const leaders = [...groups.values()]
+    .map(group => [...group].sort(compare)[0])
+    .sort(compare);
 
   const leaderIds = new Set(
-    leaders.map((team) => team.ownerId)
+    leaders.map(t => t.ownerId)
   );
 
   const wildCards = teams
-    .filter(
-      (team) => !leaderIds.has(team.ownerId)
-    )
-    .sort(compareTeams)
-    .slice(
-      0,
-      Math.max(0, playoffCount - leaders.length)
-    );
+    .filter(t => !leaderIds.has(t.ownerId))
+    .sort(compare)
+    .slice(0, Math.max(0, playoffCount - leaders.length));
 
   return {
     hasDivisions: true,
     leaders,
     wildCards,
-    field: [...leaders, ...wildCards],
+    field: [...leaders, ...wildCards]
   };
 }
 
-function applyWinners(teams, games, picks) {
-  const copies = teams.map((team) => ({ ...team }));
+function applyResult(byId, game, winnerId) {
+  const home = byId.get(game.homeId);
+  const away = byId.get(game.awayId);
 
-  const byId = new Map(
-    copies.map((team) => [team.ownerId, team])
-  );
+  if (!home || !away) return;
+
+  if (winnerId === home.ownerId) {
+    home.wins++;
+    away.losses++;
+  } else if (winnerId === away.ownerId) {
+    away.wins++;
+    home.losses++;
+  }
+}
+
+function applyPicks(teams, games, picks) {
+  const copy = teams.map(t => ({ ...t }));
+  const byId = new Map(copy.map(t => [t.ownerId, t]));
 
   for (const game of games) {
-    const winnerId = Number(picks[game.id]);
-
-    if (!winnerId) continue;
-
-    const home = byId.get(game.homeId);
-    const away = byId.get(game.awayId);
-
-    if (!home || !away) continue;
-
-    if (winnerId === home.ownerId) {
-      home.wins++;
-      away.losses++;
-    } else if (winnerId === away.ownerId) {
-      away.wins++;
-      home.losses++;
-    }
+    const id = Number(picks[game.id]);
+    if (id) applyResult(byId, game, id);
   }
 
-  return copies;
+  return copy;
 }
 
 // =====================================================
-// PLAYOFF ODDS ENGINE
+// PLAYOFF PREDICTION ENGINE
 // =====================================================
 
-function calculateOdds({
+function simulate({
   teams,
   games,
   picks,
   playoffCount,
-  samples = 4000,
-  seed = 1,
+  samples = SIMULATIONS,
+  seed = 42
 }) {
-  const pending = games.filter(
-    (game) => !picks[game.id]
+  const pending = games.filter(g => !picks[g.id]);
+  const fixed = applyPicks(teams, games, picks);
+  const baseMap = new Map(
+    teams.map(t => [t.ownerId, t])
   );
 
-  const fixedTeams = applyWinners(
-    teams,
-    games,
-    picks
-  );
-
-  const teamById = new Map(
-    teams.map((team) => [team.ownerId, team])
-  );
-
-  const playoffCounts = new Map();
-  const divisionCounts = new Map();
-  const seedCounts = new Map();
-
-  for (const team of teams) {
-    playoffCounts.set(team.ownerId, 0);
-    divisionCounts.set(team.ownerId, 0);
-    seedCounts.set(
-      team.ownerId,
-      Array(playoffCount).fill(0)
-    );
-  }
-
-  const random = randomGenerator(seed);
-
-  // For up to 12 undecided games, evaluate
-  // every possible W/L combination.
-  // Otherwise use weighted Monte Carlo.
-  const exhaustive = pending.length <= 12;
-  const iterations = exhaustive
-    ? 2 ** pending.length
+  const exact = pending.length <= 12;
+  const iterations = exact
+    ? Math.pow(2, pending.length)
     : samples;
 
-  const probabilities = pending.map((game) => {
-    const home = teamById.get(game.homeId);
-    const away = teamById.get(game.awayId);
-
-    return home && away
-      ? matchupWinProbability(home, away)
-      : 0.5;
+  const probabilities = pending.map(g => {
+    const a = baseMap.get(g.homeId);
+    const b = baseMap.get(g.awayId);
+    return a && b ? gameProbability(a, b) : 0.5;
   });
 
+  const counts = new Map();
+
+  for (const t of teams) {
+    counts.set(t.ownerId, {
+      playoff: 0,
+      division: 0,
+      seeds: Array(playoffCount).fill(0),
+      wins: 0,
+      losses: 0,
+      minWins: Infinity,
+      maxWins: -Infinity
+    });
+  }
+
+  const random = seededRandom(seed);
   let totalWeight = 0;
 
-  for (let iteration = 0; iteration < iterations; iteration++) {
-    const scenarioTeams = fixedTeams.map(
-      (team) => ({ ...team })
-    );
-
+  for (let i = 0; i < iterations; i++) {
+    const scenario = fixed.map(t => ({ ...t }));
     const byId = new Map(
-      scenarioTeams.map((team) => [
-        team.ownerId,
-        team,
-      ])
+      scenario.map(t => [t.ownerId, t])
     );
 
-    let scenarioWeight = 1;
+    let weight = 1;
 
-    for (let index = 0; index < pending.length; index++) {
-      const game = pending[index];
-      const probability = probabilities[index];
+    for (let j = 0; j < pending.length; j++) {
+      const game = pending[j];
+      const probability = probabilities[j];
 
       let homeWins;
 
-      if (exhaustive) {
-        homeWins =
-          ((iteration >> index) & 1) === 1;
-
-        scenarioWeight *= homeWins
+      if (exact) {
+        homeWins = Boolean((i >> j) & 1);
+        weight *= homeWins
           ? probability
           : 1 - probability;
       } else {
         homeWins = random() < probability;
       }
 
-      const home = byId.get(game.homeId);
-      const away = byId.get(game.awayId);
-
-      if (!home || !away) continue;
-
-      if (homeWins) {
-        home.wins++;
-        away.losses++;
-      } else {
-        away.wins++;
-        home.losses++;
-      }
+      applyResult(
+        byId,
+        game,
+        homeWins ? game.homeId : game.awayId
+      );
     }
 
-    if (!scenarioWeight) continue;
+    if (weight <= 0) continue;
+
+    totalWeight += weight;
 
     const field = calculateField(
-      scenarioTeams,
+      scenario,
       playoffCount
     );
 
-    totalWeight += scenarioWeight;
+    const eligible = new Set(
+      field.field.map(t => t.ownerId)
+    );
 
-    for (const leader of field.leaders) {
-      divisionCounts.set(
-        leader.ownerId,
-        divisionCounts.get(leader.ownerId) +
-          scenarioWeight
-      );
+    const leaders = new Set(
+      field.leaders.map(t => t.ownerId)
+    );
+
+    for (const team of scenario) {
+      const c = counts.get(team.ownerId);
+
+      c.wins += team.wins * weight;
+      c.losses += team.losses * weight;
+      c.minWins = Math.min(c.minWins, team.wins);
+      c.maxWins = Math.max(c.maxWins, team.wins);
+
+      if (eligible.has(team.ownerId)) {
+        c.playoff += weight;
+      }
+
+      if (leaders.has(team.ownerId)) {
+        c.division += weight;
+      }
     }
 
     field.field.forEach((team, index) => {
-      playoffCounts.set(
-        team.ownerId,
-        playoffCounts.get(team.ownerId) +
-          scenarioWeight
-      );
-
-      seedCounts.get(team.ownerId)[index] +=
-        scenarioWeight;
+      counts.get(team.ownerId).seeds[index] += weight;
     });
   }
 
   const odds = new Map();
+  const denominator = totalWeight || 1;
 
   for (const team of teams) {
-    const id = team.ownerId;
-    const denominator = totalWeight || 1;
+    const c = counts.get(team.ownerId);
 
-    odds.set(id, {
-      playoff:
-        playoffCounts.get(id) / denominator,
-
-      division:
-        divisionCounts.get(id) / denominator,
-
-      seeds:
-        seedCounts
-          .get(id)
-          .map((count) => count / denominator),
+    odds.set(team.ownerId, {
+      playoff: c.playoff / denominator,
+      division: c.division / denominator,
+      seeds: c.seeds.map(x => x / denominator),
+      expectedWins: c.wins / denominator,
+      expectedLosses: c.losses / denominator,
+      minWins: c.minWins,
+      maxWins: c.maxWins
     });
   }
 
   return {
     odds,
-    exhaustive,
-    simulated: iterations,
-    pending: pending.length,
+    exact,
+    iterations,
+    pending: pending.length
+  };
+}
+
+function checkSchedule(teams, games) {
+  if (!games.length) {
+    return {
+      valid: false,
+      message: "No remaining regular-season matchups were supplied."
+    };
+  }
+
+  const weeks = [...new Set(games.map(g => g.week))]
+    .sort((a, b) => a - b);
+
+  for (const week of weeks) {
+    const seen = new Set();
+
+    for (const game of games.filter(g => g.week === week)) {
+      if (
+        seen.has(game.homeId) ||
+        seen.has(game.awayId)
+      ) {
+        return {
+          valid: false,
+          message: "Duplicate team appearances detected in a week."
+        };
+      }
+
+      seen.add(game.homeId);
+      seen.add(game.awayId);
+    }
+  }
+
+  for (let i = 1; i < weeks.length; i++) {
+    if (weeks[i] !== weeks[i - 1] + 1) {
+      return {
+        valid: false,
+        message: "There are missing weeks in the available schedule."
+      };
+    }
+  }
+
+  return {
+    valid: true,
+    message:
+      "Available matchups are internally consistent. Full schedule coverage and official tiebreakers are not independently verified."
   };
 }
 
 // =====================================================
-// PAGE COMPONENT
+// MAIN COMPONENT
 // =====================================================
 
 export default function ScenarioSimulator({
-  teams,
-  games,
-  currentWeek,
-  season,
-  playoffCount,
+  teams = [],
+  games = [],
+  currentWeek = 1,
+  season = 2026,
+  playoffCount = 4
 }) {
   const [picks, setPicks] = useState({});
-  const [selectedOwner, setSelectedOwner] =
-    useState("");
-
+  const [selectedOwner, setSelectedOwner] = useState("");
   const [expandedWeeks, setExpandedWeeks] =
     useState([currentWeek]);
 
-  const ownerMap = useMemo(
-    () =>
-      new Map(
-        teams.map((team) => [
-          team.ownerId,
-          team,
-        ])
-      ),
+  const teamMap = useMemo(
+    () => new Map(teams.map(t => [t.ownerId, t])),
     [teams]
-  );
-
-  const simulatedTeams = useMemo(
-    () => applyWinners(teams, games, picks),
-    [teams, games, picks]
-  );
-
-  const projectedField = useMemo(
-    () =>
-      calculateField(
-        simulatedTeams,
-        playoffCount
-      ),
-    [simulatedTeams, playoffCount]
-  );
-
-  const seed = useMemo(
-    () =>
-      seedFromString(
-        JSON.stringify(
-          Object.entries(picks).sort()
-        )
-      ),
-    [picks]
-  );
-
-  const simulation = useMemo(
-    () =>
-      calculateOdds({
-        teams,
-        games,
-        picks,
-        playoffCount,
-        samples: 4000,
-        seed,
-      }),
-    [teams, games, picks, playoffCount, seed]
-  );
-
-  const divisions = useMemo(() => {
-    const groups = new Map();
-
-    for (const team of simulatedTeams) {
-      const id = divisionKey(team);
-
-      if (!groups.has(id)) {
-        groups.set(id, {
-          id,
-          name:
-            team.divisionName ||
-            (id === "unknown"
-              ? "Division Unavailable"
-              : `Division ${id}`),
-          teams: [],
-        });
-      }
-
-      groups.get(id).teams.push(team);
-    }
-
-    return [...groups.values()].map(
-      (division) => ({
-        ...division,
-        teams: division.teams.sort(compareTeams),
-      })
-    );
-  }, [simulatedTeams]);
-
-  const weeks = useMemo(
-    () =>
-      [
-        ...new Set(
-          games.map((game) => game.week)
-        ),
-      ].sort((a, b) => a - b),
-    [games]
   );
 
   const selectedId = Number(selectedOwner);
 
-  const selectedTeam = simulatedTeams.find(
-    (team) => team.ownerId === selectedId
+  const randomSeedValue = useMemo(
+    () => randomSeed(JSON.stringify({
+      season,
+      picks: Object.entries(picks).sort()
+    })),
+    [season, picks]
   );
 
-  const selectedBaseTeam = teams.find(
-    (team) => team.ownerId === selectedId
+  const simulation = useMemo(
+    () => simulate({
+      teams,
+      games,
+      picks,
+      playoffCount,
+      samples: SIMULATIONS,
+      seed: randomSeedValue
+    }),
+    [teams, games, picks, playoffCount, randomSeedValue]
   );
 
-  const selectedOdds =
-    simulation.odds.get(selectedId);
+  const currentProjection = useMemo(
+    () => applyPicks(teams, games, picks),
+    [teams, games, picks]
+  );
+
+  const projectedField = useMemo(
+    () => calculateField(currentProjection, playoffCount),
+    [currentProjection, playoffCount]
+  );
+
+  const ranked = useMemo(
+    () => [...currentProjection].sort((a, b) =>
+      (simulation.odds.get(b.ownerId)?.playoff || 0) -
+      (simulation.odds.get(a.ownerId)?.playoff || 0) ||
+      compare(a, b)
+    ),
+    [currentProjection, simulation]
+  );
+
+  const weeks = useMemo(
+    () => [...new Set(games.map(g => g.week))]
+      .sort((a, b) => a - b),
+    [games]
+  );
+
+  const schedule = useMemo(
+    () => checkSchedule(teams, games),
+    [teams, games]
+  );
+
+  const selectedTeam = currentProjection.find(
+    t => t.ownerId === selectedId
+  );
+
+  const selectedOdds = simulation.odds.get(selectedId);
 
   const selectedGames = games.filter(
-    (game) =>
-      game.homeId === selectedId ||
-      game.awayId === selectedId
+    g => g.homeId === selectedId ||
+      g.awayId === selectedId
   );
 
-  const unpickedSelectedGames =
-    selectedGames.filter(
-      (game) => !picks[game.id]
-    );
+  const openSelectedGames = selectedGames.filter(
+    g => !picks[g.id]
+  );
 
-  const selectedCount = games.filter(
-    (game) => picks[game.id]
-  ).length;
+  const selectedCount = Object.keys(picks).length;
 
-  const bestRecord = selectedTeam
-    ? `${selectedTeam.wins + unpickedSelectedGames.length}-${selectedTeam.losses}`
-    : "—";
+  const divisionGroups = useMemo(() => {
+    const groups = new Map();
 
-  const worstRecord = selectedTeam
-    ? `${selectedTeam.wins}-${selectedTeam.losses + unpickedSelectedGames.length}`
-    : "—";
+    for (const team of currentProjection) {
+      const key = divisionKey(team) || "unknown";
 
-  // ===================================================
-  // GAMES TO WATCH
-  // ===================================================
-
-  const gamesToWatch = useMemo(() => {
-    if (!selectedId || !selectedBaseTeam) {
-      return [];
-    }
-
-    // Only games between OTHER teams.
-    const otherGames = games.filter(
-      (game) =>
-        !picks[game.id] &&
-        game.homeId !== selectedId &&
-        game.awayId !== selectedId
-    );
-
-    const results = [];
-
-    // Limit calculations to 20 pending matchups.
-    for (const game of otherGames.slice(0, 20)) {
-      const homePicks = {
-        ...picks,
-        [game.id]: game.homeId,
-      };
-
-      const awayPicks = {
-        ...picks,
-        [game.id]: game.awayId,
-      };
-
-      const homeResult = calculateOdds({
-        teams,
-        games,
-        picks: homePicks,
-        playoffCount,
-        samples: 350,
-        seed: 12345,
-      });
-
-      const awayResult = calculateOdds({
-        teams,
-        games,
-        picks: awayPicks,
-        playoffCount,
-        samples: 350,
-        seed: 12345,
-      });
-
-      const homeOdds =
-        homeResult.odds.get(selectedId)?.playoff ?? 0;
-
-      const awayOdds =
-        awayResult.odds.get(selectedId)?.playoff ?? 0;
-
-      const difference = homeOdds - awayOdds;
-
-      results.push({
-        ...game,
-        benefit: Math.abs(difference),
-        preferredWinner:
-          difference >= 0
-            ? game.homeId
-            : game.awayId,
-        favorableOdds: Math.max(
-          homeOdds,
-          awayOdds
-        ),
-        unfavorableOdds: Math.min(
-          homeOdds,
-          awayOdds
-        ),
-      });
-    }
-
-    return results
-      .sort((a, b) => b.benefit - a.benefit)
-      .slice(0, 6);
-  }, [
-    selectedId,
-    selectedBaseTeam,
-    games,
-    teams,
-    picks,
-    playoffCount,
-  ]);
-
-  // ===================================================
-  // SCHEDULE COVERAGE
-  // ===================================================
-
-  const scheduleCheck = useMemo(() => {
-    if (!games.length) {
-      return {
-        complete: false,
-        message:
-          "No remaining regular-season matchups were provided by ESPN.",
-      };
-    }
-
-    const weeksPresent = [
-      ...new Set(games.map((game) => game.week)),
-    ].sort((a, b) => a - b);
-
-    for (const week of weeksPresent) {
-      const weekGames = games.filter(
-        (game) => game.week === week
-      );
-
-      const appearances = new Set();
-
-      for (const game of weekGames) {
-        if (
-          appearances.has(game.homeId) ||
-          appearances.has(game.awayId)
-        ) {
-          return {
-            complete: false,
-            message:
-              "The available schedule has duplicate team appearances.",
-          };
-        }
-
-        appearances.add(game.homeId);
-        appearances.add(game.awayId);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          id: key,
+          name: team.divisionName ||
+            (key === "unknown" ? "League" : `Division ${key}`),
+          teams: []
+        });
       }
+
+      groups.get(key).teams.push(team);
     }
 
-    for (let i = 1; i < weeksPresent.length; i++) {
-      if (weeksPresent[i] !== weeksPresent[i - 1] + 1) {
-        return {
-          complete: false,
-          message:
-            "Some future regular-season weeks are missing.",
-        };
-      }
-    }
+    return [...groups.values()].map(g => ({
+      ...g,
+      teams: g.teams.sort(compare)
+    }));
+  }, [currentProjection]);
 
-    return {
-      complete: true,
-      message:
-        "Available weeks are internally consistent. The league's full regular-season end date has not been independently verified.",
-    };
-  }, [games]);
+  function chooseWinner(gameId, ownerId) {
+    setPicks(old => {
+      const next = { ...old };
 
-  // ===================================================
-  // ACTIONS
-  // ===================================================
-
-  function chooseWinner(gameId, winnerId) {
-    setPicks((current) => {
-      const next = { ...current };
-
-      if (next[gameId] === winnerId) {
+      if (next[gameId] === ownerId) {
         delete next[gameId];
       } else {
-        next[gameId] = winnerId;
+        next[gameId] = ownerId;
       }
 
       return next;
@@ -682,38 +486,27 @@ export default function ScenarioSimulator({
   }
 
   function clearGame(gameId) {
-    setPicks((current) => {
-      const next = { ...current };
+    setPicks(old => {
+      const next = { ...old };
       delete next[gameId];
       return next;
     });
   }
 
-  function toggleWeek(week) {
-    setExpandedWeeks((current) =>
-      current.includes(week)
-        ? current.filter((value) => value !== week)
-        : [...current, week]
-    );
-  }
-
   function setTeamOutcome(ownerId, win) {
-    setPicks((current) => {
-      const next = { ...current };
+    setPicks(old => {
+      const next = { ...old };
 
-      for (const game of games) {
-        if (
-          game.homeId !== ownerId &&
-          game.awayId !== ownerId
-        ) {
+      for (const g of games) {
+        if (g.homeId !== ownerId && g.awayId !== ownerId) {
           continue;
         }
 
-        next[game.id] = win
+        next[g.id] = win
           ? ownerId
-          : game.homeId === ownerId
-          ? game.awayId
-          : game.homeId;
+          : g.homeId === ownerId
+          ? g.awayId
+          : g.homeId;
       }
 
       return next;
@@ -721,15 +514,12 @@ export default function ScenarioSimulator({
   }
 
   function clearTeamOutcomes(ownerId) {
-    setPicks((current) => {
-      const next = { ...current };
+    setPicks(old => {
+      const next = { ...old };
 
-      for (const game of games) {
-        if (
-          game.homeId === ownerId ||
-          game.awayId === ownerId
-        ) {
-          delete next[game.id];
+      for (const g of games) {
+        if (g.homeId === ownerId || g.awayId === ownerId) {
+          delete next[g.id];
         }
       }
 
@@ -737,1449 +527,1080 @@ export default function ScenarioSimulator({
     });
   }
 
-  function teamStatus(ownerId) {
-    if (
-      projectedField.leaders.some(
-        (team) => team.ownerId === ownerId
-      )
-    ) {
-      return "Division Leader";
-    }
-
-    if (
-      projectedField.wildCards.some(
-        (team) => team.ownerId === ownerId
-      )
-    ) {
-      return "Wild Card";
-    }
-
-    if (
-      projectedField.field.some(
-        (team) => team.ownerId === ownerId
-      )
-    ) {
-      return "Playoff Position";
-    }
-
-    return "Outside";
-  }
-
-  function opponentName(game, ownerId) {
-    const opponentId =
-      game.homeId === ownerId
-        ? game.awayId
-        : game.homeId;
-
-    return (
-      ownerMap.get(opponentId)?.ownerName ||
-      "Opponent"
+  function toggleWeek(week) {
+    setExpandedWeeks(old =>
+      old.includes(week)
+        ? old.filter(w => w !== week)
+        : [...old, week]
     );
   }
 
   // ===================================================
-  // RENDER
+  // GAMES THAT MATTER
   // ===================================================
 
-  return (
-    <div className="ps-root">
-      {/* ESTIMATED ODDS */}
+  const importantGames = useMemo(() => {
+    if (!selectedId || !selectedTeam) return [];
 
-      <section className="ps-section">
-        <div className="ps-heading">
+    const otherGames = games.filter(
+      g => !picks[g.id] &&
+        g.homeId !== selectedId &&
+        g.awayId !== selectedId
+    );
+
+    const results = [];
+
+    for (const g of otherGames.slice(0, 16)) {
+      const homeResult = simulate({
+        teams,
+        games,
+        picks: { ...picks, [g.id]: g.homeId },
+        playoffCount,
+        samples: 500,
+        seed: 1776
+      });
+
+      const awayResult = simulate({
+        teams,
+        games,
+        picks: { ...picks, [g.id]: g.awayId },
+        playoffCount,
+        samples: 500,
+        seed: 1776
+      });
+
+      const homeOdds =
+        homeResult.odds.get(selectedId)?.playoff || 0;
+
+      const awayOdds =
+        awayResult.odds.get(selectedId)?.playoff || 0;
+
+      const difference = homeOdds - awayOdds;
+
+      results.push({
+        ...g,
+        homeOdds,
+        awayOdds,
+        impact: Math.abs(difference),
+        preferredWinner: difference >= 0
+          ? g.homeId
+          : g.awayId
+      });
+    }
+
+    return results
+      .sort((a, b) => b.impact - a.impact)
+      .slice(0, 6);
+  }, [
+    selectedId,
+    selectedTeam,
+    teams,
+    games,
+    picks,
+    playoffCount
+  ]);
+
+  function name(id) {
+    return teamMap.get(id)?.ownerName || "Unknown Owner";
+  }
+
+  function status(team) {
+    const probability =
+      simulation.odds.get(team.ownerId)?.playoff || 0;
+
+    if (
+      simulation.exact &&
+      schedule.valid &&
+      probability >= 1 - 1e-10
+    ) return "Guaranteed in modeled outcomes";
+
+    if (
+      simulation.exact &&
+      schedule.valid &&
+      probability <= 1e-10
+    ) return "No qualifying modeled outcome";
+
+    if (probability >= 0.9) return "Very Likely";
+    if (probability >= 0.7) return "Strong Position";
+    if (probability >= 0.4) return "On the Bubble";
+    if (probability >= 0.1) return "Needs Help";
+    return "Long Shot";
+  }
+
+  return (
+    <div className="dp-predictor">
+
+      <section className="dp-panel">
+        <div className="dp-heading">
           <div>
-            <span className="ps-eyebrow">
-              POSTSEASON PROJECTIONS
-            </span>
+            <span className="dp-eyebrow">DIRTY P ANALYTICS</span>
+            <h2>Playoff Prediction Center</h2>
+          </div>
+          <span className="dp-tag">SEASON {season}</span>
+        </div>
+
+        <p className="dp-muted">
+          Live league data · Weighted matchup probabilities ·
+          Interactive postseason forecasting
+        </p>
+
+        <div className="dp-metrics">
+          <div>
+            <small>MODEL RUNS</small>
+            <strong>
+              {simulation.iterations.toLocaleString()}
+            </strong>
+          </div>
+          <div>
+            <small>PLAYOFF SPOTS</small>
+            <strong>{playoffCount}</strong>
+          </div>
+          <div>
+            <small>GAMES LEFT</small>
+            <strong>{games.length - selectedCount}</strong>
+          </div>
+        </div>
+
+        <p className="dp-muted">
+          {simulation.exact
+            ? "All available remaining win/loss combinations evaluated with probability weighting."
+            : "25,000 weighted Monte Carlo simulations."}
+          {" "}Odds are estimates, not official ESPN projections.
+        </p>
+      </section>
+
+      <section className="dp-panel">
+        <div className="dp-heading">
+          <div>
+            <span className="dp-eyebrow">POSTSEASON PROJECTIONS</span>
             <h2>Playoff Odds</h2>
           </div>
-
-          <span className="ps-subtle">
-            {simulation.exhaustive
-              ? "All remaining W/L combinations evaluated"
-              : `${simulation.simulated.toLocaleString()} simulations`}
-          </span>
+          <span className="dp-tag">WEEK {currentWeek}</span>
         </div>
 
-        <div className="ps-odds-grid">
-          {[...simulatedTeams]
-            .sort(compareTeams)
-            .map((team) => {
-              const odds = simulation.odds.get(
-                team.ownerId
-              );
+        <div className="dp-odds-list">
+          {ranked.map((team, index) => {
+            const odds = simulation.odds.get(team.ownerId);
+            const chance = odds?.playoff || 0;
 
-              const chance = odds?.playoff ?? 0;
+            return (
+              <button
+                key={team.ownerId}
+                className={`dp-odds-row ${
+                  selectedId === team.ownerId ? "selected" : ""
+                }`}
+                onClick={() =>
+                  setSelectedOwner(String(team.ownerId))
+                }
+              >
+                <span className="dp-rank">
+                  {index + 1}
+                </span>
 
-              return (
-                <button
-                  type="button"
-                  className={
-                    "ps-odds-card " +
-                    (selectedId === team.ownerId
-                      ? "active"
-                      : "")
-                  }
-                  key={team.ownerId}
-                  onClick={() =>
-                    setSelectedOwner(
-                      String(team.ownerId)
-                    )
-                  }
-                >
-                  <div className="ps-odds-top">
-                    <strong>{team.ownerName}</strong>
-                    <span>{record(team)}</span>
-                  </div>
-
-                  <div className="ps-odds-number">
-                    {percent(chance)}
-                  </div>
-
-                  <div className="ps-progress">
-                    <div
-                      style={{
-                        width: `${chance * 100}%`,
-                      }}
-                    />
-                  </div>
-
+                <div className="dp-odds-main">
+                  <strong>{team.ownerName}</strong>
                   <small>
-                    Division:{" "}
-                    {projectedField.hasDivisions
-                      ? percent(odds?.division ?? 0)
-                      : "Unavailable"}
+                    {team.teamName} · {record(team)}
                   </small>
-                </button>
-              );
-            })}
-        </div>
+                  <div className="dp-progress">
+                    <div style={{
+                      width: `${chance * 100}%`,
+                      background: chance >= 0.75
+                        ? "#54c992"
+                        : chance >= 0.35
+                        ? "#d7ad63"
+                        : "#d66d70"
+                    }} />
+                  </div>
+                </div>
 
-        <p className="ps-note">
-          Estimated probabilities use each team's
-          current record and average scoring to
-          weight unselected games. These are
-          independent Dirty P estimates, not
-          official ESPN playoff odds.
-        </p>
+                <div className="dp-odds-value">
+                  <strong>{pct(chance)}</strong>
+                  <small>{status(team)}</small>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
-      {/* CURRENT PROJECTED FIELD */}
+      <section className="dp-panel">
+        <span className="dp-eyebrow">FINAL STANDINGS FORECAST</span>
+        <h2>Projected Final Records</h2>
 
-      <section className="ps-section">
-        <div className="ps-heading">
-          <div>
-            <span className="ps-eyebrow">
-              PLAYOFF PICTURE
-            </span>
-            <h2>Projected Playoff Field</h2>
-          </div>
+        <div className="dp-table-wrap">
+          <table className="dp-table">
+            <thead>
+              <tr>
+                <th>OWNER</th>
+                <th>CURRENT</th>
+                <th>PROJECTED</th>
+                <th>PLAYOFF %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...teams].sort((a, b) =>
+                (simulation.odds.get(b.ownerId)?.expectedWins || 0) -
+                (simulation.odds.get(a.ownerId)?.expectedWins || 0)
+              ).map(t => {
+                const o = simulation.odds.get(t.ownerId);
 
-          <span className="ps-subtle">
-            {selectedCount}/{games.length} results picked
-          </span>
+                return (
+                  <tr key={t.ownerId}>
+                    <td>{t.ownerName}</td>
+                    <td>{record(t)}</td>
+                    <td>
+                      {o.expectedWins.toFixed(1)}-
+                      {o.expectedLosses.toFixed(1)}
+                    </td>
+                    <td>{pct(o.playoff)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
+      </section>
 
-        <div className="ps-field">
-          {projectedField.field.map((team, index) => (
-            <div
-              className="ps-seed"
-              key={team.ownerId}
-            >
-              <b>#{index + 1}</b>
+      <section className="dp-panel">
+        <span className="dp-eyebrow">SEED FORECAST</span>
+        <h2>Most Likely Playoff Seeds</h2>
 
-              <div>
-                <strong>{team.ownerName}</strong>
-                <small>{team.teamName}</small>
-              </div>
+        <div className="dp-table-wrap">
+          <table className="dp-table">
+            <thead>
+              <tr>
+                <th>OWNER</th>
+                {Array.from(
+                  { length: playoffCount },
+                  (_, i) => <th key={i}>#{i + 1}</th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {ranked.map(t => {
+                const o = simulation.odds.get(t.ownerId);
 
-              <div className="ps-seed-right">
-                <strong>{record(team)}</strong>
-                <small>{teamStatus(team.ownerId)}</small>
-              </div>
+                return (
+                  <tr key={t.ownerId}>
+                    <td>{t.ownerName}</td>
+                    {o.seeds.map((chance, i) => (
+                      <td key={i}>{pct(chance)}</td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="dp-panel">
+        <span className="dp-eyebrow">IF THE SEASON ENDED NOW</span>
+        <h2>Current Scenario Playoff Field</h2>
+
+        <p className="dp-muted">
+          Includes selected What-If winners.
+          Undecided games remain unplayed in this view.
+        </p>
+
+        {projectedField.field.map((team, i) => (
+          <div className="dp-field-row" key={team.ownerId}>
+            <span className="dp-seed-number">
+              #{i + 1}
+            </span>
+            <div className="dp-grow">
+              <strong>{team.ownerName}</strong>
+              <small>{team.teamName}</small>
             </div>
-          ))}
-        </div>
-
-        <p className="ps-note">
-          The projected field treats games you
-          haven't selected as not yet played.
-          Choose results below to see the field
-          change. Simplified tiebreakers apply.
-        </p>
+            <div className="dp-right">
+              <strong>{record(team)}</strong>
+              <small>
+                {projectedField.leaders.some(
+                  t => t.ownerId === team.ownerId
+                ) ? "Division Winner" :
+                  projectedField.hasDivisions
+                  ? "Wild Card" : "Playoff Position"}
+              </small>
+            </div>
+          </div>
+        ))}
       </section>
 
-      {/* DIVISIONS */}
+      {divisionGroups.length > 1 && (
+        <section className="dp-panel">
+          <span className="dp-eyebrow">DIVISION RACES</span>
+          <h2>Division Standings</h2>
 
-      <section className="ps-section">
-        <div className="ps-heading">
-          <div>
-            <span className="ps-eyebrow">
-              DIVISION RACES
-            </span>
-            <h2>Division Standings</h2>
-          </div>
-        </div>
+          <div className="dp-division-grid">
+            {divisionGroups.map(group => (
+              <div className="dp-division" key={group.id}>
+                <h3>{group.name}</h3>
 
-        <div className="ps-divisions">
-          {divisions.map((division) => (
-            <div
-              className="ps-division"
-              key={division.id}
-            >
-              <h3>{division.name}</h3>
-
-              {division.teams.map((team, index) => (
-                <button
-                  type="button"
-                  className="ps-division-row"
-                  key={team.ownerId}
-                  onClick={() =>
-                    setSelectedOwner(
-                      String(team.ownerId)
-                    )
-                  }
-                >
-                  <span
-                    className={
-                      index === 0
-                        ? "ps-rank first"
-                        : "ps-rank"
+                {group.teams.map((t, i) => (
+                  <button
+                    key={t.ownerId}
+                    onClick={() =>
+                      setSelectedOwner(String(t.ownerId))
                     }
                   >
-                    #{index + 1}
-                  </span>
-
-                  <span>{team.ownerName}</span>
-                  <strong>{record(team)}</strong>
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* GLOBAL GAME PICKS */}
-
-      <section className="ps-section">
-        <div className="ps-heading">
-          <div>
-            <span className="ps-eyebrow">
-              INTERACTIVE SIMULATOR
-            </span>
-            <h2>What If?</h2>
+                    <span>#{i + 1}</span>
+                    <strong>{t.ownerName}</strong>
+                    <span>{record(t)}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
           </div>
+        </section>
+      )}
 
+      <section className="dp-panel">
+        <div className="dp-heading">
+          <div>
+            <span className="dp-eyebrow">INTERACTIVE MODEL</span>
+            <h2>What-If Simulator</h2>
+          </div>
           <button
-            type="button"
-            className="ps-small-button"
+            className="dp-button"
             onClick={() => setPicks({})}
           >
             Reset All
           </button>
         </div>
 
-        <p className="ps-note">
-          Pick any future matchup winner.
-          The playoff projections and odds
-          recalculate automatically.
-          Click a selected winner again to clear it.
+        <p className="dp-muted">
+          Pick winners to recalculate the playoff odds
+          and projected seeds. Click a chosen winner
+          again to remove your pick.
         </p>
 
-        {weeks.length ? (
-          <div className="ps-weeks">
-            {weeks.map((week) => {
-              const weekGames = games.filter(
-                (game) => game.week === week
-              );
-
-              const expanded =
-                expandedWeeks.includes(week);
-
-              const chosen = weekGames.filter(
-                (game) => picks[game.id]
-              ).length;
-
-              return (
-                <div
-                  className="ps-week"
-                  key={week}
-                >
-                  <button
-                    type="button"
-                    className="ps-week-heading"
-                    onClick={() => toggleWeek(week)}
-                  >
-                    <strong>Week {week}</strong>
-                    <span>
-                      {chosen}/{weekGames.length}
-                      {" "}selected
-                      {expanded ? " −" : " +"}
-                    </span>
-                  </button>
-
-                  {expanded && (
-                    <div className="ps-games">
-                      {weekGames.map((game) => {
-                        const away =
-                          ownerMap.get(game.awayId);
-
-                        const home =
-                          ownerMap.get(game.homeId);
-
-                        return (
-                          <div
-                            className="ps-game"
-                            key={game.id}
-                          >
-                            <button
-                              type="button"
-                              className={
-                                "ps-pick " +
-                                (picks[game.id] ===
-                                game.awayId
-                                  ? "chosen"
-                                  : "")
-                              }
-                              onClick={() =>
-                                chooseWinner(
-                                  game.id,
-                                  game.awayId
-                                )
-                              }
-                            >
-                              {away?.ownerName || "Away"}
-                            </button>
-
-                            <span>VS</span>
-
-                            <button
-                              type="button"
-                              className={
-                                "ps-pick " +
-                                (picks[game.id] ===
-                                game.homeId
-                                  ? "chosen"
-                                  : "")
-                              }
-                              onClick={() =>
-                                chooseWinner(
-                                  game.id,
-                                  game.homeId
-                                )
-                              }
-                            >
-                              {home?.ownerName || "Home"}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="ps-empty">
-            No remaining regular-season
-            matchups were returned.
-          </div>
+        {!weeks.length && (
+          <p>No remaining matchups were provided.</p>
         )}
+
+        {weeks.map(week => {
+          const weekGames = games.filter(g => g.week === week);
+          const expanded = expandedWeeks.includes(week);
+          const chosen = weekGames.filter(
+            g => picks[g.id]
+          ).length;
+
+          return (
+            <div className="dp-week" key={week}>
+              <button
+                className="dp-week-header"
+                onClick={() => toggleWeek(week)}
+              >
+                <strong>Week {week}</strong>
+                <span>
+                  {chosen}/{weekGames.length} picked
+                  {expanded ? " −" : " +"}
+                </span>
+              </button>
+
+              {expanded && (
+                <div className="dp-week-games">
+                  {weekGames.map(g => (
+                    <div className="dp-matchup" key={g.id}>
+                      <button
+                        className={
+                          picks[g.id] === g.awayId
+                            ? "picked" : ""
+                        }
+                        onClick={() =>
+                          chooseWinner(g.id, g.awayId)
+                        }
+                      >
+                        {name(g.awayId)}
+                      </button>
+
+                      <span>VS</span>
+
+                      <button
+                        className={
+                          picks[g.id] === g.homeId
+                            ? "picked" : ""
+                        }
+                        onClick={() =>
+                          chooseWinner(g.id, g.homeId)
+                        }
+                      >
+                        {name(g.homeId)}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </section>
 
-      {/* TEAM-SPECIFIC PATH */}
-
-      <section className="ps-section">
-        <div className="ps-heading">
-          <div>
-            <span className="ps-eyebrow">
-              TEAM-BY-TEAM
-            </span>
-            <h2>Explore a Team's Path</h2>
-          </div>
-        </div>
+      <section className="dp-panel">
+        <span className="dp-eyebrow">PERSONALIZED ANALYTICS</span>
+        <h2>Explore a Team's Path</h2>
 
         <select
-          className="ps-select"
+          className="dp-select"
           value={selectedOwner}
-          onChange={(event) =>
-            setSelectedOwner(event.target.value)
-          }
+          onChange={e => setSelectedOwner(e.target.value)}
         >
           <option value="">Select an owner</option>
-
           {[...teams]
             .sort((a, b) =>
               a.ownerName.localeCompare(b.ownerName)
             )
-            .map((team) => (
-              <option
-                key={team.ownerId}
-                value={team.ownerId}
-              >
-                {team.ownerName}
+            .map(t => (
+              <option key={t.ownerId} value={t.ownerId}>
+                {t.ownerName}
               </option>
             ))}
         </select>
 
-        {selectedTeam && (
-          <div className="ps-team-detail">
-            <div className="ps-team-header">
+        {selectedTeam && selectedOdds && (
+          <div className="dp-team-path">
+            <div className="dp-heading">
               <div>
-                <span className="ps-eyebrow">
-                  PLAYOFF OUTLOOK
-                </span>
-
                 <h3>{selectedTeam.ownerName}</h3>
-
-                <small>
-                  {selectedTeam.teamName}
-                  {" · "}
-                  {record(selectedTeam)}
-                </small>
-              </div>
-
-              <div className="ps-team-odds">
-                <strong>
-                  {percent(
-                    selectedOdds?.playoff ?? 0
-                  )}
-                </strong>
-
-                <small>Playoff Odds</small>
-              </div>
-            </div>
-
-            {/* TEAM METRICS */}
-
-            <div className="ps-team-stats">
-              <div>
-                <span>Best Possible Record</span>
-                <strong>{bestRecord}</strong>
-              </div>
-
-              <div>
-                <span>Worst Possible Record</span>
-                <strong>{worstRecord}</strong>
-              </div>
-
-              <div>
-                <span>Division Title Odds</span>
-                <strong>
-                  {projectedField.hasDivisions
-                    ? percent(
-                        selectedOdds?.division ?? 0
-                      )
-                    : "Unavailable"}
-                </strong>
-              </div>
-
-              <div>
-                <span>Current Projection</span>
-                <strong className="ps-status-text">
-                  {teamStatus(selectedId)}
-                </strong>
-              </div>
-            </div>
-
-            {/* INDIVIDUAL TEAM GAME PICKS */}
-
-            <div className="ps-team-subsection">
-              <h4>Remaining Schedule</h4>
-
-              <p className="ps-note">
-                Choose Win or Loss for each game.
-                You can leave any matchup undecided.
-              </p>
-
-              {selectedGames.length ? (
-                <div className="ps-team-games">
-                  {selectedGames.map((game) => {
-                    const opponent =
-                      opponentName(
-                        game,
-                        selectedId
-                      );
-
-                    const opponentId =
-                      game.homeId === selectedId
-                        ? game.awayId
-                        : game.homeId;
-
-                    const chosen =
-                      picks[game.id] ?? null;
-
-                    return (
-                      <div
-                        className="ps-team-game"
-                        key={game.id}
-                      >
-                        <div className="ps-team-game-name">
-                          <small>
-                            WEEK {game.week}
-                          </small>
-
-                          <strong>
-                            vs {opponent}
-                          </strong>
-                        </div>
-
-                        <div className="ps-team-options">
-                          <button
-                            type="button"
-                            className={
-                              chosen === selectedId
-                                ? "win active"
-                                : "win"
-                            }
-                            onClick={() =>
-                              chooseWinner(
-                                game.id,
-                                selectedId
-                              )
-                            }
-                          >
-                            Win
-                          </button>
-
-                          <button
-                            type="button"
-                            className={
-                              !chosen
-                                ? "neutral active"
-                                : "neutral"
-                            }
-                            onClick={() =>
-                              clearGame(game.id)
-                            }
-                          >
-                            —
-                          </button>
-
-                          <button
-                            type="button"
-                            className={
-                              chosen === opponentId
-                                ? "loss active"
-                                : "loss"
-                            }
-                            onClick={() =>
-                              chooseWinner(
-                                game.id,
-                                opponentId
-                              )
-                            }
-                          >
-                            Loss
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="ps-note">
-                  No remaining scheduled games
-                  available for this owner.
+                <p className="dp-muted">
+                  {selectedTeam.teamName} · {record(selectedTeam)}
                 </p>
-              )}
-
-              <div className="ps-team-actions">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setTeamOutcome(
-                      selectedId,
-                      true
-                    )
-                  }
-                >
-                  Win Out
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setTeamOutcome(
-                      selectedId,
-                      false
-                    )
-                  }
-                >
-                  Lose Out
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    clearTeamOutcomes(
-                      selectedId
-                    )
-                  }
-                >
-                  Clear Team Picks
-                </button>
+              </div>
+              <div className="dp-highlight">
+                <strong>{pct(selectedOdds.playoff)}</strong>
+                <small>PLAYOFF CHANCE</small>
               </div>
             </div>
 
-            {/* GAMES TO WATCH */}
+            <div className="dp-metrics">
+              <div>
+                <small>EXPECTED WINS</small>
+                <strong>
+                  {selectedOdds.expectedWins.toFixed(1)}
+                </strong>
+              </div>
+              <div>
+                <small>BEST RECORD</small>
+                <strong>
+                  {selectedTeam.wins + openSelectedGames.length}-
+                  {selectedTeam.losses}
+                </strong>
+              </div>
+              <div>
+                <small>WORST RECORD</small>
+                <strong>
+                  {selectedTeam.wins}-
+                  {selectedTeam.losses + openSelectedGames.length}
+                </strong>
+              </div>
+            </div>
 
-            <div className="ps-team-subsection">
-              <h4>Who Do I Need to Lose?</h4>
+            <h3>Remaining Schedule</h3>
 
-              <p className="ps-note">
-                These other matchups have the
-                biggest estimated effect on{" "}
-                {selectedTeam.ownerName}'s playoff
-                chances. The preferred winner is
-                shown for each game.
-              </p>
+            {selectedGames.map(g => {
+              const opponentId = g.homeId === selectedId
+                ? g.awayId : g.homeId;
 
-              {gamesToWatch.length ? (
-                <div className="ps-watch-list">
-                  {gamesToWatch.map((game) => {
-                    const helpful =
-                      ownerMap.get(
-                        game.preferredWinner
-                      );
+              return (
+                <div className="dp-team-game" key={g.id}>
+                  <div>
+                    <small>WEEK {g.week}</small>
+                    <strong>vs {name(opponentId)}</strong>
+                  </div>
 
-                    return (
-                      <div
-                        className="ps-watch"
-                        key={game.id}
-                      >
-                        <div>
-                          <small>
-                            WEEK {game.week}
-                          </small>
+                  <div className="dp-actions">
+                    <button
+                      className={
+                        picks[g.id] === selectedId ? "win" : ""
+                      }
+                      onClick={() =>
+                        chooseWinner(g.id, selectedId)
+                      }
+                    >Win</button>
 
-                          <strong>
-                            {ownerMap.get(
-                              game.awayId
-                            )?.ownerName}
-                            {" vs "}
-                            {ownerMap.get(
-                              game.homeId
-                            )?.ownerName}
-                          </strong>
+                    <button
+                      onClick={() => clearGame(g.id)}
+                    >Clear</button>
 
-                          <span>
-                            Root for:{" "}
-                            <b>
-                              {helpful?.ownerName}
-                            </b>
-                          </span>
-                        </div>
-
-                        <div className="ps-watch-impact">
-                          <strong>
-                            +{(
-                              game.benefit * 100
-                            ).toFixed(1)}
-                            {" pts"}
-                          </strong>
-
-                          <small>
-                            Estimated odds swing
-                          </small>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              chooseWinner(
-                                game.id,
-                                game.preferredWinner
-                              )
-                            }
-                          >
-                            Pick Winner
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                    <button
+                      className={
+                        picks[g.id] === opponentId ? "loss" : ""
+                      }
+                      onClick={() =>
+                        chooseWinner(g.id, opponentId)
+                      }
+                    >Loss</button>
+                  </div>
                 </div>
-              ) : (
-                <p className="ps-note">
-                  No undecided games between
-                  competing owners remain in the
-                  available schedule.
-                </p>
-              )}
+              );
+            })}
+
+            <div className="dp-actions dp-action-row">
+              <button
+                onClick={() =>
+                  setTeamOutcome(selectedId, true)
+                }
+              >
+                Win Out
+              </button>
+              <button
+                onClick={() =>
+                  setTeamOutcome(selectedId, false)
+                }
+              >
+                Lose Out
+              </button>
+              <button
+                onClick={() =>
+                  clearTeamOutcomes(selectedId)
+                }
+              >
+                Clear Picks
+              </button>
             </div>
 
-            {/* SEED PROBABILITIES */}
+            <h3>Who Do I Need to Lose?</h3>
+            <p className="dp-muted">
+              Other matchups with the largest estimated
+              impact on {selectedTeam.ownerName}'s chances.
+            </p>
 
-            <div className="ps-team-subsection">
-              <h4>Possible Playoff Seeds</h4>
+            {importantGames.length ? (
+              importantGames.map(g => (
+                <div className="dp-watch" key={g.id}>
+                  <div className="dp-grow">
+                    <small>WEEK {g.week}</small>
+                    <strong>
+                      {name(g.awayId)} vs {name(g.homeId)}
+                    </strong>
+                    <p>
+                      Root for: <b>{name(g.preferredWinner)}</b>
+                    </p>
+                  </div>
+                  <div className="dp-right">
+                    <strong>
+                      {`+${(g.impact * 100).toFixed(1)} pts`}
+                    </strong>
+                    <small>Estimated odds swing</small>
+                    <button
+                      className="dp-button"
+                      onClick={() =>
+                        chooseWinner(g.id, g.preferredWinner)
+                      }
+                    >
+                      Pick Winner
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="dp-muted">
+                No other undecided matchups are available.
+              </p>
+            )}
 
-              <div className="ps-seed-chances">
-                {(selectedOdds?.seeds || []).map(
-                  (chance, index) => (
-                    <div key={index}>
-                      <span>
-                        Seed #{index + 1}
-                      </span>
-
-                      <div className="ps-progress">
-                        <div
-                          style={{
-                            width: `${
-                              chance * 100
-                            }%`,
-                          }}
-                        />
-                      </div>
-
-                      <strong>
-                        {percent(chance)}
-                      </strong>
-                    </div>
-                  )
-                )}
+            <h3>Seed Probabilities</h3>
+            {selectedOdds.seeds.map((chance, i) => (
+              <div className="dp-seed-chance" key={i}>
+                <span>Seed #{i + 1}</span>
+                <div className="dp-progress">
+                  <div style={{
+                    width: `${chance * 100}%`
+                  }} />
+                </div>
+                <strong>{pct(chance)}</strong>
               </div>
-            </div>
+            ))}
 
-            {/* CLINCHING STATUS */}
-
-            <div className="ps-team-subsection">
-              <h4>Clinching & Elimination</h4>
-
-              <div className="ps-outlook">
-                {simulation.exhaustive &&
-                selectedOdds?.playoff === 1 ? (
-                  <>
-                    <strong>
-                      Guaranteed in the modeled schedule
-                    </strong>
-
-                    <p>
-                      This team qualifies in every
-                      evaluated outcome of the
-                      matchups currently available.
-                      This is not an official ESPN
-                      clinching declaration.
-                    </p>
-                  </>
-                ) : simulation.exhaustive &&
-                  selectedOdds?.playoff === 0 ? (
-                  <>
-                    <strong>
-                      No qualifying path in the
-                      modeled schedule
-                    </strong>
-
-                    <p>
-                      This team misses the playoffs
-                      under every evaluated outcome
-                      of the available games,
-                      using the simplified tiebreaker.
-                      This is not official elimination.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <strong>
-                      Playoff fate not mathematically
-                      determined
-                    </strong>
-
-                    <p>
-                      This team still has uncertainty
-                      in its projected playoff outcome.
-                      Official clinching and
-                      elimination require the complete
-                      league schedule and exact ESPN
-                      tiebreaker rules.
-                    </p>
-                  </>
-                )}
-              </div>
+            <h3>Clinching & Elimination Outlook</h3>
+            <div className="dp-outlook">
+              <strong>{status(selectedTeam)}</strong>
+              <p>
+                {simulation.exact && schedule.valid
+                  ? "All available remaining game outcomes have been evaluated. This is a modeled result, not an official league ruling."
+                  : "The postseason remains uncertain under the current model. Official clinching and elimination depend on the complete schedule and exact league tiebreakers."}
+              </p>
             </div>
           </div>
         )}
       </section>
 
-      {/* SCHEDULE / METHODOLOGY */}
-
-      <section className="ps-method">
-        <strong>
-          How These Projections Work
-        </strong>
-
-        <p>
-          {simulation.exhaustive
-            ? `Evaluated all ${simulation.simulated.toLocaleString()} win/loss outcomes for the ${simulation.pending} remaining undecided games.`
-            : `Ran ${simulation.simulated.toLocaleString()} weighted simulations of the ${simulation.pending} remaining undecided games.`}
-          {" "}
-          Selected winners are treated as fixed.
-          Other results are estimated from records
-          and average fantasy scoring.
+      <section className="dp-panel">
+        <span className="dp-eyebrow">MODEL TRANSPARENCY</span>
+        <h2>How the Predictor Works</h2>
+        <p className="dp-muted">
+          Each matchup receives a win probability
+          based on the teams' records and average
+          fantasy points scored. The model simulates
+          remaining games, applies selected winners,
+          and recalculates the playoff field.
         </p>
-
-        <p>
-          {scheduleCheck.message}
-          {" "}
-          ESPN-specific head-to-head and other
-          tiebreakers are not fully modeled.
-          Future fantasy points cannot be known
-          in advance.
+        <p className="dp-muted">
+          {schedule.message}
         </p>
-
-        <p>
-          The simulator recalculates when you
-          change a pick. Refreshing the page
-          retrieves updated league data and
-          resets your selections.
+        <p className="dp-muted">
+          The model assumes two division winners
+          receive automatic playoff spots when
+          exactly two valid divisions exist,
+          with remaining spots awarded as wild cards.
+          It uses winning percentage, wins, and total
+          points scored as simplified tiebreakers.
+          Future fantasy points, head-to-head
+          tiebreakers, and other ESPN-specific rules
+          are not fully modeled.
         </p>
-
-        <span>
-          Season {season} · Dirty P Fantasy Football
-        </span>
+        <p className="dp-muted">
+          Simulation counts describe the number
+          of modeled outcomes, not a guarantee
+          of forecasting accuracy. What-If selections
+          are temporary and reset on page refresh.
+        </p>
       </section>
 
       <style jsx>{`
-        .ps-root {
+        .dp-predictor {
+          color:#f4f5f7;
           display:flex;
           flex-direction:column;
-          gap:30px;
-          margin:25px 0 40px;
-          color:#f3f5f7;
+          gap:22px;
+          margin:25px 0 45px;
+          font-family:Arial,sans-serif;
         }
-
-        .ps-section {
-          display:flex;
-          flex-direction:column;
-          gap:15px;
+        .dp-panel {
+          background:#151b24;
+          border:1px solid #303946;
+          border-radius:14px;
+          padding:22px;
+          min-width:0;
         }
-
-        .ps-heading {
-          display:flex;
-          align-items:end;
-          justify-content:space-between;
-          gap:12px;
-          flex-wrap:wrap;
-        }
-
-        .ps-eyebrow {
-          color:#d7ad63;
-          font-size:10px;
-          font-weight:900;
-          letter-spacing:1px;
-        }
-
-        .ps-heading h2 {
-          margin:5px 0 0;
+        .dp-panel h2 {
+          margin:6px 0 16px;
           font-size:23px;
           color:#fff;
         }
-
-        .ps-subtle,
-        .ps-note {
-          color:#9cabbc;
-          font-size:12px;
-          line-height:1.7;
+        .dp-panel h3 {
+          color:#e9bd67;
+          font-size:16px;
+          margin:20px 0 12px;
         }
-
-        .ps-note {
-          margin:0;
-        }
-
-        .ps-odds-grid {
-          display:grid;
-          grid-template-columns:
-            repeat(2,minmax(0,1fr));
-          gap:10px;
-        }
-
-        .ps-odds-card {
-          background:#171d26;
-          border:1px solid #303947;
-          border-radius:11px;
-          padding:16px;
-          color:#f5f6f8;
-          cursor:pointer;
-          text-align:left;
-          min-width:0;
-        }
-
-        .ps-odds-card.active {
-          border-color:#d7ad63;
-        }
-
-        .ps-odds-card:hover {
-          border-color:#806539;
-        }
-
-        .ps-odds-top {
+        .dp-heading {
           display:flex;
           justify-content:space-between;
-          gap:10px;
-          font-size:12px;
+          align-items:center;
+          flex-wrap:wrap;
+          gap:12px;
         }
-
-        .ps-odds-top span {
-          color:#9cabbc;
-          white-space:nowrap;
-        }
-
-        .ps-odds-number {
-          color:#e9bd67;
+        .dp-heading h2 { margin:6px 0; }
+        .dp-eyebrow {
+          color:#d7ad63;
+          font-size:10px;
           font-weight:900;
-          font-size:29px;
-          margin:10px 0;
+          letter-spacing:1.4px;
         }
-
-        .ps-progress {
-          background:#303947;
-          border-radius:99px;
-          height:7px;
-          overflow:hidden;
+        .dp-muted {
+          font-size:12px;
+          color:#a2afc0;
+          line-height:1.7;
+          margin:9px 0 14px;
         }
-
-        .ps-progress div {
-          background:#d7ad63;
-          height:100%;
-          border-radius:99px;
+        .dp-tag {
+          color:#e9bd67;
+          border:1px solid #806539;
+          background:#302a1d;
+          border-radius:7px;
+          padding:8px 10px;
+          font-size:11px;
+          font-weight:800;
         }
-
-        .ps-odds-card small {
-          display:block;
-          margin-top:10px;
-          color:#aeb9c7;
+        .dp-metrics {
+          display:grid;
+          grid-template-columns:repeat(3,minmax(0,1fr));
+          gap:10px;
+          margin:18px 0;
         }
-
-        .ps-field {
+        .dp-metrics > div {
+          display:flex;
+          flex-direction:column;
+          gap:8px;
+          background:#242c38;
+          padding:15px;
+          border:1px solid #303946;
+          border-radius:10px;
+        }
+        .dp-metrics small {
+          font-size:10px;
+          color:#aab6c3;
+        }
+        .dp-metrics strong {
+          color:#e9bd67;
+          font-size:23px;
+        }
+        .dp-odds-list {
           display:flex;
           flex-direction:column;
           gap:9px;
         }
-
-        .ps-seed {
+        .dp-odds-row {
           display:flex;
           align-items:center;
-          gap:15px;
-          background:#171d26;
-          border:1px solid #303947;
-          border-radius:11px;
-          padding:16px;
+          gap:13px;
+          background:#202733;
+          border:1px solid #384252;
+          border-radius:10px;
+          color:#fff;
+          padding:15px;
+          width:100%;
+          text-align:left;
+          cursor:pointer;
         }
-
-        .ps-seed > b {
-          width:40px;
-          font-size:24px;
+        .dp-odds-row.selected {
+          border-color:#e9bd67;
+          background:#302c25;
+        }
+        .dp-rank {
+          font-size:20px;
+          font-weight:900;
           color:#e9bd67;
+          width:24px;
         }
-
-        .ps-seed > div {
+        .dp-odds-main {
+          flex:1;
+          min-width:0;
           display:flex;
           flex-direction:column;
           gap:5px;
-          min-width:0;
         }
-
-        .ps-seed > div:nth-child(2) {
-          flex:1;
+        .dp-odds-main strong {
+          font-size:14px;
         }
-
-        .ps-seed small {
-          color:#9cabbc;
-          font-size:11px;
+        .dp-odds-main small,
+        .dp-odds-value small {
+          color:#a2afc0;
+          font-size:10px;
         }
-
-        .ps-seed-right {
-          text-align:right;
-        }
-
-        .ps-divisions {
-          display:grid;
-          grid-template-columns:
-            repeat(2,minmax(0,1fr));
-          gap:14px;
-        }
-
-        .ps-division {
-          background:#171d26;
-          border:1px solid #303947;
-          border-radius:12px;
-          padding:17px;
-        }
-
-        .ps-division h3 {
-          color:#e9bd67;
-          font-size:15px;
-          margin:0 0 13px;
-        }
-
-        .ps-division-row {
-          display:flex;
-          gap:10px;
-          width:100%;
-          align-items:center;
-          background:none;
-          border:0;
-          border-top:1px solid #29313d;
-          padding:11px 0;
-          color:#f5f6f8;
-          font-size:12px;
-          text-align:left;
-          cursor:pointer;
-        }
-
-        .ps-division-row > span:nth-child(2) {
-          flex:1;
-        }
-
-        .ps-rank {
-          width:25px;
-          color:#9cabbc;
-        }
-
-        .ps-rank.first {
-          color:#e9bd67;
-          font-weight:900;
-        }
-
-        .ps-small-button,
-        .ps-team-actions button {
-          background:#242c38;
-          border:1px solid #806539;
-          color:#e9bd67;
-          border-radius:8px;
-          padding:10px 13px;
-          font-size:12px;
-          font-weight:800;
-          cursor:pointer;
-        }
-
-        .ps-weeks {
+        .dp-odds-value {
           display:flex;
           flex-direction:column;
-          gap:9px;
+          text-align:right;
+          gap:5px;
         }
-
-        .ps-week {
-          background:#171d26;
-          border:1px solid #303947;
-          border-radius:11px;
-          overflow:hidden;
+        .dp-odds-value strong {
+          color:#e9bd67;
+          font-size:21px;
         }
-
-        .ps-week-heading {
-          display:flex;
+        .dp-progress {
           width:100%;
-          justify-content:space-between;
+          height:7px;
+          background:#35404f;
+          border-radius:20px;
+          overflow:hidden;
+          margin-top:5px;
+        }
+        .dp-progress > div {
+          height:100%;
+          background:#d7ad63;
+          border-radius:20px;
+        }
+        .dp-table-wrap {
+          overflow-x:auto;
+          width:100%;
+        }
+        .dp-table {
+          width:100%;
+          border-collapse:collapse;
+          font-size:12px;
+          white-space:nowrap;
+        }
+        .dp-table th {
+          color:#9fafc2;
+          font-size:10px;
+          text-align:left;
+          padding:12px 10px;
+          border-bottom:1px solid #384252;
+        }
+        .dp-table td {
+          padding:13px 10px;
+          border-bottom:1px solid #2a3442;
+        }
+        .dp-table td:last-child {
+          color:#e9bd67;
+          font-weight:800;
+        }
+        .dp-field-row {
+          display:flex;
           align-items:center;
-          padding:16px;
-          color:#f5f6f8;
+          gap:13px;
+          padding:15px;
+          border:1px solid #35404f;
+          background:#202733;
+          border-radius:9px;
+          margin-bottom:8px;
+        }
+        .dp-seed-number {
+          width:38px;
+          color:#e9bd67;
+          font-size:20px;
+          font-weight:900;
+        }
+        .dp-grow {
+          flex:1;
+          min-width:0;
+        }
+        .dp-grow strong,
+        .dp-field-row strong {
+          display:block;
+          font-size:13px;
+        }
+        .dp-grow small,
+        .dp-field-row small {
+          display:block;
+          margin-top:5px;
+          color:#9fafc2;
+          font-size:10px;
+        }
+        .dp-right {
+          text-align:right;
+        }
+        .dp-division-grid {
+          display:grid;
+          grid-template-columns:repeat(2,minmax(0,1fr));
+          gap:12px;
+        }
+        .dp-division {
+          padding:15px;
+          background:#202733;
+          border:1px solid #35404f;
+          border-radius:10px;
+        }
+        .dp-division h3 { margin:0 0 10px; }
+        .dp-division button {
+          width:100%;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:10px;
           background:none;
           border:0;
+          border-top:1px solid #384252;
+          padding:12px 0;
+          color:#fff;
+          cursor:pointer;
+          text-align:left;
+          font-size:12px;
+        }
+        .dp-button {
+          background:#302a1d;
+          color:#e9bd67;
+          border:1px solid #806539;
+          border-radius:8px;
+          padding:9px 12px;
+          font-weight:800;
+          font-size:11px;
           cursor:pointer;
         }
-
-        .ps-week-heading span {
-          color:#9cabbc;
+        .dp-week {
+          border:1px solid #35404f;
+          border-radius:9px;
+          overflow:hidden;
+          margin:8px 0;
+          background:#202733;
+        }
+        .dp-week-header {
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          width:100%;
+          background:none;
+          border:0;
+          padding:15px;
+          color:#fff;
+          cursor:pointer;
+        }
+        .dp-week-header span {
+          color:#9fafc2;
           font-size:11px;
         }
-
-        .ps-games {
-          padding:0 14px 14px;
-        }
-
-        .ps-game {
+        .dp-week-games { padding:0 13px 13px; }
+        .dp-matchup {
           display:grid;
-          grid-template-columns:
-            minmax(0,1fr) 24px minmax(0,1fr);
+          grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);
           align-items:center;
-          gap:9px;
-          padding:8px 0;
-          border-top:1px solid #29313d;
+          gap:7px;
+          padding:9px 0;
+          border-top:1px solid #35404f;
         }
-
-        .ps-game > span {
-          color:#8997a7;
+        .dp-matchup > span {
+          color:#9fafc2;
           font-size:10px;
           text-align:center;
         }
-
-        .ps-pick {
-          min-width:0;
-          padding:12px 8px;
-          border:1px solid #394554;
-          background:#242c38;
-          color:#d1d9e2;
+        .dp-matchup button {
+          background:#2b3542;
+          color:#dce3ed;
+          padding:12px 7px;
+          border:1px solid #465364;
           border-radius:8px;
-          font-size:12px;
+          font-size:11px;
           font-weight:700;
           cursor:pointer;
           overflow-wrap:anywhere;
         }
-
-        .ps-pick.chosen {
+        .dp-matchup button.picked {
+          background:#423922;
+          color:#f3cb80;
           border-color:#d7ad63;
-          background:#3c3422;
-          color:#f3c979;
         }
-
-        .ps-empty {
-          background:#171d26;
-          border:1px solid #303947;
-          border-radius:11px;
-          padding:25px;
-          color:#9cabbc;
-        }
-
-        .ps-select {
-          width:100%;
-          max-width:400px;
-          background:#171d26;
-          border:1px solid #806539;
-          border-radius:9px;
-          color:#f5f6f8;
+        .dp-select {
           padding:13px;
-          font-size:13px;
-        }
-
-        .ps-team-detail {
-          background:#171d26;
-          border:1px solid #303947;
-          border-radius:13px;
-          padding:20px;
-          display:flex;
-          flex-direction:column;
-          gap:22px;
-        }
-
-        .ps-team-header {
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:10px;
-        }
-
-        .ps-team-header h3 {
-          font-size:20px;
+          width:100%;
+          max-width:420px;
           color:#fff;
-          margin:6px 0;
+          border:1px solid #806539;
+          background:#202733;
+          border-radius:9px;
+          margin-bottom:16px;
         }
-
-        .ps-team-header small {
-          color:#9cabbc;
+        .dp-team-path {
+          background:#1d2530;
+          border:1px solid #35404f;
+          border-radius:11px;
+          padding:18px;
         }
-
-        .ps-team-odds {
+        .dp-team-path .dp-heading h3 {
+          margin:0;
+          color:#fff;
+          font-size:20px;
+        }
+        .dp-highlight {
           display:flex;
           flex-direction:column;
           text-align:right;
-          gap:4px;
+          gap:5px;
         }
-
-        .ps-team-odds strong {
-          font-size:29px;
+        .dp-highlight strong {
+          font-size:28px;
           color:#e9bd67;
         }
-
-        .ps-team-odds small {
-          color:#9cabbc;
+        .dp-highlight small {
+          font-size:10px;
+          color:#9fafc2;
         }
-
-        .ps-team-stats {
-          display:grid;
-          grid-template-columns:
-            repeat(2,minmax(0,1fr));
-          gap:10px;
-        }
-
-        .ps-team-stats > div {
-          background:#242c38;
-          border:1px solid #303947;
-          border-radius:9px;
-          padding:14px;
+        .dp-team-game {
           display:flex;
-          flex-direction:column;
-          gap:8px;
-        }
-
-        .ps-team-stats span {
-          color:#aab6c3;
-          font-size:11px;
-        }
-
-        .ps-team-stats strong {
-          color:#e9bd67;
-          font-size:18px;
-        }
-
-        .ps-team-stats .ps-status-text {
-          font-size:13px;
-        }
-
-        .ps-team-subsection {
-          display:flex;
-          flex-direction:column;
-          gap:12px;
-          border-top:1px solid #303947;
-          padding-top:19px;
-        }
-
-        .ps-team-subsection h4 {
-          margin:0;
-          font-size:16px;
-          color:#e9bd67;
-        }
-
-        .ps-team-games {
-          display:flex;
-          flex-direction:column;
-          gap:8px;
-        }
-
-        .ps-team-game {
-          display:flex;
-          justify-content:space-between;
           align-items:center;
+          justify-content:space-between;
           gap:12px;
           padding:12px;
-          border:1px solid #303947;
-          background:#1d2530;
+          margin:8px 0;
+          background:#242d39;
+          border:1px solid #35404f;
           border-radius:9px;
         }
-
-        .ps-team-game-name {
-          display:flex;
-          flex-direction:column;
-          gap:5px;
-          min-width:0;
-        }
-
-        .ps-team-game-name small {
-          color:#9cabbc;
+        .dp-team-game small {
+          display:block;
+          color:#9fafc2;
           font-size:10px;
+          margin-bottom:5px;
         }
-
-        .ps-team-game-name strong {
+        .dp-team-game strong {
           font-size:12px;
         }
-
-        .ps-team-options {
+        .dp-actions {
           display:flex;
-          gap:5px;
-          flex-shrink:0;
-        }
-
-        .ps-team-options button {
-          background:#29323e;
-          border:1px solid #3c4857;
-          color:#b8c2cf;
-          border-radius:7px;
-          padding:9px 11px;
-          font-size:11px;
-          font-weight:800;
-          cursor:pointer;
-        }
-
-        .ps-team-options .win.active {
-          border-color:#5da98a;
-          background:#203d35;
-          color:#81dbb2;
-        }
-
-        .ps-team-options .loss.active {
-          border-color:#a96868;
-          background:#402929;
-          color:#e7a0a0;
-        }
-
-        .ps-team-options .neutral.active {
-          border-color:#d7ad63;
-          color:#e9bd67;
-        }
-
-        .ps-team-actions {
-          display:flex;
-          gap:9px;
+          gap:6px;
           flex-wrap:wrap;
         }
-
-        .ps-watch-list {
-          display:flex;
-          flex-direction:column;
-          gap:9px;
+        .dp-actions button {
+          background:#303a48;
+          border:1px solid #465364;
+          color:#e0e5ed;
+          border-radius:7px;
+          font-size:11px;
+          font-weight:800;
+          padding:9px 11px;
+          cursor:pointer;
         }
-
-        .ps-watch {
+        .dp-actions button.win {
+          background:#1d4737;
+          border-color:#59ba91;
+          color:#7fe0b4;
+        }
+        .dp-actions button.loss {
+          background:#47282d;
+          border-color:#bb6670;
+          color:#f39ba5;
+        }
+        .dp-action-row { margin:16px 0; }
+        .dp-watch {
           display:flex;
           justify-content:space-between;
           align-items:center;
           gap:14px;
           padding:14px;
-          border:1px solid #303947;
-          background:#1d2530;
+          margin:8px 0;
+          background:#242d39;
+          border:1px solid #35404f;
           border-radius:9px;
         }
-
-        .ps-watch > div {
-          display:flex;
-          flex-direction:column;
-          gap:5px;
-        }
-
-        .ps-watch small {
-          color:#9cabbc;
-          font-size:10px;
-        }
-
-        .ps-watch strong {
-          color:#f5f6f8;
-          font-size:12px;
-        }
-
-        .ps-watch span {
-          color:#aeb9c7;
+        .dp-watch p {
+          color:#a2afc0;
           font-size:11px;
         }
-
-        .ps-watch span b {
+        .dp-watch p b { color:#e9bd67; }
+        .dp-watch .dp-right strong {
           color:#e9bd67;
         }
-
-        .ps-watch-impact {
-          text-align:right;
-          flex-shrink:0;
+        .dp-watch .dp-button {
+          margin-top:9px;
         }
-
-        .ps-watch-impact > strong {
-          color:#e9bd67;
-        }
-
-        .ps-watch-impact button {
-          border:1px solid #806539;
-          border-radius:6px;
-          background:#303022;
-          color:#e9bd67;
-          font-size:10px;
-          font-weight:800;
-          padding:7px 9px;
-          cursor:pointer;
-        }
-
-        .ps-seed-chances {
-          display:flex;
-          flex-direction:column;
-          gap:13px;
-        }
-
-        .ps-seed-chances > div {
+        .dp-seed-chance {
           display:grid;
-          grid-template-columns:
-            60px minmax(0,1fr) 65px;
+          grid-template-columns:65px minmax(0,1fr) 65px;
           align-items:center;
           gap:12px;
+          padding:9px 0;
           font-size:12px;
         }
-
-        .ps-seed-chances span {
-          color:#aab6c3;
-        }
-
-        .ps-seed-chances strong {
+        .dp-seed-chance strong {
           text-align:right;
           color:#e9bd67;
         }
-
-        .ps-outlook {
-          padding:16px;
-          border-radius:9px;
-          background:#25291f;
+        .dp-outlook {
+          background:#2a2a22;
           border:1px solid #806539;
+          border-radius:9px;
+          padding:15px;
         }
-
-        .ps-outlook strong {
-          color:#e9bd67;
-          font-size:13px;
-        }
-
-        .ps-outlook p {
-          color:#aeb9c7;
-          font-size:12px;
-          line-height:1.7;
-          margin:8px 0 0;
-        }
-
-        .ps-method {
-          background:#171d26;
-          border:1px solid #303947;
-          border-radius:11px;
-          padding:20px;
-        }
-
-        .ps-method strong {
-          color:#e9bd67;
-        }
-
-        .ps-method p,
-        .ps-method span {
-          color:#9cabbc;
+        .dp-outlook strong { color:#e9bd67; }
+        .dp-outlook p {
+          color:#b3bdca;
           font-size:12px;
           line-height:1.7;
         }
-
-        @media(max-width:750px) {
-          .ps-divisions {
+        @media(max-width:700px) {
+          .dp-division-grid {
             grid-template-columns:1fr;
+          }
+          .dp-panel {
+            padding:15px;
           }
         }
-
-        @media(max-width:500px) {
-          .ps-heading h2 {
-            font-size:20px;
-          }
-
-          .ps-odds-grid {
-            grid-template-columns:1fr;
-          }
-
-          .ps-odds-number {
-            font-size:25px;
-          }
-
-          .ps-team-detail {
-            padding:13px;
-          }
-
-          .ps-team-game {
+        @media(max-width:480px) {
+          .dp-panel h2 { font-size:20px; }
+          .dp-metrics strong { font-size:17px; }
+          .dp-metrics > div { padding:10px; }
+          .dp-team-game {
             align-items:flex-start;
             flex-direction:column;
           }
-
-          .ps-watch {
+          .dp-watch {
             align-items:flex-start;
             flex-direction:column;
           }
-
-          .ps-watch-impact {
-            text-align:left;
-          }
-
-          .ps-seed {
-            gap:9px;
-            padding:13px;
-          }
-
-          .ps-seed > b {
-            font-size:20px;
-            width:30px;
-          }
-
-          .ps-game {
-            gap:5px;
-          }
-
-          .ps-pick {
-            font-size:11px;
-            padding:10px 5px;
-          }
+          .dp-watch .dp-right { text-align:left; }
+          .dp-odds-value strong { font-size:18px; }
+          .dp-odds-row { padding:11px; gap:8px; }
         }
       `}</style>
     </div>
