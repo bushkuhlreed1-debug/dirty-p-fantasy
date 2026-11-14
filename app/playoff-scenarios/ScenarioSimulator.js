@@ -1,365 +1,247 @@
 
 "use client";
-
 import { useMemo, useState } from "react";
 
-const SIMULATIONS = 25000;
-const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-const num = (x) => Number.isFinite(Number(x)) ? Number(x) : 0;
-const pct = (x) => `${(100 * x).toFixed(1)}%`;
+const RUNS = 25000;
+const MAX_EXACT_GAMES = 16;
+const money = x => Number(x || 0).toFixed(2);
+const percent = x => `${(100 * (x || 0)).toFixed(1)}%`;
+const record = t => `${t.wins}-${t.losses}${t.ties ? `-${t.ties}` : ""}`;
+const played = t => t.wins + t.losses + t.ties;
+const winRate = t => played(t) ? (t.wins + 0.5 * t.ties) / played(t) : 0.5;
+const average = t => played(t) ? t.pointsFor / played(t) : 100;
+const copyTeams = teams => teams.map(t => ({ ...t }));
+const division = t => t.divisionId == null || t.divisionId === "" ? null : String(t.divisionId);
 
-function record(t) {
-  return `${t.wins}-${t.losses}${t.ties ? `-${t.ties}` : ""}`;
-}
+function compare(a, b, preferredId = 0, preference = 0) {
+  const primary = winRate(b) - winRate(a) || b.wins - a.wins;
+  if (primary) return primary;
 
-function played(t) {
-  return t.wins + t.losses + t.ties;
-}
-
-function winRate(t) {
-  return played(t)
-    ? (t.wins + t.ties * 0.5) / played(t)
-    : 0.5;
-}
-
-function average(t) {
-  return played(t) ? t.pointsFor / played(t) : 100;
-}
-
-function compare(a, b) {
-  return (
-    winRate(b) - winRate(a) ||
-    b.wins - a.wins ||
-    b.pointsFor - a.pointsFor ||
-    a.ownerName.localeCompare(b.ownerName)
-  );
-}
-
-function teamStrength(t) {
-  const recordScore = winRate(t);
-  const scoringScore = clamp(
-    (average(t) - 100) / 100,
-    -0.6,
-    0.6
-  );
-
-  const sampleWeight = played(t) / (played(t) + 4);
-
-  return (
-    0.5 +
-    sampleWeight * (
-      0.28 * (recordScore - 0.5) +
-      0.24 * scoringScore
-    )
-  );
-}
-
-function gameProbability(a, b) {
-  const strengthDiff = teamStrength(a) - teamStrength(b);
-
-  return clamp(
-    0.5 + strengthDiff,
-    0.15,
-    0.85
-  );
-}
-
-function randomSeed(text) {
-  let hash = 2166136261;
-
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
+  // Favor or disfavor one owner when future
+  // points-based tiebreakers are unresolved.
+  if (preferredId && preference &&
+    (a.ownerId === preferredId || b.ownerId === preferredId)) {
+    return a.ownerId === preferredId ? -preference : preference;
   }
 
-  return hash >>> 0;
+  return b.pointsFor - a.pointsFor ||
+    a.ownerName.localeCompare(b.ownerName);
 }
 
-function seededRandom(seed) {
-  let state = seed >>> 0;
-
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function divisionKey(t) {
-  return t.divisionId === null ||
-    t.divisionId === undefined ||
-    t.divisionId === ""
-    ? null
-    : String(t.divisionId);
-}
-
-function calculateField(teams, playoffCount) {
+function field(teams, slots, preferredId = 0, preference = 0) {
+  const cmp = (a, b) => compare(a, b, preferredId, preference);
   const groups = new Map();
 
-  for (const team of teams) {
-    const id = divisionKey(team);
-    if (id === null) continue;
+  teams.forEach(t => {
+    const d = division(t);
+    if (d !== null) {
+      if (!groups.has(d)) groups.set(d, []);
+      groups.get(d).push(t);
+    }
+  });
 
-    if (!groups.has(id)) groups.set(id, []);
-    groups.get(id).push(team);
-  }
-
-  const hasDivisions =
-    groups.size === 2 &&
-    teams.every(t => divisionKey(t) !== null);
-
-  if (!hasDivisions) {
-    const field = [...teams]
-      .sort(compare)
-      .slice(0, playoffCount);
-
-    return {
-      hasDivisions: false,
-      leaders: [],
-      wildCards: [],
-      field
-    };
+  if (groups.size !== 2 || teams.some(t => division(t) === null)) {
+    return [...teams].sort(cmp).slice(0, slots).map(t => t.ownerId);
   }
 
   const leaders = [...groups.values()]
-    .map(group => [...group].sort(compare)[0])
-    .sort(compare);
+    .map(g => [...g].sort(cmp)[0])
+    .sort(cmp);
 
-  const leaderIds = new Set(
-    leaders.map(t => t.ownerId)
-  );
+  const leaderIds = new Set(leaders.map(t => t.ownerId));
 
-  const wildCards = teams
+  const wildcards = teams
     .filter(t => !leaderIds.has(t.ownerId))
-    .sort(compare)
-    .slice(0, Math.max(0, playoffCount - leaders.length));
+    .sort(cmp)
+    .slice(0, Math.max(0, slots - leaders.length));
 
-  return {
-    hasDivisions: true,
-    leaders,
-    wildCards,
-    field: [...leaders, ...wildCards]
-  };
+  return [...leaders, ...wildcards].map(t => t.ownerId);
 }
 
-function applyResult(byId, game, winnerId) {
-  const home = byId.get(game.homeId);
-  const away = byId.get(game.awayId);
+function apply(byId, g, winner) {
+  const home = byId.get(g.homeId);
+  const away = byId.get(g.awayId);
 
   if (!home || !away) return;
 
-  if (winnerId === home.ownerId) {
+  if (winner === home.ownerId) {
     home.wins++;
     away.losses++;
-  } else if (winnerId === away.ownerId) {
+  }
+
+  if (winner === away.ownerId) {
     away.wins++;
     home.losses++;
   }
 }
 
-function applyPicks(teams, games, picks) {
-  const copy = teams.map(t => ({ ...t }));
-  const byId = new Map(copy.map(t => [t.ownerId, t]));
+function addPicks(teams, games, picks) {
+  const result = copyTeams(teams);
+  const byId = new Map(result.map(t => [t.ownerId, t]));
 
-  for (const game of games) {
-    const id = Number(picks[game.id]);
-    if (id) applyResult(byId, game, id);
-  }
-
-  return copy;
-}
-
-// =====================================================
-// PLAYOFF PREDICTION ENGINE
-// =====================================================
-
-function simulate({
-  teams,
-  games,
-  picks,
-  playoffCount,
-  samples = SIMULATIONS,
-  seed = 42
-}) {
-  const pending = games.filter(g => !picks[g.id]);
-  const fixed = applyPicks(teams, games, picks);
-  const baseMap = new Map(
-    teams.map(t => [t.ownerId, t])
-  );
-
-  const exact = pending.length <= 12;
-  const iterations = exact
-    ? Math.pow(2, pending.length)
-    : samples;
-
-  const probabilities = pending.map(g => {
-    const a = baseMap.get(g.homeId);
-    const b = baseMap.get(g.awayId);
-    return a && b ? gameProbability(a, b) : 0.5;
+  games.forEach(g => {
+    if (picks[g.id]) apply(byId, g, Number(picks[g.id]));
   });
 
-  const counts = new Map();
+  return result;
+}
 
-  for (const t of teams) {
-    counts.set(t.ownerId, {
-      playoff: 0,
-      division: 0,
-      seeds: Array(playoffCount).fill(0),
-      wins: 0,
-      losses: 0,
-      minWins: Infinity,
-      maxWins: -Infinity
-    });
-  }
+function strength(t) {
+  const stabilization = played(t) / (played(t) + 4);
 
-  const random = seededRandom(seed);
-  let totalWeight = 0;
+  return stabilization * (
+    0.34 * (winRate(t) - 0.5) +
+    Math.max(-0.16, Math.min(0.16, (average(t) - 100) / 260))
+  );
+}
 
-  for (let i = 0; i < iterations; i++) {
-    const scenario = fixed.map(t => ({ ...t }));
-    const byId = new Map(
-      scenario.map(t => [t.ownerId, t])
-    );
+function chance(a, b) {
+  return Math.max(
+    0.15,
+    Math.min(0.85, 0.5 + strength(a) - strength(b))
+  );
+}
 
+function seeded(seed) {
+  let v = seed >>> 0;
+
+  return () => {
+    v = (v + 0x6d2b79f5) >>> 0;
+    let x = v;
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// PLAYOFF PROBABILITY ENGINE
+
+function simulate(teams, games, picks, slots, seed) {
+  const fixed = addPicks(teams, games, picks);
+  const pending = games.filter(g => !picks[g.id]);
+  const byOriginal = new Map(teams.map(t => [t.ownerId, t]));
+  const odds = new Map(teams.map(t => [t.ownerId, 0]));
+  const rng = seeded(seed);
+
+  const exact = pending.length <= 12;
+  const attempts = exact ? 2 ** pending.length : RUNS;
+
+  const probabilities = pending.map(g =>
+    chance(byOriginal.get(g.homeId), byOriginal.get(g.awayId))
+  );
+
+  let weightTotal = 0;
+
+  for (let i = 0; i < attempts; i++) {
+    const state = copyTeams(fixed);
+    const byId = new Map(state.map(t => [t.ownerId, t]));
     let weight = 1;
 
-    for (let j = 0; j < pending.length; j++) {
-      const game = pending[j];
-      const probability = probabilities[j];
-
-      let homeWins;
+    pending.forEach((g, j) => {
+      const homeWins = exact
+        ? Boolean((i >> j) & 1)
+        : rng() < probabilities[j];
 
       if (exact) {
-        homeWins = Boolean((i >> j) & 1);
         weight *= homeWins
-          ? probability
-          : 1 - probability;
-      } else {
-        homeWins = random() < probability;
+          ? probabilities[j]
+          : 1 - probabilities[j];
       }
 
-      applyResult(
+      apply(
         byId,
-        game,
-        homeWins ? game.homeId : game.awayId
+        g,
+        homeWins ? g.homeId : g.awayId
       );
-    }
-
-    if (weight <= 0) continue;
-
-    totalWeight += weight;
-
-    const field = calculateField(
-      scenario,
-      playoffCount
-    );
-
-    const eligible = new Set(
-      field.field.map(t => t.ownerId)
-    );
-
-    const leaders = new Set(
-      field.leaders.map(t => t.ownerId)
-    );
-
-    for (const team of scenario) {
-      const c = counts.get(team.ownerId);
-
-      c.wins += team.wins * weight;
-      c.losses += team.losses * weight;
-      c.minWins = Math.min(c.minWins, team.wins);
-      c.maxWins = Math.max(c.maxWins, team.wins);
-
-      if (eligible.has(team.ownerId)) {
-        c.playoff += weight;
-      }
-
-      if (leaders.has(team.ownerId)) {
-        c.division += weight;
-      }
-    }
-
-    field.field.forEach((team, index) => {
-      counts.get(team.ownerId).seeds[index] += weight;
     });
+
+    weightTotal += weight;
+
+    field(state, slots).forEach(id =>
+      odds.set(id, odds.get(id) + weight)
+    );
   }
 
-  const odds = new Map();
-  const denominator = totalWeight || 1;
-
-  for (const team of teams) {
-    const c = counts.get(team.ownerId);
-
-    odds.set(team.ownerId, {
-      playoff: c.playoff / denominator,
-      division: c.division / denominator,
-      seeds: c.seeds.map(x => x / denominator),
-      expectedWins: c.wins / denominator,
-      expectedLosses: c.losses / denominator,
-      minWins: c.minWins,
-      maxWins: c.maxWins
-    });
+  for (const [id, value] of odds) {
+    odds.set(id, value / (weightTotal || 1));
   }
 
-  return {
-    odds,
-    exact,
-    iterations,
-    pending: pending.length
-  };
+  return { odds, attempts, exact };
 }
 
-function checkSchedule(teams, games) {
-  if (!games.length) {
-    return {
-      valid: false,
-      message: "No remaining regular-season matchups were supplied."
-    };
-  }
+// EXHAUSTIVE PLAYOFF PATH ENGINE
 
-  const weeks = [...new Set(games.map(g => g.week))]
-    .sort((a, b) => a - b);
+function enumeratePaths(teams, games, slots) {
+  if (games.length > MAX_EXACT_GAMES) return null;
 
-  for (const week of weeks) {
-    const seen = new Set();
+  const paths = new Map(
+    teams.map(t => [t.ownerId, []])
+  );
 
-    for (const game of games.filter(g => g.week === week)) {
-      if (
-        seen.has(game.homeId) ||
-        seen.has(game.awayId)
-      ) {
-        return {
-          valid: false,
-          message: "Duplicate team appearances detected in a week."
-        };
+  const stats = new Map(
+    teams.map(t => [
+      t.ownerId,
+      { possible: 0, certain: 0 }
+    ])
+  );
+
+  const outcomes = 2 ** games.length;
+
+  for (let mask = 0; mask < outcomes; mask++) {
+    const state = copyTeams(teams);
+    const byId = new Map(
+      state.map(t => [t.ownerId, t])
+    );
+
+    const winners = games.map((g, i) =>
+      ((mask >> i) & 1) ? g.homeId : g.awayId
+    );
+
+    games.forEach((g, i) =>
+      apply(byId, g, winners[i])
+    );
+
+    for (const owner of teams) {
+      const possible = field(
+        state, slots, owner.ownerId, 1
+      ).includes(owner.ownerId);
+
+      if (!possible) continue;
+
+      const certain = field(
+        state, slots, owner.ownerId, -1
+      ).includes(owner.ownerId);
+
+      stats.get(owner.ownerId).possible++;
+
+      if (certain) {
+        stats.get(owner.ownerId).certain++;
       }
 
-      seen.add(game.homeId);
-      seen.add(game.awayId);
+      paths.get(owner.ownerId).push({
+        mask,
+        certain
+      });
     }
   }
 
-  for (let i = 1; i < weeks.length; i++) {
-    if (weeks[i] !== weeks[i - 1] + 1) {
-      return {
-        valid: false,
-        message: "There are missing weeks in the available schedule."
-      };
-    }
-  }
-
-  return {
-    valid: true,
-    message:
-      "Available matchups are internally consistent. Full schedule coverage and official tiebreakers are not independently verified."
-  };
+  return { paths, stats, outcomes };
 }
 
-// =====================================================
+// TOTAL POINTS TIEBREAKER
+
+function targetAgainst(me, opponent) {
+  const gap =
+    Number(opponent.pointsFor) - Number(me.pointsFor);
+
+  if (gap >= 0) {
+    return `Outscore ${opponent.ownerName} by at least ${money(gap + 0.01)} more points across the remaining weeks`;
+  }
+
+  return `You lead ${opponent.ownerName} by ${money(-gap)} points; don't let them outscore you by ${money(-gap)} or more`;
+}
+
 // MAIN COMPONENT
-// =====================================================
 
 export default function ScenarioSimulator({
   teams = [],
@@ -369,1238 +251,961 @@ export default function ScenarioSimulator({
   playoffCount = 4
 }) {
   const [picks, setPicks] = useState({});
-  const [selectedOwner, setSelectedOwner] = useState("");
-  const [expandedWeeks, setExpandedWeeks] =
-    useState([currentWeek]);
+  const [appliedPicks, setAppliedPicks] = useState({});
+  const [hasRun, setHasRun] = useState(false);
+  const [shown, setShown] = useState({});
+  const [weekOpen, setWeekOpen] = useState({
+    [currentWeek]: true
+  });
 
-  const teamMap = useMemo(
-    () => new Map(teams.map(t => [t.ownerId, t])),
+  const byId = useMemo(
+    () => new Map(
+      teams.map(t => [t.ownerId, t])
+    ),
     [teams]
   );
 
-  const selectedId = Number(selectedOwner);
+  const byName = id =>
+    byId.get(id)?.ownerName || "Unknown";
 
-  const randomSeedValue = useMemo(
-    () => randomSeed(JSON.stringify({
-      season,
-      picks: Object.entries(picks).sort()
-    })),
-    [season, picks]
+  const baseline = useMemo(
+    () => simulate(
+      teams, games, {}, playoffCount, season + 71
+    ),
+    [teams, games, playoffCount, season]
   );
 
-  const simulation = useMemo(
-    () => simulate({
+  const result = useMemo(
+    () => hasRun
+      ? simulate(
+          teams,
+          games,
+          appliedPicks,
+          playoffCount,
+          season + 71
+        )
+      : baseline,
+    [
       teams,
       games,
-      picks,
       playoffCount,
-      samples: SIMULATIONS,
-      seed: randomSeedValue
-    }),
-    [teams, games, picks, playoffCount, randomSeedValue]
+      season,
+      appliedPicks,
+      hasRun,
+      baseline
+    ]
   );
 
-  const currentProjection = useMemo(
-    () => applyPicks(teams, games, picks),
-    [teams, games, picks]
+  const weeks = [
+    ...new Set(games.map(g => g.week))
+  ].sort((a, b) => a - b);
+
+  const lastWeek = weeks.length
+    ? weeks[weeks.length - 1]
+    : 0;
+
+  const finalTwo =
+    lastWeek > 0 &&
+    currentWeek >= lastWeek - 1;
+
+  const exact = useMemo(
+    () => finalTwo
+      ? enumeratePaths(teams, games, playoffCount)
+      : null,
+    [finalTwo, teams, games, playoffCount]
   );
 
-  const projectedField = useMemo(
-    () => calculateField(currentProjection, playoffCount),
-    [currentProjection, playoffCount]
-  );
+  const picked = Object.keys(picks).length;
 
-  const ranked = useMemo(
-    () => [...currentProjection].sort((a, b) =>
-      (simulation.odds.get(b.ownerId)?.playoff || 0) -
-      (simulation.odds.get(a.ownerId)?.playoff || 0) ||
-      compare(a, b)
-    ),
-    [currentProjection, simulation]
-  );
+  const indexedGames = games.map((g, i) => ({
+    ...g,
+    position: i
+  }));
 
-  const weeks = useMemo(
-    () => [...new Set(games.map(g => g.week))]
-      .sort((a, b) => a - b),
-    [games]
-  );
+  const possibleOwners = exact
+    ? teams.filter(t => {
+        const s = exact.stats.get(t.ownerId);
 
-  const schedule = useMemo(
-    () => checkSchedule(teams, games),
-    [teams, games]
-  );
+        return s?.possible > 0 &&
+          s?.certain < exact.outcomes;
+      })
+    : [];
 
-  const selectedTeam = currentProjection.find(
-    t => t.ownerId === selectedId
-  );
-
-  const selectedOdds = simulation.odds.get(selectedId);
-
-  const selectedGames = games.filter(
-    g => g.homeId === selectedId ||
-      g.awayId === selectedId
-  );
-
-  const openSelectedGames = selectedGames.filter(
-    g => !picks[g.id]
-  );
-
-  const selectedCount = Object.keys(picks).length;
-
-  const divisionGroups = useMemo(() => {
-    const groups = new Map();
-
-    for (const team of currentProjection) {
-      const key = divisionKey(team) || "unknown";
-
-      if (!groups.has(key)) {
-        groups.set(key, {
-          id: key,
-          name: team.divisionName ||
-            (key === "unknown" ? "League" : `Division ${key}`),
-          teams: []
-        });
-      }
-
-      groups.get(key).teams.push(team);
-    }
-
-    return [...groups.values()].map(g => ({
-      ...g,
-      teams: g.teams.sort(compare)
-    }));
-  }, [currentProjection]);
-
-  function chooseWinner(gameId, ownerId) {
+  function choose(g, id) {
     setPicks(old => {
       const next = { ...old };
 
-      if (next[gameId] === ownerId) {
-        delete next[gameId];
+      if (next[g.id] === id) {
+        delete next[g.id];
       } else {
-        next[gameId] = ownerId;
+        next[g.id] = id;
       }
 
       return next;
     });
   }
 
-  function clearGame(gameId) {
-    setPicks(old => {
-      const next = { ...old };
-      delete next[gameId];
-      return next;
-    });
+  function run() {
+    setAppliedPicks({ ...picks });
+    setHasRun(true);
   }
 
-  function setTeamOutcome(ownerId, win) {
-    setPicks(old => {
-      const next = { ...old };
-
-      for (const g of games) {
-        if (g.homeId !== ownerId && g.awayId !== ownerId) {
-          continue;
-        }
-
-        next[g.id] = win
-          ? ownerId
-          : g.homeId === ownerId
-          ? g.awayId
-          : g.homeId;
-      }
-
-      return next;
-    });
-  }
-
-  function clearTeamOutcomes(ownerId) {
-    setPicks(old => {
-      const next = { ...old };
-
-      for (const g of games) {
-        if (g.homeId === ownerId || g.awayId === ownerId) {
-          delete next[g.id];
-        }
-      }
-
-      return next;
-    });
-  }
-
-  function toggleWeek(week) {
-    setExpandedWeeks(old =>
-      old.includes(week)
-        ? old.filter(w => w !== week)
-        : [...old, week]
-    );
-  }
-
-  // ===================================================
-  // GAMES THAT MATTER
-  // ===================================================
-
-  const importantGames = useMemo(() => {
-    if (!selectedId || !selectedTeam) return [];
-
-    const otherGames = games.filter(
-      g => !picks[g.id] &&
-        g.homeId !== selectedId &&
-        g.awayId !== selectedId
-    );
-
-    const results = [];
-
-    for (const g of otherGames.slice(0, 16)) {
-      const homeResult = simulate({
-        teams,
-        games,
-        picks: { ...picks, [g.id]: g.homeId },
-        playoffCount,
-        samples: 500,
-        seed: 1776
-      });
-
-      const awayResult = simulate({
-        teams,
-        games,
-        picks: { ...picks, [g.id]: g.awayId },
-        playoffCount,
-        samples: 500,
-        seed: 1776
-      });
-
-      const homeOdds =
-        homeResult.odds.get(selectedId)?.playoff || 0;
-
-      const awayOdds =
-        awayResult.odds.get(selectedId)?.playoff || 0;
-
-      const difference = homeOdds - awayOdds;
-
-      results.push({
-        ...g,
-        homeOdds,
-        awayOdds,
-        impact: Math.abs(difference),
-        preferredWinner: difference >= 0
-          ? g.homeId
-          : g.awayId
-      });
-    }
-
-    return results
-      .sort((a, b) => b.impact - a.impact)
-      .slice(0, 6);
-  }, [
-    selectedId,
-    selectedTeam,
-    teams,
-    games,
-    picks,
-    playoffCount
-  ]);
-
-  function name(id) {
-    return teamMap.get(id)?.ownerName || "Unknown Owner";
-  }
-
-  function status(team) {
-    const probability =
-      simulation.odds.get(team.ownerId)?.playoff || 0;
-
-    if (
-      simulation.exact &&
-      schedule.valid &&
-      probability >= 1 - 1e-10
-    ) return "Guaranteed in modeled outcomes";
-
-    if (
-      simulation.exact &&
-      schedule.valid &&
-      probability <= 1e-10
-    ) return "No qualifying modeled outcome";
-
-    if (probability >= 0.9) return "Very Likely";
-    if (probability >= 0.7) return "Strong Position";
-    if (probability >= 0.4) return "On the Bubble";
-    if (probability >= 0.1) return "Needs Help";
-    return "Long Shot";
+  function reset() {
+    setPicks({});
+    setAppliedPicks({});
+    setHasRun(false);
   }
 
   return (
-    <div className="dp-predictor">
+    <div className="dp-root">
+
+      {/* SECTION ONE: PLAYOFF ODDS */}
 
       <section className="dp-panel">
         <div className="dp-heading">
           <div>
-            <span className="dp-eyebrow">DIRTY P ANALYTICS</span>
-            <h2>Playoff Prediction Center</h2>
-          </div>
-          <span className="dp-tag">SEASON {season}</span>
-        </div>
-
-        <p className="dp-muted">
-          Live league data · Weighted matchup probabilities ·
-          Interactive postseason forecasting
-        </p>
-
-        <div className="dp-metrics">
-          <div>
-            <small>MODEL RUNS</small>
-            <strong>
-              {simulation.iterations.toLocaleString()}
-            </strong>
-          </div>
-          <div>
-            <small>PLAYOFF SPOTS</small>
-            <strong>{playoffCount}</strong>
-          </div>
-          <div>
-            <small>GAMES LEFT</small>
-            <strong>{games.length - selectedCount}</strong>
-          </div>
-        </div>
-
-        <p className="dp-muted">
-          {simulation.exact
-            ? "All available remaining win/loss combinations evaluated with probability weighting."
-            : "25,000 weighted Monte Carlo simulations."}
-          {" "}Odds are estimates, not official ESPN projections.
-        </p>
-      </section>
-
-      <section className="dp-panel">
-        <div className="dp-heading">
-          <div>
-            <span className="dp-eyebrow">POSTSEASON PROJECTIONS</span>
-            <h2>Playoff Odds</h2>
-          </div>
-          <span className="dp-tag">WEEK {currentWeek}</span>
-        </div>
-
-        <div className="dp-odds-list">
-          {ranked.map((team, index) => {
-            const odds = simulation.odds.get(team.ownerId);
-            const chance = odds?.playoff || 0;
-
-            return (
-              <button
-                key={team.ownerId}
-                className={`dp-odds-row ${
-                  selectedId === team.ownerId ? "selected" : ""
-                }`}
-                onClick={() =>
-                  setSelectedOwner(String(team.ownerId))
-                }
-              >
-                <span className="dp-rank">
-                  {index + 1}
-                </span>
-
-                <div className="dp-odds-main">
-                  <strong>{team.ownerName}</strong>
-                  <small>
-                    {team.teamName} · {record(team)}
-                  </small>
-                  <div className="dp-progress">
-                    <div style={{
-                      width: `${chance * 100}%`,
-                      background: chance >= 0.75
-                        ? "#54c992"
-                        : chance >= 0.35
-                        ? "#d7ad63"
-                        : "#d66d70"
-                    }} />
-                  </div>
-                </div>
-
-                <div className="dp-odds-value">
-                  <strong>{pct(chance)}</strong>
-                  <small>{status(team)}</small>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="dp-panel">
-        <span className="dp-eyebrow">FINAL STANDINGS FORECAST</span>
-        <h2>Projected Final Records</h2>
-
-        <div className="dp-table-wrap">
-          <table className="dp-table">
-            <thead>
-              <tr>
-                <th>OWNER</th>
-                <th>CURRENT</th>
-                <th>PROJECTED</th>
-                <th>PLAYOFF %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...teams].sort((a, b) =>
-                (simulation.odds.get(b.ownerId)?.expectedWins || 0) -
-                (simulation.odds.get(a.ownerId)?.expectedWins || 0)
-              ).map(t => {
-                const o = simulation.odds.get(t.ownerId);
-
-                return (
-                  <tr key={t.ownerId}>
-                    <td>{t.ownerName}</td>
-                    <td>{record(t)}</td>
-                    <td>
-                      {o.expectedWins.toFixed(1)}-
-                      {o.expectedLosses.toFixed(1)}
-                    </td>
-                    <td>{pct(o.playoff)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="dp-panel">
-        <span className="dp-eyebrow">SEED FORECAST</span>
-        <h2>Most Likely Playoff Seeds</h2>
-
-        <div className="dp-table-wrap">
-          <table className="dp-table">
-            <thead>
-              <tr>
-                <th>OWNER</th>
-                {Array.from(
-                  { length: playoffCount },
-                  (_, i) => <th key={i}>#{i + 1}</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {ranked.map(t => {
-                const o = simulation.odds.get(t.ownerId);
-
-                return (
-                  <tr key={t.ownerId}>
-                    <td>{t.ownerName}</td>
-                    {o.seeds.map((chance, i) => (
-                      <td key={i}>{pct(chance)}</td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="dp-panel">
-        <span className="dp-eyebrow">IF THE SEASON ENDED NOW</span>
-        <h2>Current Scenario Playoff Field</h2>
-
-        <p className="dp-muted">
-          Includes selected What-If winners.
-          Undecided games remain unplayed in this view.
-        </p>
-
-        {projectedField.field.map((team, i) => (
-          <div className="dp-field-row" key={team.ownerId}>
-            <span className="dp-seed-number">
-              #{i + 1}
+            <span className="dp-kicker">
+              DIRTY P ANALYTICS
             </span>
-            <div className="dp-grow">
-              <strong>{team.ownerName}</strong>
-              <small>{team.teamName}</small>
-            </div>
-            <div className="dp-right">
-              <strong>{record(team)}</strong>
-              <small>
-                {projectedField.leaders.some(
-                  t => t.ownerId === team.ownerId
-                ) ? "Division Winner" :
-                  projectedField.hasDivisions
-                  ? "Wild Card" : "Playoff Position"}
-              </small>
-            </div>
+            <h2>Playoff Percentages</h2>
           </div>
-        ))}
+          <span className="dp-small">
+            Week {currentWeek}
+          </span>
+        </div>
+
+        <p className="dp-muted">
+          Estimated playoff chances using current
+          results and the remaining schedule.
+          These are not official ESPN probabilities.
+        </p>
+
+        <div className="dp-odds">
+          {[...teams]
+            .sort(
+              (a, b) =>
+                (baseline.odds.get(b.ownerId) || 0) -
+                (baseline.odds.get(a.ownerId) || 0)
+            )
+            .map(t => {
+              const value =
+                baseline.odds.get(t.ownerId) || 0;
+
+              const s = exact?.stats.get(t.ownerId);
+
+              const status = exact
+                ? s.possible === 0
+                  ? "Eliminated in modeled outcomes"
+                  : s.certain === exact.outcomes
+                  ? "Clinched in modeled outcomes"
+                  : "Still alive"
+                : null;
+
+              return (
+                <div
+                  className="dp-odds-row"
+                  key={t.ownerId}
+                >
+                  <div className="dp-odds-top">
+                    <strong>{t.ownerName}</strong>
+                    <strong>{percent(value)}</strong>
+                  </div>
+
+                  <div className="dp-progress">
+                    <div
+                      style={{
+                        width: `${value * 100}%`
+                      }}
+                    />
+                  </div>
+
+                  {status && <small>{status}</small>}
+                </div>
+              );
+            })}
+        </div>
+
+        <p className="dp-muted">
+          {baseline.exact
+            ? `Probability-weighted evaluation of ${baseline.attempts.toLocaleString()} outcomes.`
+            : `${baseline.attempts.toLocaleString()} Monte Carlo simulations.`}
+          {" "}
+          Probabilities use scoring averages and
+          win records; future fantasy points
+          remain unknown.
+        </p>
       </section>
 
-      {divisionGroups.length > 1 && (
-        <section className="dp-panel">
-          <span className="dp-eyebrow">DIVISION RACES</span>
-          <h2>Division Standings</h2>
-
-          <div className="dp-division-grid">
-            {divisionGroups.map(group => (
-              <div className="dp-division" key={group.id}>
-                <h3>{group.name}</h3>
-
-                {group.teams.map((t, i) => (
-                  <button
-                    key={t.ownerId}
-                    onClick={() =>
-                      setSelectedOwner(String(t.ownerId))
-                    }
-                  >
-                    <span>#{i + 1}</span>
-                    <strong>{t.ownerName}</strong>
-                    <span>{record(t)}</span>
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* SECTION TWO: WHAT IF */}
 
       <section className="dp-panel">
         <div className="dp-heading">
           <div>
-            <span className="dp-eyebrow">INTERACTIVE MODEL</span>
+            <span className="dp-kicker">
+              TRY ANY OUTCOME
+            </span>
             <h2>What-If Simulator</h2>
           </div>
-          <button
-            className="dp-button"
-            onClick={() => setPicks({})}
-          >
-            Reset All
-          </button>
+          <span className="dp-small">
+            {picked}/{games.length} picked
+          </span>
         </div>
 
         <p className="dp-muted">
-          Pick winners to recalculate the playoff odds
-          and projected seeds. Click a chosen winner
-          again to remove your pick.
+          Choose winners, then press Run Scenario.
+          Results update only when you run the model.
         </p>
 
-        {!weeks.length && (
-          <p>No remaining matchups were provided.</p>
-        )}
+        {weeks.map(week => (
+          <div className="dp-week" key={week}>
+            <button
+              className="dp-week-head"
+              onClick={() =>
+                setWeekOpen(old => ({
+                  ...old,
+                  [week]: !old[week]
+                }))
+              }
+            >
+              <strong>Week {week}</strong>
+              <span>
+                {weekOpen[week] ? "−" : "+"}
+              </span>
+            </button>
 
-        {weeks.map(week => {
-          const weekGames = games.filter(g => g.week === week);
-          const expanded = expandedWeeks.includes(week);
-          const chosen = weekGames.filter(
-            g => picks[g.id]
-          ).length;
-
-          return (
-            <div className="dp-week" key={week}>
-              <button
-                className="dp-week-header"
-                onClick={() => toggleWeek(week)}
-              >
-                <strong>Week {week}</strong>
-                <span>
-                  {chosen}/{weekGames.length} picked
-                  {expanded ? " −" : " +"}
-                </span>
-              </button>
-
-              {expanded && (
-                <div className="dp-week-games">
-                  {weekGames.map(g => (
-                    <div className="dp-matchup" key={g.id}>
+            {weekOpen[week] && (
+              <div className="dp-week-body">
+                {games
+                  .filter(g => g.week === week)
+                  .map(g => (
+                    <div
+                      className="dp-game"
+                      key={g.id}
+                    >
                       <button
                         className={
                           picks[g.id] === g.awayId
-                            ? "picked" : ""
+                            ? "active"
+                            : ""
                         }
                         onClick={() =>
-                          chooseWinner(g.id, g.awayId)
+                          choose(g, g.awayId)
                         }
                       >
-                        {name(g.awayId)}
+                        {byName(g.awayId)}
                       </button>
 
-                      <span>VS</span>
+                      <span>vs</span>
 
                       <button
                         className={
                           picks[g.id] === g.homeId
-                            ? "picked" : ""
+                            ? "active"
+                            : ""
                         }
                         onClick={() =>
-                          chooseWinner(g.id, g.homeId)
+                          choose(g, g.homeId)
                         }
                       >
-                        {name(g.homeId)}
+                        {byName(g.homeId)}
                       </button>
                     </div>
                   ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </section>
-
-      <section className="dp-panel">
-        <span className="dp-eyebrow">PERSONALIZED ANALYTICS</span>
-        <h2>Explore a Team's Path</h2>
-
-        <select
-          className="dp-select"
-          value={selectedOwner}
-          onChange={e => setSelectedOwner(e.target.value)}
-        >
-          <option value="">Select an owner</option>
-          {[...teams]
-            .sort((a, b) =>
-              a.ownerName.localeCompare(b.ownerName)
-            )
-            .map(t => (
-              <option key={t.ownerId} value={t.ownerId}>
-                {t.ownerName}
-              </option>
-            ))}
-        </select>
-
-        {selectedTeam && selectedOdds && (
-          <div className="dp-team-path">
-            <div className="dp-heading">
-              <div>
-                <h3>{selectedTeam.ownerName}</h3>
-                <p className="dp-muted">
-                  {selectedTeam.teamName} · {record(selectedTeam)}
-                </p>
               </div>
-              <div className="dp-highlight">
-                <strong>{pct(selectedOdds.playoff)}</strong>
-                <small>PLAYOFF CHANCE</small>
-              </div>
-            </div>
+            )}
+          </div>
+        ))}
 
-            <div className="dp-metrics">
-              <div>
-                <small>EXPECTED WINS</small>
-                <strong>
-                  {selectedOdds.expectedWins.toFixed(1)}
-                </strong>
-              </div>
-              <div>
-                <small>BEST RECORD</small>
-                <strong>
-                  {selectedTeam.wins + openSelectedGames.length}-
-                  {selectedTeam.losses}
-                </strong>
-              </div>
-              <div>
-                <small>WORST RECORD</small>
-                <strong>
-                  {selectedTeam.wins}-
-                  {selectedTeam.losses + openSelectedGames.length}
-                </strong>
-              </div>
-            </div>
+        {!games.length && (
+          <p className="dp-muted">
+            No remaining regular-season games
+            were returned.
+          </p>
+        )}
 
-            <h3>Remaining Schedule</h3>
+        <div className="dp-buttons">
+          <button
+            className="dp-gold"
+            onClick={run}
+          >
+            Run Scenario
+          </button>
 
-            {selectedGames.map(g => {
-              const opponentId = g.homeId === selectedId
-                ? g.awayId : g.homeId;
+          <button onClick={reset}>
+            Reset All
+          </button>
+        </div>
 
-              return (
-                <div className="dp-team-game" key={g.id}>
-                  <div>
-                    <small>WEEK {g.week}</small>
-                    <strong>vs {name(opponentId)}</strong>
-                  </div>
+        {hasRun && (
+          <div className="dp-results">
+            <h3>Scenario Results</h3>
 
-                  <div className="dp-actions">
-                    <button
-                      className={
-                        picks[g.id] === selectedId ? "win" : ""
-                      }
-                      onClick={() =>
-                        chooseWinner(g.id, selectedId)
-                      }
-                    >Win</button>
-
-                    <button
-                      onClick={() => clearGame(g.id)}
-                    >Clear</button>
-
-                    <button
-                      className={
-                        picks[g.id] === opponentId ? "loss" : ""
-                      }
-                      onClick={() =>
-                        chooseWinner(g.id, opponentId)
-                      }
-                    >Loss</button>
-                  </div>
-                </div>
-              );
-            })}
-
-            <div className="dp-actions dp-action-row">
-              <button
-                onClick={() =>
-                  setTeamOutcome(selectedId, true)
-                }
-              >
-                Win Out
-              </button>
-              <button
-                onClick={() =>
-                  setTeamOutcome(selectedId, false)
-                }
-              >
-                Lose Out
-              </button>
-              <button
-                onClick={() =>
-                  clearTeamOutcomes(selectedId)
-                }
-              >
-                Clear Picks
-              </button>
-            </div>
-
-            <h3>Who Do I Need to Lose?</h3>
             <p className="dp-muted">
-              Other matchups with the largest estimated
-              impact on {selectedTeam.ownerName}'s chances.
+              Changes compared with current
+              projected playoff chances.
+              Selected winners are treated
+              as certain.
             </p>
 
-            {importantGames.length ? (
-              importantGames.map(g => (
-                <div className="dp-watch" key={g.id}>
-                  <div className="dp-grow">
-                    <small>WEEK {g.week}</small>
-                    <strong>
-                      {name(g.awayId)} vs {name(g.homeId)}
-                    </strong>
-                    <p>
-                      Root for: <b>{name(g.preferredWinner)}</b>
-                    </p>
-                  </div>
-                  <div className="dp-right">
-                    <strong>
-                      {`+${(g.impact * 100).toFixed(1)} pts`}
-                    </strong>
-                    <small>Estimated odds swing</small>
-                    <button
-                      className="dp-button"
-                      onClick={() =>
-                        chooseWinner(g.id, g.preferredWinner)
+            {[...teams]
+              .sort(
+                (a, b) =>
+                  (result.odds.get(b.ownerId) || 0) -
+                  (result.odds.get(a.ownerId) || 0)
+              )
+              .map(t => {
+                const before =
+                  baseline.odds.get(t.ownerId) || 0;
+
+                const after =
+                  result.odds.get(t.ownerId) || 0;
+
+                const change =
+                  (after - before) * 100;
+
+                return (
+                  <div
+                    className="dp-result"
+                    key={t.ownerId}
+                  >
+                    <strong>{t.ownerName}</strong>
+
+                    <span>{percent(after)}</span>
+
+                    <span
+                      className={
+                        change > 0.05
+                          ? "up"
+                          : change < -0.05
+                          ? "down"
+                          : ""
                       }
                     >
-                      Pick Winner
-                    </button>
+                      {change > 0 ? "+" : ""}
+                      {change.toFixed(1)} pts
+                    </span>
                   </div>
-                </div>
-              ))
-            ) : (
-              <p className="dp-muted">
-                No other undecided matchups are available.
-              </p>
-            )}
+                );
+              })}
 
-            <h3>Seed Probabilities</h3>
-            {selectedOdds.seeds.map((chance, i) => (
-              <div className="dp-seed-chance" key={i}>
-                <span>Seed #{i + 1}</span>
-                <div className="dp-progress">
-                  <div style={{
-                    width: `${chance * 100}%`
-                  }} />
-                </div>
-                <strong>{pct(chance)}</strong>
-              </div>
-            ))}
-
-            <h3>Clinching & Elimination Outlook</h3>
-            <div className="dp-outlook">
-              <strong>{status(selectedTeam)}</strong>
-              <p>
-                {simulation.exact && schedule.valid
-                  ? "All available remaining game outcomes have been evaluated. This is a modeled result, not an official league ruling."
-                  : "The postseason remains uncertain under the current model. Official clinching and elimination depend on the complete schedule and exact league tiebreakers."}
-              </p>
-            </div>
+            <p className="dp-muted">
+              {result.exact
+                ? "Every undecided W/L outcome was evaluated with probability weights."
+                : `${RUNS.toLocaleString()} simulations run.`}
+            </p>
           </div>
         )}
       </section>
 
-      <section className="dp-panel">
-        <span className="dp-eyebrow">MODEL TRANSPARENCY</span>
-        <h2>How the Predictor Works</h2>
-        <p className="dp-muted">
-          Each matchup receives a win probability
-          based on the teams' records and average
-          fantasy points scored. The model simulates
-          remaining games, applies selected winners,
-          and recalculates the playoff field.
-        </p>
-        <p className="dp-muted">
-          {schedule.message}
-        </p>
-        <p className="dp-muted">
-          The model assumes two division winners
-          receive automatic playoff spots when
-          exactly two valid divisions exist,
-          with remaining spots awarded as wild cards.
-          It uses winning percentage, wins, and total
-          points scored as simplified tiebreakers.
-          Future fantasy points, head-to-head
-          tiebreakers, and other ESPN-specific rules
-          are not fully modeled.
-        </p>
-        <p className="dp-muted">
-          Simulation counts describe the number
-          of modeled outcomes, not a guarantee
-          of forecasting accuracy. What-If selections
-          are temporary and reset on page refresh.
-        </p>
-      </section>
+      {/* SECTION THREE: PLAYOFF SURVIVAL */}
+
+      {finalTwo && (
+        <section className="dp-panel">
+          <span className="dp-kicker">
+            FINAL TWO REGULAR-SEASON WEEKS
+          </span>
+
+          <h2>Road to the Playoffs</h2>
+
+          {!exact ? (
+            <p className="dp-muted">
+              There are more than
+              {" "}{MAX_EXACT_GAMES} remaining games.
+              Exact scenario claims are disabled
+              to avoid missing outcomes.
+              The complete schedule is needed
+              for exhaustive analysis.
+            </p>
+          ) : (
+            <>
+              <p className="dp-muted">
+                All
+                {" "}{exact.outcomes.toLocaleString()}
+                {" "}available win/loss combinations
+                evaluated.
+
+                Owners whose qualification
+                is still possible are listed below.
+
+                Unresolved points tiebreakers
+                are not treated as guaranteed results.
+              </p>
+
+              {!possibleOwners.length && (
+                <p className="dp-muted">
+                  No owner currently has an
+                  unresolved modeled playoff berth.
+                </p>
+              )}
+
+              {possibleOwners.map(t => {
+                const ownerPaths =
+                  exact.paths.get(t.ownerId) || [];
+
+                const count =
+                  shown[t.ownerId] || 15;
+
+                const own = indexedGames.filter(
+                  g =>
+                    g.homeId === t.ownerId ||
+                    g.awayId === t.ownerId
+                );
+
+                const groups = new Map();
+
+                for (const path of ownerPaths) {
+                  const key = own.map(g => {
+                    const winner =
+                      ((path.mask >> g.position) & 1)
+                        ? g.homeId
+                        : g.awayId;
+
+                    return winner === t.ownerId
+                      ? "W"
+                      : "L";
+                  }).join("") || "No games";
+
+                  if (!groups.has(key)) {
+                    groups.set(key, []);
+                  }
+
+                  groups.get(key).push(path);
+                }
+
+                return (
+                  <details
+                    className="dp-owner"
+                    key={t.ownerId}
+                  >
+                    <summary>
+                      <strong>{t.ownerName}</strong>
+
+                      <span>
+                        {ownerPaths.length.toLocaleString()}
+                        {" "}qualifying/conditional outcomes
+                      </span>
+                    </summary>
+
+                    <div className="dp-owner-body">
+                      <p className="dp-muted">
+                        Every qualifying path below
+                        identifies the required results
+                        for this owner and every
+                        other owner.
+                      </p>
+
+                      {[...groups.entries()].map(
+                        ([key, paths]) => (
+                          <div
+                            className="dp-group"
+                            key={key}
+                          >
+                            <h3>
+                              {key === "No games"
+                                ? "No games remaining"
+                                : `Your results: ${key.split("").join(" · ")}`}
+                            </h3>
+
+                            {own.map((g, i) => (
+                              <div
+                                className="dp-line"
+                                key={g.id}
+                              >
+                                Week {g.week}:{" "}
+                                <b>
+                                  {key[i] === "W"
+                                    ? "Beat"
+                                    : "Lose to"}
+                                  {" "}
+                                  {byName(
+                                    g.homeId === t.ownerId
+                                      ? g.awayId
+                                      : g.homeId
+                                  )}
+                                </b>
+                              </div>
+                            ))}
+
+                            <p className="dp-muted">
+                              {paths.length.toLocaleString()}
+                              {" "}available outside-result
+                              combinations for this finish.
+                            </p>
+
+                            {paths
+                              .slice(0, count)
+                              .map((path, index) => {
+                                const matchingOthers =
+                                  indexedGames.filter(
+                                    g =>
+                                      g.homeId !== t.ownerId &&
+                                      g.awayId !== t.ownerId
+                                  );
+
+                                const state =
+                                  copyTeams(teams);
+
+                                const stateById =
+                                  new Map(
+                                    state.map(x => [
+                                      x.ownerId,
+                                      x
+                                    ])
+                                  );
+
+                                indexedGames.forEach(
+                                  g => apply(
+                                    stateById,
+                                    g,
+                                    ((path.mask >> g.position) & 1)
+                                      ? g.homeId
+                                      : g.awayId
+                                  )
+                                );
+
+                                const ownerState =
+                                  stateById.get(t.ownerId);
+
+                                const tied = state.filter(
+                                  x =>
+                                    x.ownerId !== t.ownerId &&
+                                    winRate(x) ===
+                                      winRate(ownerState) &&
+                                    x.wins === ownerState.wins
+                                );
+
+                                return (
+                                  <details
+                                    className="dp-path"
+                                    key={path.mask}
+                                  >
+                                    <summary>
+                                      Path {index + 1}:{" "}
+                                      {path.certain
+                                        ? "Qualifies regardless of points tiebreakers"
+                                        : "Needs points-tiebreaker help"}
+                                    </summary>
+
+                                    <div className="dp-path-body">
+                                      <h4>
+                                        Outside Help Required
+                                        — Every Other Matchup
+                                      </h4>
+
+                                      {matchingOthers.length
+                                        ? matchingOthers.map(g => {
+                                            const winId =
+                                              ((path.mask >> g.position) & 1)
+                                                ? g.homeId
+                                                : g.awayId;
+
+                                            const loseId =
+                                              winId === g.homeId
+                                                ? g.awayId
+                                                : g.homeId;
+
+                                            return (
+                                              <div
+                                                className="dp-line"
+                                                key={g.id}
+                                              >
+                                                <b>Week {g.week}:</b>
+                                                {" "}
+                                                {byName(winId)}
+                                                {" "}must beat{" "}
+                                                {byName(loseId)}
+                                              </div>
+                                            );
+                                          })
+                                        : (
+                                          <p>
+                                            No outside results
+                                            are required.
+                                          </p>
+                                        )}
+
+                                      <h4>
+                                        Every Other Owner's
+                                        Required Finish
+                                      </h4>
+
+                                      {teams
+                                        .filter(
+                                          x =>
+                                            x.ownerId !== t.ownerId
+                                        )
+                                        .map(other => {
+                                          const matches =
+                                            indexedGames.filter(
+                                              g =>
+                                                g.homeId === other.ownerId ||
+                                                g.awayId === other.ownerId
+                                            );
+
+                                          return (
+                                            <div
+                                              className="dp-line"
+                                              key={other.ownerId}
+                                            >
+                                              <b>
+                                                {other.ownerName}:
+                                              </b>
+                                              {" "}
+                                              {matches.length
+                                                ? matches.map(g => {
+                                                    const winId =
+                                                      ((path.mask >> g.position) & 1)
+                                                        ? g.homeId
+                                                        : g.awayId;
+
+                                                    const opponentId =
+                                                      g.homeId === other.ownerId
+                                                        ? g.awayId
+                                                        : g.homeId;
+
+                                                    return `W${g.week} ${winId === other.ownerId ? "WIN" : "LOSS"} vs ${byName(opponentId)}`;
+                                                  }).join("; ")
+                                                : "No remaining games"}
+                                            </div>
+                                          );
+                                        })}
+
+                                      {tied.length > 0 && (
+                                        <>
+                                          <h4>
+                                            Total Points
+                                            Tiebreaker Targets
+                                          </h4>
+
+                                          <p className="dp-muted">
+                                            Pairwise targets if
+                                            total points scored
+                                            is the applicable
+                                            tiebreaker.
+
+                                            Not every target
+                                            is necessarily needed
+                                            for the playoff berth.
+                                          </p>
+
+                                          {tied.map(other => (
+                                            <div
+                                              className="dp-line"
+                                              key={other.ownerId}
+                                            >
+                                              {targetAgainst(
+                                                t,
+                                                other
+                                              )}.
+                                            </div>
+                                          ))}
+                                        </>
+                                      )}
+
+                                      {!path.certain && (
+                                        <p className="dp-warning">
+                                          This route may require
+                                          winning a points tiebreaker.
+                                          The berth cannot be
+                                          guaranteed until future
+                                          fantasy points are known.
+                                        </p>
+                                      )}
+                                    </div>
+                                  </details>
+                                );
+                              })}
+
+                            {paths.length > count && (
+                              <button
+                                className="dp-more"
+                                onClick={() =>
+                                  setShown(old => ({
+                                    ...old,
+                                    [t.ownerId]: count + 15
+                                  }))
+                                }
+                              >
+                                Show 15 more exact outcomes
+                                {" "}({paths.length - count} remaining
+                                in this group)
+                              </button>
+                            )}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </details>
+                );
+              })}
+
+              <p className="dp-muted">
+                The model assumes two division
+                champions receive automatic berths
+                when two divisions are provided,
+                with remaining spots awarded
+                as wild cards.
+
+                Because exact ESPN tiebreakers
+                and full schedule coverage have
+                not been independently verified,
+                clinched and eliminated statuses
+                are modeled classifications,
+                not official league rulings.
+              </p>
+            </>
+          )}
+        </section>
+      )}
+
+      {/* STYLES */}
 
       <style jsx>{`
-        .dp-predictor {
-          color:#f4f5f7;
+        .dp-root {
           display:flex;
           flex-direction:column;
           gap:22px;
-          margin:25px 0 45px;
-          font-family:Arial,sans-serif;
+          margin:24px 0 42px;
+          color:#f4f5f7;
         }
         .dp-panel {
-          background:#151b24;
-          border:1px solid #303946;
-          border-radius:14px;
-          padding:22px;
+          background:#171d26;
+          border:1px solid #303947;
+          border-radius:13px;
+          padding:20px;
           min-width:0;
         }
         .dp-panel h2 {
-          margin:6px 0 16px;
           font-size:23px;
           color:#fff;
+          margin:6px 0 14px;
         }
         .dp-panel h3 {
+          font-size:15px;
           color:#e9bd67;
-          font-size:16px;
-          margin:20px 0 12px;
+          margin:14px 0 10px;
         }
-        .dp-heading {
+        .dp-panel h4 {
+          font-size:12px;
+          color:#f1cf8b;
+          margin:14px 0 8px;
+        }
+        .dp-heading,
+        .dp-odds-top {
           display:flex;
           justify-content:space-between;
           align-items:center;
-          flex-wrap:wrap;
           gap:12px;
         }
-        .dp-heading h2 { margin:6px 0; }
-        .dp-eyebrow {
+        .dp-kicker {
+          font-size:10px;
+          font-weight:900;
           color:#d7ad63;
-          font-size:10px;
-          font-weight:900;
-          letter-spacing:1.4px;
+          letter-spacing:1px;
         }
-        .dp-muted {
+        .dp-muted,
+        .dp-small {
           font-size:12px;
-          color:#a2afc0;
-          line-height:1.7;
-          margin:9px 0 14px;
+          line-height:1.65;
+          color:#9fadc0;
         }
-        .dp-tag {
-          color:#e9bd67;
-          border:1px solid #806539;
-          background:#302a1d;
-          border-radius:7px;
-          padding:8px 10px;
-          font-size:11px;
-          font-weight:800;
-        }
-        .dp-metrics {
-          display:grid;
-          grid-template-columns:repeat(3,minmax(0,1fr));
-          gap:10px;
-          margin:18px 0;
-        }
-        .dp-metrics > div {
-          display:flex;
-          flex-direction:column;
-          gap:8px;
-          background:#242c38;
-          padding:15px;
-          border:1px solid #303946;
-          border-radius:10px;
-        }
-        .dp-metrics small {
-          font-size:10px;
-          color:#aab6c3;
-        }
-        .dp-metrics strong {
-          color:#e9bd67;
-          font-size:23px;
-        }
-        .dp-odds-list {
-          display:flex;
-          flex-direction:column;
-          gap:9px;
-        }
-        .dp-odds-row {
-          display:flex;
-          align-items:center;
-          gap:13px;
-          background:#202733;
-          border:1px solid #384252;
-          border-radius:10px;
-          color:#fff;
-          padding:15px;
-          width:100%;
-          text-align:left;
-          cursor:pointer;
-        }
-        .dp-odds-row.selected {
-          border-color:#e9bd67;
-          background:#302c25;
-        }
-        .dp-rank {
-          font-size:20px;
-          font-weight:900;
-          color:#e9bd67;
-          width:24px;
-        }
-        .dp-odds-main {
-          flex:1;
-          min-width:0;
-          display:flex;
-          flex-direction:column;
-          gap:5px;
-        }
-        .dp-odds-main strong {
-          font-size:14px;
-        }
-        .dp-odds-main small,
-        .dp-odds-value small {
-          color:#a2afc0;
-          font-size:10px;
-        }
-        .dp-odds-value {
-          display:flex;
-          flex-direction:column;
-          text-align:right;
-          gap:5px;
-        }
-        .dp-odds-value strong {
-          color:#e9bd67;
-          font-size:21px;
-        }
-        .dp-progress {
-          width:100%;
-          height:7px;
-          background:#35404f;
-          border-radius:20px;
-          overflow:hidden;
-          margin-top:5px;
-        }
-        .dp-progress > div {
-          height:100%;
-          background:#d7ad63;
-          border-radius:20px;
-        }
-        .dp-table-wrap {
-          overflow-x:auto;
-          width:100%;
-        }
-        .dp-table {
-          width:100%;
-          border-collapse:collapse;
-          font-size:12px;
-          white-space:nowrap;
-        }
-        .dp-table th {
-          color:#9fafc2;
-          font-size:10px;
-          text-align:left;
-          padding:12px 10px;
-          border-bottom:1px solid #384252;
-        }
-        .dp-table td {
-          padding:13px 10px;
-          border-bottom:1px solid #2a3442;
-        }
-        .dp-table td:last-child {
-          color:#e9bd67;
-          font-weight:800;
-        }
-        .dp-field-row {
-          display:flex;
-          align-items:center;
-          gap:13px;
-          padding:15px;
-          border:1px solid #35404f;
-          background:#202733;
-          border-radius:9px;
-          margin-bottom:8px;
-        }
-        .dp-seed-number {
-          width:38px;
-          color:#e9bd67;
-          font-size:20px;
-          font-weight:900;
-        }
-        .dp-grow {
-          flex:1;
-          min-width:0;
-        }
-        .dp-grow strong,
-        .dp-field-row strong {
-          display:block;
-          font-size:13px;
-        }
-        .dp-grow small,
-        .dp-field-row small {
-          display:block;
-          margin-top:5px;
-          color:#9fafc2;
-          font-size:10px;
-        }
-        .dp-right {
-          text-align:right;
-        }
-        .dp-division-grid {
+        .dp-odds {
           display:grid;
           grid-template-columns:repeat(2,minmax(0,1fr));
-          gap:12px;
-        }
-        .dp-division {
-          padding:15px;
-          background:#202733;
-          border:1px solid #35404f;
-          border-radius:10px;
-        }
-        .dp-division h3 { margin:0 0 10px; }
-        .dp-division button {
-          width:100%;
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
           gap:10px;
-          background:none;
-          border:0;
-          border-top:1px solid #384252;
-          padding:12px 0;
-          color:#fff;
-          cursor:pointer;
-          text-align:left;
-          font-size:12px;
         }
-        .dp-button {
-          background:#302a1d;
-          color:#e9bd67;
-          border:1px solid #806539;
-          border-radius:8px;
-          padding:9px 12px;
-          font-weight:800;
-          font-size:11px;
+        .dp-odds-row {
+          background:#242c38;
+          border:1px solid #35404f;
+          padding:14px;
+          border-radius:9px;
+          min-width:0;
+        }
+        .dp-odds-row small {
+          color:#a7b3c1;
+          font-size:10px;
+          display:block;
+          margin-top:7px;
+        }
+        .dp-progress {
+          height:8px;
+          background:#35404f;
+          border-radius:99px;
+          overflow:hidden;
+          margin-top:11px;
+        }
+        .dp-progress div {
+          height:100%;
+          background:#d7ad63;
+          border-radius:99px;
+        }
+        button {
           cursor:pointer;
         }
         .dp-week {
           border:1px solid #35404f;
           border-radius:9px;
-          overflow:hidden;
           margin:8px 0;
           background:#202733;
+          overflow:hidden;
         }
-        .dp-week-header {
+        .dp-week-head {
+          width:100%;
           display:flex;
           justify-content:space-between;
-          align-items:center;
-          width:100%;
-          background:none;
-          border:0;
           padding:15px;
           color:#fff;
-          cursor:pointer;
+          background:transparent;
+          border:0;
         }
-        .dp-week-header span {
-          color:#9fafc2;
-          font-size:11px;
+        .dp-week-body {
+          padding:0 14px 14px;
         }
-        .dp-week-games { padding:0 13px 13px; }
-        .dp-matchup {
+        .dp-game {
           display:grid;
-          grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);
+          grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);
           align-items:center;
-          gap:7px;
-          padding:9px 0;
+          gap:8px;
+          padding:8px 0;
           border-top:1px solid #35404f;
         }
-        .dp-matchup > span {
-          color:#9fafc2;
-          font-size:10px;
+        .dp-game span {
+          color:#9fadc0;
           text-align:center;
-        }
-        .dp-matchup button {
-          background:#2b3542;
-          color:#dce3ed;
-          padding:12px 7px;
-          border:1px solid #465364;
-          border-radius:8px;
           font-size:11px;
-          font-weight:700;
-          cursor:pointer;
+        }
+        .dp-game button {
+          border-radius:7px;
+          border:1px solid #465364;
+          background:#2b3542;
+          color:#e0e5ed;
+          font-size:12px;
+          padding:12px 6px;
           overflow-wrap:anywhere;
         }
-        .dp-matchup button.picked {
+        .dp-game button.active {
           background:#423922;
-          color:#f3cb80;
-          border-color:#d7ad63;
+          border-color:#e9bd67;
+          color:#f4cf8a;
         }
-        .dp-select {
-          padding:13px;
-          width:100%;
-          max-width:420px;
-          color:#fff;
-          border:1px solid #806539;
-          background:#202733;
-          border-radius:9px;
-          margin-bottom:16px;
-        }
-        .dp-team-path {
-          background:#1d2530;
-          border:1px solid #35404f;
-          border-radius:11px;
-          padding:18px;
-        }
-        .dp-team-path .dp-heading h3 {
-          margin:0;
-          color:#fff;
-          font-size:20px;
-        }
-        .dp-highlight {
+        .dp-buttons {
           display:flex;
-          flex-direction:column;
-          text-align:right;
-          gap:5px;
+          gap:10px;
+          margin:16px 0;
         }
-        .dp-highlight strong {
-          font-size:28px;
-          color:#e9bd67;
-        }
-        .dp-highlight small {
-          font-size:10px;
-          color:#9fafc2;
-        }
-        .dp-team-game {
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:12px;
-          padding:12px;
-          margin:8px 0;
-          background:#242d39;
-          border:1px solid #35404f;
-          border-radius:9px;
-        }
-        .dp-team-game small {
-          display:block;
-          color:#9fafc2;
-          font-size:10px;
-          margin-bottom:5px;
-        }
-        .dp-team-game strong {
-          font-size:12px;
-        }
-        .dp-actions {
-          display:flex;
-          gap:6px;
-          flex-wrap:wrap;
-        }
-        .dp-actions button {
-          background:#303a48;
-          border:1px solid #465364;
-          color:#e0e5ed;
-          border-radius:7px;
-          font-size:11px;
+        .dp-buttons button,
+        .dp-more {
+          padding:11px 15px;
+          border-radius:8px;
+          border:1px solid #706143;
+          background:#2c3440;
+          color:#f4f5f7;
           font-weight:800;
-          padding:9px 11px;
-          cursor:pointer;
+          font-size:12px;
         }
-        .dp-actions button.win {
-          background:#1d4737;
-          border-color:#59ba91;
-          color:#7fe0b4;
+        .dp-buttons .dp-gold {
+          background:#d7ad63;
+          color:#191d23;
         }
-        .dp-actions button.loss {
-          background:#47282d;
-          border-color:#bb6670;
-          color:#f39ba5;
+        .dp-results {
+          margin-top:18px;
+          border-top:1px solid #35404f;
+          padding-top:12px;
         }
-        .dp-action-row { margin:16px 0; }
-        .dp-watch {
+        .dp-result {
+          display:grid;
+          grid-template-columns:minmax(0,1fr) 70px 75px;
+          gap:10px;
+          padding:11px 0;
+          border-bottom:1px solid #303947;
+          font-size:12px;
+        }
+        .dp-result span {
+          text-align:right;
+        }
+        .up {
+          color:#65d39c;
+        }
+        .down {
+          color:#e87d83;
+        }
+        .dp-owner {
+          background:#202733;
+          border:1px solid #35404f;
+          border-radius:9px;
+          margin:10px 0;
+        }
+        .dp-owner>summary {
           display:flex;
           justify-content:space-between;
           align-items:center;
-          gap:14px;
-          padding:14px;
-          margin:8px 0;
-          background:#242d39;
+          gap:12px;
+          cursor:pointer;
+          padding:16px;
+        }
+        .dp-owner>summary span {
+          font-size:11px;
+          color:#d7ad63;
+          text-align:right;
+        }
+        .dp-owner-body {
+          padding:0 15px 15px;
+        }
+        .dp-group {
+          background:#171d26;
           border:1px solid #35404f;
           border-radius:9px;
+          margin:12px 0;
+          padding:13px;
         }
-        .dp-watch p {
-          color:#a2afc0;
-          font-size:11px;
-        }
-        .dp-watch p b { color:#e9bd67; }
-        .dp-watch .dp-right strong {
-          color:#e9bd67;
-        }
-        .dp-watch .dp-button {
-          margin-top:9px;
-        }
-        .dp-seed-chance {
-          display:grid;
-          grid-template-columns:65px minmax(0,1fr) 65px;
-          align-items:center;
-          gap:12px;
-          padding:9px 0;
+        .dp-line {
+          border-bottom:1px solid #303947;
+          padding:8px 0;
           font-size:12px;
+          line-height:1.5;
+          color:#d4dce5;
         }
-        .dp-seed-chance strong {
-          text-align:right;
-          color:#e9bd67;
+        .dp-path {
+          border:1px solid #3c4857;
+          border-radius:8px;
+          margin:8px 0;
+          background:#222b37;
         }
-        .dp-outlook {
-          background:#2a2a22;
-          border:1px solid #806539;
-          border-radius:9px;
-          padding:15px;
-        }
-        .dp-outlook strong { color:#e9bd67; }
-        .dp-outlook p {
-          color:#b3bdca;
+        .dp-path summary {
+          cursor:pointer;
+          padding:11px;
           font-size:12px;
-          line-height:1.7;
+          color:#f2cc80;
+          font-weight:800;
         }
-        @media(max-width:700px) {
-          .dp-division-grid {
+        .dp-path-body {
+          padding:0 12px 12px;
+        }
+        .dp-warning {
+          font-size:12px;
+          color:#f2c977;
+          line-height:1.6;
+        }
+        .dp-more {
+          margin:10px 0;
+        }
+        @media(max-width:620px) {
+          .dp-odds {
             grid-template-columns:1fr;
           }
           .dp-panel {
-            padding:15px;
+            padding:14px;
           }
-        }
-        @media(max-width:480px) {
-          .dp-panel h2 { font-size:20px; }
-          .dp-metrics strong { font-size:17px; }
-          .dp-metrics > div { padding:10px; }
-          .dp-team-game {
-            align-items:flex-start;
+          .dp-panel h2 {
+            font-size:20px;
+          }
+          .dp-owner>summary {
             flex-direction:column;
-          }
-          .dp-watch {
             align-items:flex-start;
-            flex-direction:column;
           }
-          .dp-watch .dp-right { text-align:left; }
-          .dp-odds-value strong { font-size:18px; }
-          .dp-odds-row { padding:11px; gap:8px; }
+          .dp-owner>summary span {
+            text-align:left;
+          }
         }
       `}</style>
     </div>
