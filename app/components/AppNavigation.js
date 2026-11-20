@@ -181,6 +181,30 @@ export default function AppNavigation() {
         </div>
       </nav>
 
+      {/* TABLET NAVIGATION: all destinations visible without a phone drawer. */}
+      <nav className="dp-tablet-nav" aria-label="Tablet navigation">
+        <div className="dp-tablet-nav-inner">
+          <div className="dp-tablet-brand-row">
+            <Link href="/" className="dp-tablet-brand" onClick={() => setMoreOpen(false)}>
+              <span className="dp-tablet-mark" aria-hidden="true">DP</span>
+              <span><strong>DIRTY P</strong><small>FANTASY FOOTBALL</small></span>
+            </Link>
+            <span className="dp-tablet-nav-caption">THE LEAGUE ARCHIVE</span>
+          </div>
+          <div className="dp-tablet-links">
+            {links.map(link => (
+              <Link key={link.href} href={link.href}
+                aria-current={isActive(link.href) ? "page" : undefined}
+                className={`dp-tablet-link ${isActive(link.href) ? "is-active" : ""}`}
+                onClick={() => setMoreOpen(false)}>
+                <NavIcon name={link.icon} size={18} />
+                <span>{link.mobileLabel || link.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </nav>
+
       {/* MOBILE MORE MENU */}
 
       {moreOpen && (
@@ -567,6 +591,116 @@ export default function AppNavigation() {
             font-size: 25px;
             font-weight: 300;
           }
+        }
+
+        /* TABLET: the full navigation is always accessible, in two
+           touch-sized rows for portrait and one row for landscape. */
+        .dp-tablet-nav { display: none; }
+        @media (min-width: 700px) and (max-width: 1199px) {
+          .dp-desktop-nav { display: none !important; }
+          .app-bottom-nav.dp-mobile-nav { display: none !important; }
+          .dp-tablet-nav {
+            display: block !important;
+            background: linear-gradient(125deg,#111923,#1a2330);
+            border-bottom: 1px solid #3a4656;
+            box-shadow: 0 5px 17px rgba(0,0,0,.17);
+          }
+          .dp-tablet-nav-inner {
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 9px 25px 11px;
+          }
+          .dp-tablet-brand-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 0 3px 10px;
+          }
+          .dp-tablet-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            color: #fff;
+            text-decoration: none;
+          }
+          .dp-tablet-mark {
+            width: 33px;
+            height: 33px;
+            flex-shrink: 0;
+            display: grid;
+            place-items: center;
+            border: 1px solid #d8b26d;
+            border-radius: 8px;
+            background: #3a3025;
+            color: #f5d394;
+            font-size: 12px;
+            font-weight: 950;
+            letter-spacing: -.5px;
+          }
+          .dp-tablet-brand strong {
+            display: block;
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: 1.4px;
+          }
+          .dp-tablet-brand small {
+            display: block;
+            color: #9eacbd;
+            font-size: 9px;
+            letter-spacing: 1px;
+            font-weight: 750;
+          }
+          .dp-tablet-nav-caption {
+            color: #bba782;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.4px;
+            white-space: nowrap;
+          }
+          .dp-tablet-links {
+            display: grid;
+            grid-template-columns: repeat(4,minmax(0,1fr));
+            gap: 6px;
+          }
+          .dp-tablet-link {
+            min-width: 0;
+            min-height: 45px;
+            padding: 10px 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 7px;
+            border: 1px solid #303c4c;
+            border-radius: 9px;
+            background: rgba(255,255,255,.035);
+            color: #c0cbd8;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 750;
+            line-height: 1.2;
+            text-align: center;
+            white-space: nowrap;
+          }
+          .dp-tablet-link svg { flex-shrink: 0; }
+          .dp-tablet-link:hover,
+          .dp-tablet-link:focus-visible {
+            color: #fff;
+            background: #293749;
+            border-color: #bd995b;
+          }
+          .dp-tablet-link.is-active {
+            color: #f2d297;
+            background: #313126;
+            border-color: #b88b4b;
+          }
+          .dp-tablet-link:focus-visible { outline: 2px solid #e7c784; outline-offset: 2px; }
+        }
+        @media (min-width: 940px) and (max-width: 1199px) {
+          .dp-tablet-links { grid-template-columns: repeat(8,minmax(0,1fr)); }
+          .dp-tablet-link { font-size: 10px; gap: 4px; }
+          .dp-tablet-link svg { width: 16px; height: 16px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
