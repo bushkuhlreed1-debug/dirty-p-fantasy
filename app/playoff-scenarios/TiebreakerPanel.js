@@ -361,7 +361,7 @@ export default function TiebreakerPanel({
               <p style={{ color: "#d9e1ec", margin: "7px 0 4px", fontSize: 13 }}>
                 2026 head-to-head: <b>{c.myWins}–{c.theirWins}
                 {c.ties ? "–" + c.ties : ""}</b>
-                {" · "}Season points: <b>{points(c.myPF)} vs. {points(c.theirPF)}</b>
+                {" · "}Points difference: <b>{Math.abs(c.myPF - c.theirPF) < 0.005 ? "Tied" : `${c.myPF > c.theirPF ? owner.ownerName : c.other.ownerName} leads by ${points(Math.abs(c.myPF - c.theirPF))}`}</b>
               </p>
               <div style={{
                 color: leading ? "#7ed9b0" : "#c6cbd4",
