@@ -1188,7 +1188,7 @@ export default function ScenarioSimulator({
       t.ownerId === Number(selection)
   )
     ? Number(selection)
-    : candidates[0]?.ownerId;
+    : candidates.find(t => t.ownerName === "Reed Bushkuhl")?.ownerId ?? candidates[0]?.ownerId;
 
   const owner = byId.get(id);
 
@@ -1337,12 +1337,6 @@ export default function ScenarioSimulator({
           These are ESPN's official standings playoff percentages, refreshed from ESPN when available. Hypothetical outcomes below remain independent estimates.
         </p>
       </section>
-
-      <TiebreakerPanel
-        teams={teams}
-        completedGames={completedGames}
-        seedingRule={seedingRule}
-      />
 
       {/* ========================================
           2. THIS WEEK: WHAT YOU NEED
@@ -1618,21 +1612,22 @@ export default function ScenarioSimulator({
           3. ROAD TO THE PLAYOFFS
       ======================================== */}
 
-      <section className="dp-panel">
-        <span className="dp-kicker">
-          POSTSEASON SURVIVAL
-        </span>
-
-        <h2>
-          Road to the Playoffs
-        </h2>
-
-        <p className="dp-muted">
-          See how many outcomes guarantee
-          a berth, leave a path open, or
-          eliminate an owner. Extended playoff scenarios are available starting in Week 11.
-          Before all results can be enumerated, detailed paths are sampled.
-        </p>
+      <section className="dp-panel dp-road-panel">
+        <div className="dp-road-header">
+          <div>
+            <span className="dp-kicker">YOUR POSTSEASON PICTURE</span>
+            <h2>Road to the Playoffs</h2>
+            <p className="dp-muted">
+              Choose an owner to see their playoff outlook, possible paths, and
+              ESPN seeding tiebreakers in one place.
+            </p>
+          </div>
+          {owner && <div className="dp-road-probability">
+            <span>PLAYOFF CHANCE</span>
+            <strong>{pct(displayedBaseline)}</strong>
+            <small>{espnBaseline != null ? "ESPN projection" : "Model estimate"}</small>
+          </div>}
+        </div>
 
         {!baseline.exact && (
           <p className="dp-warning">
@@ -1666,52 +1661,28 @@ export default function ScenarioSimulator({
               ))}
             </select>
 
-            <div className="dp-report">
-              <div className="dp-between">
-                <h3>
-                  {owner.ownerName}
-                </h3>
-
-                <span className="dp-pill">
-                  {statusName}
-                </span>
+            <div className="dp-report dp-road-report">
+              <div className="dp-between dp-road-owner-heading">
+                <div>
+                  <small className="dp-road-label">SELECTED OWNER</small>
+                  <h3>{owner.ownerName}</h3>
+                  <small className="dp-muted">{owner.wins}-{owner.losses} record · {owner.divisionName || "League standings"}</small>
+                </div>
+                <span className="dp-pill">{statusName}</span>
               </div>
 
-              <div className="dp-three">
+              <div className="dp-three dp-road-stats">
                 {[
-                  {
-                    key: "clinch",
-                    title: "Clinch Berth",
-                    color: "#55c993"
-                  },
-                  {
-                    key: "hunt",
-                    title: "In the Hunt",
-                    color: "#e6b65b"
-                  },
-                  {
-                    key: "out",
-                    title: "Eliminated",
-                    color: "#e47d83"
-                  }
+                  { key: "clinch", title: "Berth guaranteed", color: "#55c993" },
+                  { key: "hunt", title: "Tiebreaker dependent", color: "#e6b65b" },
+                  { key: "out", title: "Misses playoffs", color: "#e47d83" }
                 ].map(x => (
-                  <div
-                    className="dp-stat"
-                    key={x.key}
-                  >
-                    <strong
-                      style={{
-                        color: x.color
-                      }}
-                    >
-                      {stats[
-                        x.key
-                      ].toLocaleString()}
+                  <div className="dp-stat dp-road-stat" key={x.key}>
+                    <strong style={{ color: x.color }}>
+                      {pct(stats[x.key] / Math.max(1, baseline.iterations))}
                     </strong>
-
-                    <small>
-                      {x.title}
-                    </small>
+                    <small>{x.title}</small>
+                    <span>{stats[x.key].toLocaleString()} scenarios</span>
                   </div>
                 ))}
               </div>
@@ -1780,7 +1751,13 @@ export default function ScenarioSimulator({
                   />
                 )}
 
-              
+              <TiebreakerPanel
+                ownerId={owner.ownerId}
+                embedded
+                teams={teams}
+                completedGames={completedGames}
+                seedingRule={seedingRule}
+              />
             </div>
           </>
         )}
@@ -1825,6 +1802,77 @@ export default function ScenarioSimulator({
           color: #f1f4f8;
         }
 
+        .dp-road-panel {
+          background: linear-gradient(165deg, #192535 0%, #121922 68%);
+          border-color: #40546b;
+        }
+        .dp-road-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 16px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid #344456;
+        }
+        .dp-road-header h2 {
+          margin-bottom: 7px;
+        }
+        .dp-road-header p {
+          max-width: 540px;
+          margin: 0;
+        }
+        .dp-road-probability {
+          display: flex;
+          flex-direction: column;
+          min-width: 160px;
+          gap: 3px;
+          padding: 14px 18px;
+          background: #101d2b;
+          border: 1px solid #536a82;
+          border-radius: 12px;
+        }
+        .dp-road-probability span, .dp-road-label {
+          color: #aebdd0;
+          font-weight: 800;
+          letter-spacing: 1.2px;
+          font-size: 10px;
+        }
+        .dp-road-probability strong {
+          font-size: 33px;
+          line-height: 1.1;
+          color: #e8c477;
+        }
+        .dp-road-probability small {
+          color: #aebdd0;
+          font-size: 11px;
+        }
+        .dp-road-report {
+          background: #172333;
+          border-color: #41566e;
+          padding: 20px;
+        }
+        .dp-road-owner-heading {
+          padding-bottom: 13px;
+          border-bottom: 1px solid #34465c;
+        }
+        .dp-road-owner-heading h3 {
+          margin: 5px 0;
+          font-size: 21px;
+        }
+        .dp-road-stat {
+          background: #101b29;
+          border-color: #35495e;
+          border-radius: 11px;
+          padding: 16px 7px;
+        }
+        .dp-road-stat strong {
+          font-size: clamp(20px, 4vw, 30px);
+        }
+        .dp-road-stat span {
+          color: #8293a8;
+          font-size: 10px;
+        }
         .dp-panel {
           background: #171d26;
           border: 1px solid #303b49;
