@@ -1036,7 +1036,7 @@ function EspnLineupRows({ players, nflGames = {}, playerBoxScores = {} }) {
         <span className="dp-espn-slot">{player.slot || "—"}</span>
         <span className="dp-espn-player-info">
           <span className="dp-player-identity">
-            <NflTeamLogo code={player.nflTeam} size={24} />
+            <span className="dp-nfl-logo-badge"><NflTeamLogo code={player.nflTeam} size={38} /></span>
             <strong>{player.name || player.fullName}</strong>
           </span>
           <small>{[player.nflTeam, player.position].filter(Boolean).join(" · ") || "NFL Player"}</small>
@@ -2790,7 +2790,19 @@ export default async function Home() {
 
         /* ESPN-style scoring grid: position, player, projected, actual. */
         .dp-live-statline { color:#e2ca8c!important; font-size:10px; line-height:1.5; }
-        .dp-player-identity { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+        .dp-player-identity { display:flex; align-items:center; gap:11px; flex-wrap:nowrap; }
+        .dp-nfl-logo-badge {
+          display:inline-flex; flex:0 0 49px; width:49px; height:49px;
+          justify-content:center; align-items:center; border-radius:12px;
+          background:linear-gradient(145deg,#35485e,#253548);
+          border:1px solid #556a82; box-shadow:0 3px 10px rgba(0,0,0,.24);
+        }
+        .dp-nfl-logo-badge .dp-nfl-logo { width:38px; height:38px; object-fit:contain; }
+        @media(max-width:550px) {
+          .dp-nfl-logo-badge { flex-basis:42px; width:42px; height:42px; border-radius:10px; }
+          .dp-nfl-logo-badge .dp-nfl-logo { width:33px; height:33px; }
+          .dp-live-columns .dp-player-identity { gap:7px; }
+        }
         .dp-player-opponent { display:flex; align-items:center; min-height:22px; }
         .dp-player-identity strong { min-width:0; overflow-wrap:anywhere; }
         .dp-player-game { color:#b7cce0; font-size:10px; }
