@@ -2596,3 +2596,31 @@ summary:focus-visible,
   .app-section-disclosure > summary { margin-bottom: 0; }
   .app-section-disclosure[open] > summary { margin-bottom: 16px; }
 }
+
+
+/* ESPN-style weekly lineups, NFL matchups and projected fantasy totals */
+.dp-espn-lineup { padding: 0; min-width: 0; }
+        .dp-espn-team-title { padding: 13px 12px; color: #f0c676; font-size: 11px; letter-spacing: .7px; font-weight: 900; }
+        .dp-team-live-totals { display: flex; gap: 5px; flex-direction: column; align-items: center; }
+        .dp-team-live-totals strong { font-size: 25px; color: #f6f7fa; }
+        .dp-team-projected { color: #eac57e; font-size: 11px; font-weight: 750; }
+        .dp-espn-columns, .dp-espn-player { display: grid; grid-template-columns: 41px minmax(0, 1fr) 47px 50px; align-items: center; column-gap: 7px; }
+        .dp-espn-columns { background: #101925; border-top: 1px solid #324050; border-bottom: 1px solid #394a60; color: #a7b8ca; padding: 9px 10px; font-size: 10px; font-weight: 800; }
+        .dp-espn-columns span:nth-child(3), .dp-espn-columns span:nth-child(4) { text-align: right; }
+        .dp-espn-player { min-height: 52px; padding: 9px 10px; background: #1b2634; border-bottom: 1px solid #314051; }
+        .dp-espn-player:nth-child(even) { background: #202d3d; }
+        .dp-espn-slot { color: #eac47f; font-size: 10px; font-weight: 900; }
+        .dp-espn-player-info { min-width: 0; display: grid; gap: 4px; }
+        .dp-espn-player-info strong { font-size: 11px; color: #f1f5fa; overflow-wrap: anywhere; }
+        .dp-espn-player-info small { font-size: 10px; color: #a8b9cc; }
+        .dp-espn-player-info .dp-espn-nfl-game { color: #e5bf7e; font-size: 10px; line-height: 1.4; }
+        .dp-espn-number { text-align: right; font-variant-numeric: tabular-nums; color: #b6c7d8; font-size: 11px; }
+        .dp-espn-actual { color: #f6f7fb; font-size: 12px; }
+        .dp-espn-bench { background: #151e2a; }
+        .dp-espn-bench > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; padding: 12px; cursor: pointer; color: #e9c37e; font-weight: 800; font-size: 11px; }
+        .dp-espn-bench > summary::-webkit-details-marker { display: none; }
+        .dp-espn-bench[open] > summary span { transform: rotate(180deg); }
+        @media(max-width: 480px) {
+          .dp-espn-columns, .dp-espn-player { grid-template-columns: 31px minmax(0, 1fr) 35px 42px; column-gap: 4px; padding-left: 6px; padding-right: 6px; }
+          .dp-espn-player-info strong { font-size: 10px; }
+        }
