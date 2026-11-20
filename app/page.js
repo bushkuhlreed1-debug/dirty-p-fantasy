@@ -1148,17 +1148,8 @@ function MatchupCard({
     }
   ];
 
-  return (
-    <article
-      className={
-        "dp-matchup-card " +
-        (
-          featured
-            ? "dp-featured-matchup"
-            : ""
-        )
-      }
-    >
+  const matchupHeader = (
+    <>
       <div className="dp-matchup-top">
         <span>
           {matchup.rival &&
@@ -1191,20 +1182,21 @@ function MatchupCard({
             )}
 
             <div className="dp-matchup-team">
-              <Link
-                href={
-                  `/owners/${side.ownerId}`
-                }
-              >
-                {side.standing?.teamName ||
-                  side.name}
-              </Link>
+              {live ? (
+                <span className="dp-matchup-team-label">
+                  {side.standing?.teamName || side.name}
+                </span>
+              ) : (
+                <Link href={`/owners/${side.ownerId}`}>
+                  {side.standing?.teamName || side.name}
+                </Link>
+              )}
 
               <small>
                 {side.name}
               </small>
 
-              <small>
+              <small className="dp-matchup-record">
                 {record(side.standing)}
               </small>
 
@@ -1235,20 +1227,44 @@ function MatchupCard({
         ))}
       </div>
 
+    </>
+  );
+
+  return (
+    <article
+      className={
+        "dp-matchup-card " +
+        (featured ? "dp-featured-matchup" : "")
+      }
+    >
       {live ? (
-        <div className="dp-two-columns dp-live-columns">
-          {sides.map(side => (
-            <LiveLineup
-              key={side.ownerId}
-              name={first(side.name)}
-              team={side.liveTeam}
-              nflGames={nflGames}
-              playerBoxScores={playerBoxScores}
-            />
-          ))}
-        </div>
+        <details className="dp-live-matchup-details">
+          <summary className="dp-live-matchup-summary">
+            {matchupHeader}
+            <div className="dp-matchup-expand-row">
+              <span>Player lineups &amp; game stats</span>
+              <span className="dp-matchup-expand-action">
+                <span className="dp-matchup-expand-text">View lineup</span>
+                <span className="dp-matchup-expand-chevron" aria-hidden="true">⌄</span>
+              </span>
+            </div>
+          </summary>
+          <div className="dp-two-columns dp-live-columns">
+                    {sides.map(side => (
+                      <LiveLineup
+                        key={side.ownerId}
+                        name={first(side.name)}
+                        team={side.liveTeam}
+                        nflGames={nflGames}
+                        playerBoxScores={playerBoxScores}
+                      />
+                    ))}
+                  </div>
+        </details>
       ) : (
         <>
+          {matchupHeader}
+
           <p className="dp-matchup-analysis">
             {matchup.analysis}
           </p>
@@ -2837,6 +2853,99 @@ export default async function Home() {
           .dp-live-columns .dp-espn-actual { font-size:16px; }
           .dp-live-columns .dp-espn-projection { font-size:16px; }
           .dp-live-columns .dp-espn-team-title { font-size:13px; }
+        }
+
+
+        /* Collapsible, easy-to-scan scoreboard on all screen sizes. */
+        .dp-live-matchup-details > summary {
+          display:block; list-style:none; cursor:pointer;
+          outline-offset:-3px;
+        }
+        .dp-live-matchup-details > summary::-webkit-details-marker { display:none; }
+        .dp-live-matchup-details > summary:focus-visible {
+          outline:2px solid #e5bb71; border-radius:12px;
+        }
+        .dp-live-matchup-grid .dp-matchup-top { padding:12px 18px; }
+        .dp-live-matchup-grid .dp-matchup-versus { padding:18px 14px; }
+        .dp-live-matchup-grid .dp-matchup-team-label {
+          color:#f1f4fa; font-size:17px; font-weight:900;
+          line-height:1.3; overflow-wrap:anywhere;
+        }
+        .dp-live-matchup-grid .dp-matchup-team strong {
+          font-size:clamp(30px,3vw,38px); letter-spacing:-.6px;
+          font-variant-numeric:tabular-nums;
+        }
+        .dp-matchup-expand-row {
+          display:flex; justify-content:space-between; align-items:center;
+          gap:10px; padding:11px 18px 12px; border-top:1px solid #39495d;
+          color:#c5d2e1; font-size:12px; font-weight:750;
+          background:#1b2634;
+        }
+        .dp-matchup-expand-action { display:flex;align-items:center;gap:10px;color:#edc47c; }
+        .dp-matchup-expand-chevron {
+          display:inline-flex; justify-content:center; align-items:center;
+          width:24px; height:24px; border-radius:7px;
+          background:#354354; color:#fff; font-size:22px;
+          transition:transform .18s;
+        }
+        .dp-live-matchup-details[open] .dp-matchup-expand-chevron { transform:rotate(180deg); }
+        .dp-live-matchup-details[open] .dp-matchup-expand-text::after { content:""; }
+        .dp-live-matchup-details > .dp-live-columns { border-top:1px solid #435269; }
+        @media(max-width:700px) {
+          .dp-live-matchup-grid { gap:13px; }
+          .dp-live-matchup-grid .dp-matchup-card { border-radius:16px; }
+          .dp-live-matchup-grid .dp-matchup-top { padding:10px 13px; font-size:10px; }
+          .dp-live-matchup-grid .dp-matchup-versus { padding:16px 7px 14px; }
+          .dp-live-matchup-grid .dp-matchup-team { padding:0 4px; gap:5px; }
+          .dp-live-matchup-grid .dp-matchup-team-label { font-size:13px; line-height:1.25; }
+          .dp-live-matchup-grid .dp-matchup-team small { font-size:11px; line-height:1.3; }
+          .dp-live-matchup-grid .dp-matchup-record { display:none; }
+          .dp-live-matchup-grid .dp-matchup-team strong { font-size:30px; line-height:1.1; }
+          .dp-live-matchup-grid .dp-team-projected { font-size:11px; }
+          .dp-matchup-expand-row { padding:11px 13px; font-size:12px; }
+          .dp-live-columns .dp-espn-columns { display:none; }
+          .dp-live-columns .dp-espn-team-title {
+            padding:15px 12px; font-size:14px; background:#162130;
+            border-bottom:1px solid #34465b;
+          }
+          .dp-live-columns .dp-espn-player {
+            display:grid;
+            grid-template-columns:26px minmax(0,1fr) 66px;
+            grid-template-areas:"slot player points" ". stats points";
+            align-items:center;
+            column-gap:10px; row-gap:5px;
+            padding:13px 12px; min-height:85px;
+          }
+          .dp-live-columns .dp-espn-slot {
+            grid-area:slot; align-self:center; font-size:11px;
+          }
+          .dp-live-columns .dp-espn-player-info {
+            grid-area:player; gap:3px;
+          }
+          .dp-live-columns .dp-espn-player-info small {
+            font-size:11.5px; color:#bcccdc; line-height:1.4;
+          }
+          .dp-live-columns .dp-player-identity { gap:9px; }
+          .dp-live-columns .dp-player-identity strong { font-size:14px; line-height:1.3; }
+          .dp-live-columns .dp-espn-stat-focus {
+            grid-area:stats; text-align:left; line-height:1.45;
+            color:#f6d699; font-size:14px; overflow-wrap:break-word;
+          }
+          .dp-live-columns .dp-espn-stat-focus:not(.dp-espn-stat-active) { display:none; }
+          .dp-live-columns .dp-espn-stat-active { font-size:14px; font-weight:850; }
+          .dp-live-columns .dp-espn-number {
+            grid-area:points; text-align:right; align-self:center;
+            font-size:18px; font-weight:900;
+          }
+          .dp-live-columns .dp-espn-projection { font-size:18px; }
+          .dp-live-columns .dp-espn-projection small { font-size:10px; }
+          .dp-live-columns .dp-espn-player:has(.dp-espn-stat-active) { min-height:97px; }
+          .dp-live-columns .dp-espn-player:has(.dp-espn-stat-active) .dp-espn-actual { font-size:18px; }
+          .dp-live-columns .dp-nfl-logo-badge {
+            flex:0 0 42px; width:42px; height:42px;
+          }
+          .dp-live-columns .dp-nfl-logo-badge .dp-nfl-logo { width:33px; height:33px; }
+          .dp-live-columns .dp-espn-bench > summary { font-size:13px; padding:15px 12px; }
         }
 
         .dp-live-player {
