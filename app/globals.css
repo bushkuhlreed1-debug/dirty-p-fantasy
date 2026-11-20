@@ -2624,3 +2624,64 @@ summary:focus-visible,
           .dp-espn-columns, .dp-espn-player { grid-template-columns: 31px minmax(0, 1fr) 35px 42px; column-gap: 4px; padding-left: 6px; padding-right: 6px; }
           .dp-espn-player-info strong { font-size: 10px; }
         }
+
+/* SUBSCRIBE TO MOBILE ALERTS */
+
+.dp-notification-page { max-width: 940px; margin: 0 auto; }
+.dp-notification-back { color: #e9c37e; font-size: 14px; font-weight: 750; }
+.dp-notification-hero {
+  padding: 30px 26px;
+  background: linear-gradient(135deg, #1c2735, #111820);
+  border: 1px solid #374557;
+  border-radius: 18px;
+}
+.dp-notification-hero .eyebrow { margin-bottom: 12px; }
+.dp-notification-hero h1 {
+  margin: 0 0 12px;
+  color: #fff;
+  font-size: clamp(28px, 5vw, 43px);
+  letter-spacing: -.025em;
+  line-height: 1.1;
+}
+.dp-notification-hero p:last-child {
+  margin: 0; color: #c2ccd9; font-size: 15px; line-height: 1.6;
+}
+.dp-notification-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 52px; height: 52px; margin-bottom: 17px;
+  background: #293747; border: 1px solid #4d6177; border-radius: 14px; font-size: 26px;
+}
+.dp-notification-steps {
+  padding: 23px 25px;
+  margin-top: 16px;
+  background: #171e29;
+  border: 1px solid #303c4c;
+  border-radius: 16px;
+}
+.dp-notification-steps h2 { margin: 0 0 12px; color: #f0c675; font-size: 18px; }
+.dp-notification-steps ol { margin: 0; padding-left: 24px; color: #d3dbe7; line-height: 1.65; font-size: 14px; }
+.dp-notification-steps li { padding: 4px 0; }
+.dp-notification-steps p { color: #aab9cb; font-size: 13px; margin: 13px 0 0; line-height: 1.5; }
+.dp-notification-error { padding: 16px; color: #ffc6c6; }
+.dp-notification-footnote { color: #aab9cb; font-size: 13px; line-height: 1.6; padding: 0 4px 18px; }
+.dp-mobile-notification-cta { display: none; }
+@media(max-width: 768px) {
+  .dp-notification-hero { padding: 23px 19px; }
+  .dp-notification-steps { padding: 20px; }
+  .dp-mobile-notification-cta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px;
+    margin: 0 auto 15px;
+    max-width: 1200px;
+    border: 1px solid #d2a758;
+    border-radius: 12px;
+    background: #312a20;
+    color: #f6d28b;
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .dp-mobile-notification-cta strong { flex: 1; }
+  .dp-notification-cta-arrow { font-size: 26px; line-height: 18px; }
+}
