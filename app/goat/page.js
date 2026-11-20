@@ -160,6 +160,69 @@ function getGoatPlayoffRound(game) {
 }
 
 // ======================================================
+// ACTUAL PLAYOFF RECORD (NOT THE GOAT POINTS FORMULA)
+//
+// Like Owner profiles, playoff W-L includes all completed
+// championship-bracket games, including third-place games.
+// Consolation is never a playoff win/loss. The narrower
+// semifinal/championship rules above ONLY award GOAT points.
+// ======================================================
+
+function isPlayoffRecordGame(game) {
+  const type = normalize(game.matchup_type);
+  const tier = normalize(game.playoff_tier);
+
+  // Third-place games are playoff games, even if a legacy
+  // import has also marked the game as consolation.
+  if (
+    game.is_third_place === true ||
+    /third_?place|3rd_?place|bronze/.test(type)
+  ) return true;
+
+  if (
+    game.is_consolation === true ||
+    /consolation|loser|toilet/.test(type) ||
+    /consolation|loser|toilet/.test(tier)
+  ) return false;
+
+  return (
+    game.is_playoff === true ||
+    game.is_championship === true ||
+    /playoff|semifinal|semi_final|championship|title_game|opening_round|first_round/.test(type) ||
+    /winner|championship/.test(tier)
+  );
+}
+
+function isCompletedForPlayoffRecord(game, currentSeason) {
+  if (!hasValidScores(game)) return false;
+  if (num(game.home_score) === 0 && num(game.away_score) === 0) return false;
+
+  // Older archived games often have final scores but no
+  // explicit completed flag. The owner page accepts them.
+  if (Number(game.season_year) < Number(currentSeason)) return true;
+
+  return (
+    game.completed === true ||
+    game.is_final === true ||
+    String(game.status || "").trim().toUpperCase() === "FINAL" ||
+    ["HOME", "AWAY", "TIE"].includes(String(game.winner || "").trim().toUpperCase())
+  );
+}
+
+function canonicalGameKey(game) {
+  const owners = [
+    Number(game.home_owner_id),
+    Number(game.away_owner_id),
+  ].sort((a, b) => a - b);
+
+  return [
+    Number(game.season_year),
+    Number(game.matchup_period),
+    ...owners,
+  ].join(":");
+}
+
+// ======================================================
 // COMPLETED MATCHUP HELPERS
 // ======================================================
 
@@ -748,21 +811,35 @@ export default async function GoatPage() {
     completedGames
   );
 
-  // Match the GOAT award rules: semifinal and championship games
-  // count toward the playoff record, not third-place or consolation.
+  // Actual playoff records: all completed playoff-bracket
+  // games, including third-place. This intentionally uses
+  // different eligibility than GOAT playoff-win points.
+  const completedPlayoffGames = new Map();
+  for (const game of matchups) {
+    if (
+      isPlayoffRecordGame(game) &&
+      isCompletedForPlayoffRecord(game, currentSeason)
+    ) {
+      completedPlayoffGames.set(canonicalGameKey(game), game);
+    }
+  }
+
   const playoffRecords = new Map();
-  for (const game of completedGames) {
-    if (!getGoatPlayoffRound(game)) continue;
+  for (const game of completedPlayoffGames.values()) {
     const homeId = Number(game.home_owner_id);
     const awayId = Number(game.away_owner_id);
     if (!homeId || !awayId || homeId === awayId) continue;
+
     const winner = getWinnerOwnerId(game);
-    for (const ownerId of [homeId,awayId]) {
-      const record = playoffRecords.get(ownerId) || {wins:0,losses:0,ties:0};
+    for (const ownerId of [homeId, awayId]) {
+      const record = playoffRecords.get(ownerId) || {
+        wins: 0, losses: 0, ties: 0
+      };
       if (winner === null) record.ties++;
       else if (winner === ownerId) record.wins++;
       else record.losses++;
-      playoffRecords.set(ownerId,record);
+
+      playoffRecords.set(ownerId, record);
     }
   }
 
