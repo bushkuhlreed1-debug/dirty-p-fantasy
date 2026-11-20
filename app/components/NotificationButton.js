@@ -259,6 +259,7 @@ export default function NotificationButton({
 
 
             setEnabled(true);
+            window.dispatchEvent(new Event("dirty-p-notifications-changed"));
 
           } catch (error) {
             console.error(
@@ -454,6 +455,7 @@ export default function NotificationButton({
       );
 
       setEnabled(true);
+      window.dispatchEvent(new Event("dirty-p-notifications-changed"));
 
       setChoosingOwner(false);
 
