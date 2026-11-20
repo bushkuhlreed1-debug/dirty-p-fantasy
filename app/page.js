@@ -81,6 +81,38 @@ function isRival(a, b) {
   });
 }
 
+// Give each designated rivalry its own matchup storyline.
+function rivalryStory(a, b, series, awayStanding, homeStanding) {
+  const names = [a, b].map(name => String(name || "").toLowerCase());
+  const includes = (name) => names.includes(name.toLowerCase());
+  const gamesPlayed = n(series.aWins) + n(series.bWins) + n(series.ties);
+  const margin = Math.abs(n(series.aWins) - n(series.bWins));
+  const history = gamesPlayed === 0
+    ? "This matchup is writing the first chapter of its head-to-head history."
+    : margin === 0
+      ? `Their all-time series is tied after ${gamesPlayed} meetings, so this one breaks the deadlock.`
+      : margin === 1
+        ? "The all-time series is separated by just one game, adding another chapter to a tight rivalry."
+        : "The trailing owner has a chance to cut into the all-time series gap.";
+
+  if (includes("Reed Bushkuhl") && includes("Austin Lloyd")) {
+    return `Reed and Austin have their own score to settle in Rivalry Week. ${history}`;
+  }
+  if (includes("Ryan Goodlett") && includes("Matthew Aitkens")) {
+    return `Ryan and Matthew get another head-to-head showdown with plenty to talk about afterward. ${history}`;
+  }
+  if (includes("Tyler Guenther") && includes("Edward Wachtel")) {
+    return `Tyler and Edward meet with the historical bragging rights up for grabs again. ${history}`;
+  }
+  if (includes("Brent Fleischer") && includes("Valentin Almendarez")) {
+    return `Brent and Valentin renew their Rivalry Week matchup, with a chance to rewrite the head-to-head story. ${history}`;
+  }
+  if (includes("Jacob Madden") && includes("Cody Stinnett")) {
+    return `Cody and Jacob square off in a matchup where the all-time results are part of the stakes. ${history}`;
+  }
+  return `A rivalry with its own history takes center stage this week. ${history}`;
+}
+
 function isFinal(game) {
   const winner = String(
     game?.winner || ""
@@ -1541,10 +1573,23 @@ export default async function Home() {
 
   const pregame = !live;
 
+  // The previous week's recap stays up through Wednesday in
+  // the league's Central time zone, then disappears on Thursday.
+  const centralWeekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    weekday: "long"
+  }).format(new Date());
+  const recapWindowOpen = [
+    "Monday",
+    "Tuesday",
+    "Wednesday"
+  ].includes(centralWeekday);
+
   const showRecap = Boolean(
     !live &&
     recap &&
-    recapWeek < displayWeek
+    recapWeek === displayWeek - 1 &&
+    recapWindowOpen
   );
 
   function teamIntel(ownerId) {
@@ -1700,7 +1745,13 @@ export default async function Home() {
           displayWeek === 11
         ) {
           notes.push(
-            "An official Rivalry Week matchup with bragging rights on the line."
+            rivalryStory(
+              awayName,
+              homeName,
+              series,
+              awayStanding,
+              homeStanding
+            )
           );
         }
 
