@@ -2794,8 +2794,8 @@ export default async function Home() {
         .dp-nfl-logo-badge {
           display:inline-flex; flex:0 0 49px; width:49px; height:49px;
           justify-content:center; align-items:center; border-radius:12px;
-          background:linear-gradient(145deg,#35485e,#253548);
-          border:1px solid #556a82; box-shadow:0 3px 10px rgba(0,0,0,.24);
+          background:linear-gradient(145deg,#ffffff,#e9edf2);
+          border:1px solid #cbd3df; box-shadow:0 3px 10px rgba(0,0,0,.3);
         }
         .dp-nfl-logo-badge .dp-nfl-logo { width:38px; height:38px; object-fit:contain; }
         @media(max-width:550px) {
