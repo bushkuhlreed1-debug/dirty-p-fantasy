@@ -2,15 +2,26 @@ name: Thursday Night Catch Alerts
 
 on:
   schedule:
+    # November 19 evening in Central Time = November 20, 01:00-05:59 UTC.
+    # GitHub can delay scheduled job starts, so polls are best-effort.
     - cron: "*/5 1-5 20 11 *"
   workflow_dispatch:
+
+concurrency:
+  group: thursday-catch-alerts-2026
+  cancel-in-progress: false
 
 jobs:
   check-catches:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 7
     steps:
-      - name: Check Tyler Warren and Xavier Hutchinson receptions
+      - name: Check Tyler Warren and Xavier Hutchinson every 30 seconds
+        shell: bash
         run: |
-          curl --fail --show-error --silent --max-time 90 \
-            "https://dirty-p-fantasy.vercel.app/api/notifications/catches"
+          for i in $(seq 1 10); do
+            curl --fail --show-error --silent --max-time 20 \
+              "https://dirty-p-fantasy.vercel.app/api/notifications/catches" || true
+            echo
+            if [ "$i" -lt 10 ]; then sleep 30; fi
+          done
