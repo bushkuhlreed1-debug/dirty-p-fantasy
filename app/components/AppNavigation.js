@@ -376,11 +376,15 @@ export default function AppNavigation() {
             display: none !important;
           }
 
+          body { padding-bottom: 0 !important; }
+
+
           .app-bottom-nav.dp-mobile-nav {
-            position: fixed !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
+            /* Normal page flow, so the navigation ribbon scrolls away. */
+            position: static !important;
+            left: auto !important;
+            right: auto !important;
+            bottom: auto !important;
             width: 100% !important;
             height: auto !important;
             min-height: 63px !important;
@@ -396,9 +400,8 @@ export default function AppNavigation() {
             border: none !important;
             border-top: 1px solid #2a3340 !important;
             border-radius: 0 !important;
-            box-shadow: 0 -5px 24px rgba(0, 0, 0, 0.24)
-              !important;
-            z-index: 10000 !important;
+            box-shadow: none !important;
+            z-index: auto !important;
           }
 
           .app-bottom-nav.dp-mobile-nav
