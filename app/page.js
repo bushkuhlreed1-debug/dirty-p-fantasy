@@ -1038,10 +1038,42 @@ function EspnLineupRows({ players, nflGames = {} }) {
             <strong>{player.name || player.fullName}</strong>
           </span>
           <small>{[player.nflTeam, player.position].filter(Boolean).join(" · ") || "NFL Player"}</small>
-          {nflGame?.opponent && (
-            <span className="dp-player-opponent" title={`Opponent: ${nflGame.opponent}`}>
-              <NflTeamLogo code={nflGame.opponent} size={21} />
-            </span>
+          {nflGame && (
+            <>
+              <small className="dp-espn-nfl-game">
+                {nflGame.isHome ? "vs " : "@ "}{nflGame.opponent}
+                {" · "}
+                {nflGame.kickoff ? new Intl.DateTimeFormat("en-US", {
+                  timeZone: "America/Chicago", weekday: "short", month: "short",
+                  day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short"
+                }).format(new Date(nflGame.kickoff)) : nflGame.status}
+              </small>
+              {nflGame.state === "in" && (
+                <small className="dp-espn-nfl-game">
+                  {nflGame.ownScore ?? "–"}-{nflGame.opponentScore ?? "–"} · {nflGame.status}
+                </small>
+              )}
+              {nflGame.state === "post" && (
+                <small className="dp-espn-nfl-game">FINAL · {nflGame.ownScore ?? "–"}-{nflGame.opponentScore ?? "–"}</small>
+              )}
+              <small className="dp-broadcast-network">
+                TV: {nflGame.network || "Not announced"}
+              </small>
+              {(() => {
+                const network = String(nflGame.network || "").toUpperCase();
+                let provider = null;
+                if (/PRIME|AMAZON/.test(network)) provider = { name: "Prime Video", url: "https://www.primevideo.com/tournament/amzn1.dv.icid.8dc09428-4ec1-49d5-80a9-73d52c5f7ad6" };
+                else if (/FOX|FS1/.test(network)) provider = { name: "FOX Sports", url: "https://www.foxsports.com/live" };
+                else if (/CBS|PARAMOUNT/.test(network)) provider = { name: "CBS / Paramount+", url: "https://www.paramountplus.com/shows/nfl-on-cbs/" };
+                else if (/NBC|PEACOCK/.test(network)) provider = { name: "NBC / Peacock", url: "https://www.peacocktv.com/sports/nfl" };
+                else if (/ESPN|ABC/.test(network)) provider = { name: "ESPN", url: "https://www.espn.com/watch/" };
+                else if (/NFL NETWORK/.test(network)) provider = { name: "NFL Network", url: "https://www.nfl.com/network/" };
+                const destination = provider?.url || nflGame.watchUrl || nflGame.eventUrl;
+                return destination ? <a className="dp-nfl-watch" href={destination} target="_blank" rel="noopener noreferrer">
+                  {provider ? `Watch on ${provider.name} ↗` : "Game / viewing options ↗"}
+                </a> : null;
+              })()}
+            </>
           )}
         </span>
         <span className="dp-espn-number">{projected === null ? "—" : one(projected)}</span>
