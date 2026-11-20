@@ -61,13 +61,16 @@ export default function ScoreboardExtras({matchups=[],games={},week,playoffTeams
  if(closest)feed.unshift({type:"PHOTO FINISH",headline:closest.sides.map(s=>s.name).join(" vs "),detail:"Closest projected finish · "+fmt(closest.margin)+" point spread"});
  if(blowout && blowout!==closest)feed.push({type:"BLOWOUT WATCH",headline:blowout.sides.map(s=>s.name).join(" vs "),detail:"Largest projected spread · "+fmt(blowout.margin)+" points"});
  return <section className="dp-extras">
-   <div className="dp-redzone">
-     <div className="dp-redzone-head"><span className="dp-redzone-pulse"/> <strong>DIRTY P REDZONE</strong><small>Week {week} · League-wide live wire</small></div>
+   <details className="dp-redzone dp-collapsible-section">
+     <summary className="dp-section-toggle"><span className="dp-redzone-head"><span className="dp-redzone-pulse"/> <strong>DIRTY P REDZONE</strong><small>Week {week} · League-wide live wire</small></span><span className="dp-section-chevron" aria-hidden="true">⌄</span></summary>
+     <div className="dp-collapsible-content">
      <p className="dp-extra-note">Live scoreboard highlights, refreshed every 30 seconds. A snapshot of the latest scores, not a historical play-by-play or verified lead-change log.</p>
      <div className="dp-redzone-list">{feed.length ? feed.slice(0,12).map((item,i)=><div className="dp-redzone-event" key={i}><b>{item.type}</b><strong>{item.headline}</strong><span>{item.detail}</span></div>) : <p className="dp-extra-note">Game-day alerts appear when fantasy scores and projections become available.</p>}</div>
-   </div>
-   <div className="dp-insight-heading"><h3>Matchup Insights</h3><small>Expand a matchup for the full breakdown</small></div>
-   <div className="dp-insight-grid">{rows.map((row,i)=>{
+     </div>
+   </details>
+   <details className="dp-insights-section dp-collapsible-section">
+     <summary className="dp-section-toggle"><span className="dp-insight-heading"><h3>Matchup Insights</h3><small>Expand for matchup breakdowns</small></span><span className="dp-section-chevron" aria-hidden="true">⌄</span></summary>
+   <div className="dp-collapsible-content"><div className="dp-insight-grid">{rows.map((row,i)=>{
      const [a,b]=row.sides;
      return <details key={i} className="dp-insight-card">
        <summary><span><strong>{a.name} vs {b.name}</strong><small>{row.final?"Final":"Week "+week} · {row.margin!=null?"Projected gap "+fmt(row.margin):"Projection unavailable"}</small></span><b>Details +</b></summary>
@@ -83,9 +86,18 @@ export default function ScoreboardExtras({matchups=[],games={},week,playoffTeams
          </div>
        </div>
      </details>
-   })}</div>
+   })}</div></div>
+   </details>
    <style>{`
-     .dp-extras{margin:0 0 24px}.dp-redzone{background:#151c27;border:1px solid #4b3940;border-radius:14px;padding:18px;margin-bottom:20px}
+     .dp-extras{margin:0 0 24px}.dp-redzone{background:#151c27;border:1px solid #4b3940;border-radius:14px;margin-bottom:14px}
+     .dp-insights-section{background:#171f2a;border:1px solid #354254;border-radius:14px;margin-bottom:20px}
+     .dp-section-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px;cursor:pointer;list-style:none}
+     .dp-section-toggle::-webkit-details-marker{display:none}
+     .dp-section-chevron{color:#e8c47f;font-size:24px;line-height:1;transition:transform .2s ease}
+     .dp-collapsible-section[open]>.dp-section-toggle .dp-section-chevron{transform:rotate(180deg)}
+     .dp-collapsible-content{padding:0 18px 18px}
+     .dp-insights-section .dp-insight-heading{margin:0;display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+     .dp-section-toggle:focus-visible{outline:2px solid #e8c47f;outline-offset:-3px;border-radius:14px}
      .dp-redzone-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#fff}.dp-redzone-head strong{font-size:15px;letter-spacing:.5px}.dp-redzone-head small{color:#acb8c8;font-size:11px;margin-left:auto}.dp-redzone-pulse{width:10px;height:10px;border-radius:50%;background:#e94555;box-shadow:0 0 0 4px rgba(233,69,85,.12)}
      .dp-extra-note{font-size:11px;color:#a8b5c6;line-height:1.5;margin:10px 0}.dp-redzone-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}
      .dp-redzone-event{display:flex;flex-direction:column;gap:5px;border:1px solid #303e50;border-radius:9px;padding:12px;background:#1e2938;min-width:0}
