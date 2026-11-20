@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 
 // DIRTY P PLAYOFF PREDICTOR
 
-const REGULAR_SEASON_END_WEEK = 14;
+const REGULAR_SEASON_END_WEEK = 13;
 // Show extended playoff paths from Rivalry Week onward.
 const EXTENDED_SCENARIOS_START_WEEK = 11;
 const EXACT_GAME_LIMIT = 14;
