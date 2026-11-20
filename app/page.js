@@ -1169,6 +1169,12 @@ function MatchupCard({
             : "MATCHUP PREVIEW"}
         </span>
       </div>
+      {live && matchup.playoffImplications && (
+        <div className="dp-playoff-implications-label">
+          <span aria-hidden="true">◆</span> PLAYOFF IMPLICATIONS
+          <small>Current playoff race</small>
+        </div>
+      )}
 
       <div className="dp-matchup-versus">
         {sides.map((side, index) => (
@@ -1235,7 +1241,8 @@ function MatchupCard({
     <article
       className={
         "dp-matchup-card " +
-        (featured ? "dp-featured-matchup" : "")
+        (featured ? "dp-featured-matchup" : "") +
+        (live && matchup.playoffImplications ? " dp-playoff-implications" : "")
       }
     >
       {live ? (
@@ -1695,6 +1702,19 @@ export default async function Home() {
           n(playoffTeamCount) ||
           PLAYOFF_TEAMS;
 
+        // Close to the qualification line, or competing for the top seeds.
+        // This is a race indicator, not a mathematical clinching forecast.
+        const isPlayoffRace = Boolean(
+          displayWeek >= 8 &&
+          !game.is_consolation &&
+          (
+            (awaySeed >= Math.max(1, playoffCount - 1) &&
+             awaySeed <= playoffCount + 2) ||
+            (homeSeed >= Math.max(1, playoffCount - 1) &&
+             homeSeed <= playoffCount + 2)
+          )
+        );
+
         let hype = 0;
 
         if (
@@ -1808,6 +1828,7 @@ export default async function Home() {
             teamLive(homeId),
 
           rival,
+          playoffImplications: isPlayoffRace,
           week: displayWeek,
           hype,
 
@@ -2973,6 +2994,25 @@ export default async function Home() {
           .dp-matchup-side-0 .dp-live-columns > :nth-child(2) { display:none; }
           .dp-matchup-side-1 .dp-live-columns > :nth-child(1) { display:none; }
           .dp-matchup-lineup-switcher .dp-live-columns > div { border:0; }
+        }
+
+        .dp-live-matchup-grid .dp-matchup-card.dp-playoff-implications {
+          border:2px solid #36a76a;
+          box-shadow:0 0 0 1px rgba(55,180,112,.22), 0 4px 20px rgba(0,0,0,.15);
+        }
+        .dp-playoff-implications-label {
+          display:flex; align-items:center; gap:7px;
+          padding:9px 16px;
+          color:#80e6a3; background:#153126;
+          font-size:11px; font-weight:900; letter-spacing:.55px;
+        }
+        .dp-playoff-implications-label small {
+          margin-left:auto; color:#a8d4b9;
+          font-size:10px; font-weight:600; letter-spacing:0;
+        }
+        @media(max-width:600px){
+          .dp-playoff-implications-label { padding:9px 12px; font-size:10px; }
+          .dp-playoff-implications-label small { font-size:9px; }
         }
 
         .dp-live-player {
