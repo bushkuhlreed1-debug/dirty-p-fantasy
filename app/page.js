@@ -1083,9 +1083,16 @@ function EspnLineupRows({ players, nflGames = {}, playerBoxScores = {} }) {
           )}
         </span>
         <span className={"dp-espn-stat-focus" + (started ? " dp-espn-stat-active" : "")}>
-          {started ? (gameStats || "Stats pending") : (projected === null ? "—" : one(projected))}
+          {started ? (gameStats || "Stats pending") : null}
         </span>
-        <b className="dp-espn-number dp-espn-actual">{actual === null ? "—" : points(actual)}</b>
+        {started ? (
+          <b className="dp-espn-number dp-espn-actual">{actual === null ? "—" : points(actual)}</b>
+        ) : (
+          <span className="dp-espn-number dp-espn-projection" title="Projected fantasy points">
+            {projected === null ? "—" : one(projected)}
+            <small>PROJ</small>
+          </span>
+        )}
       </div>
     );
   });
@@ -1098,7 +1105,7 @@ function LiveLineup({ name, team, nflGames = {}, playerBoxScores = {} }) {
     <div className="dp-live-lineup dp-espn-lineup">
       <div className="dp-espn-team-title">{name} · LINEUP</div>
       <div className="dp-espn-columns">
-        <span>POS</span><span>PLAYER</span><span>STATS / PROJ</span><span>PTS</span>
+        <span>POS</span><span>PLAYER</span><span>STATS</span><span>PTS / PROJ</span>
       </div>
       {starters.length ? <EspnLineupRows players={starters} nflGames={nflGames} playerBoxScores={playerBoxScores} /> : (
         <p className="dp-muted">ESPN lineup data is not available yet.</p>
@@ -2841,6 +2848,8 @@ export default async function Home() {
         .dp-espn-player-info strong { font-size: 11px; color: #f1f5fa; overflow-wrap: anywhere; }
         .dp-espn-player-info small { font-size: 10px; color: #a8b9cc; }
         .dp-espn-number { text-align: right; font-variant-numeric: tabular-nums; color: #b6c7d8; font-size: 11px; }
+        .dp-espn-projection { display:flex; flex-direction:column; align-items:flex-end; gap:3px; font-weight:800; color:#d5dfeb; font-size:13px; }
+        .dp-espn-projection small { color:#9aaec3; font-size:9px; font-weight:700; letter-spacing:.4px; }
         .dp-espn-actual { color: #f6f7fb; font-size: 12px; }
         .dp-espn-bench { background: #151e2a; }
         .dp-espn-bench > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; padding: 12px; cursor: pointer; color: #e9c37e; font-weight: 800; font-size: 11px; }
