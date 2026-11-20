@@ -8,14 +8,15 @@ const links = [
   { href: "/", label: "Home", icon: "home" },
   { href: "/owners", label: "Owners", icon: "users" },
   { href: "/champions", label: "Champions", icon: "trophy" },
+  { href: "/notifications", label: "Notifications", mobileLabel: "Alerts", icon: "bell" },
   { href: "/records", label: "Records", icon: "chart" },
   { href: "/goat", label: "GOAT Rankings", icon: "crown" },
   { href: "/rivalry-week", label: "Rivalry Week", icon: "swords" },
   { href: "/map", label: "Owner Map", icon: "map" },
 ];
 
-const primaryLinks = links.slice(0, 3);
-const moreLinks = links.slice(3);
+const primaryLinks = links.slice(0, 4);
+const moreLinks = links.slice(4);
 
 function NavIcon({ name, size = 21 }) {
   const common = {
@@ -55,6 +56,13 @@ function NavIcon({ name, size = 21 }) {
         <path d="M17 5h3v3a4 4 0 0 1-4 4" />
         <path d="M12 16v4" />
         <path d="M8 21h8" />
+      </>
+    ),
+
+    bell: (
+      <>
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8Z" />
+        <path d="M10 21h4" />
       </>
     ),
 
@@ -257,7 +265,7 @@ export default function AppNavigation() {
             </span>
 
             <span className="dp-mobile-label">
-              {link.label}
+              {link.mobileLabel || link.label}
             </span>
           </Link>
         ))}
@@ -380,7 +388,7 @@ export default function AppNavigation() {
               calc(6px + env(safe-area-inset-bottom, 0px))
               !important;
             display: grid !important;
-            grid-template-columns: repeat(4, minmax(0, 1fr))
+            grid-template-columns: repeat(5, minmax(0, 1fr))
               !important;
             align-items: center !important;
             gap: 2px !important;
