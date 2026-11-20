@@ -2,6 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import TiebreakerPanel from "./TiebreakerPanel";
 
 // DIRTY P PLAYOFF PREDICTOR
 
@@ -1121,7 +1122,9 @@ export default function ScenarioSimulator({
   games = [],
   currentWeek = 1,
   season = 2026,
-  playoffCount = 4
+  playoffCount = 4,
+  completedGames = [],
+  seedingRule = ""
 }) {
   const [selection, setSelection] =
     useState("");
@@ -1334,6 +1337,12 @@ export default function ScenarioSimulator({
           These are ESPN's official standings playoff percentages, refreshed from ESPN when available. Hypothetical outcomes below remain independent estimates.
         </p>
       </section>
+
+      <TiebreakerPanel
+        teams={teams}
+        completedGames={completedGames}
+        seedingRule={seedingRule}
+      />
 
       {/* ========================================
           2. THIS WEEK: WHAT YOU NEED
