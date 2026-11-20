@@ -13,7 +13,7 @@ export const metadata = {
   appleWebApp: {
     capable: true,
     title: "Dirty P",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
 };
 
@@ -21,7 +21,7 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0b0d10",
+  themeColor: "#f7f5ef",
 };
 
 export default function RootLayout({ children }) {

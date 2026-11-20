@@ -320,8 +320,8 @@ export default function AppNavigation() {
         .dp-desktop-nav {
           display: block;
           width: 100%;
-          background: #10151c;
-          border-bottom: 1px solid #29313d;
+          background: var(--dp-white);
+          border-bottom: 1px solid var(--dp-line);
         }
 
         .dp-desktop-inner {
@@ -343,7 +343,7 @@ export default function AppNavigation() {
           align-items: center;
           min-height: 54px;
           padding: 0 14px;
-          color: #a6afbc;
+          color: var(--dp-muted);
           font-size: 13px;
           font-weight: 650;
           letter-spacing: 0.1px;
@@ -364,11 +364,11 @@ export default function AppNavigation() {
         }
 
         .dp-desktop-link:hover {
-          color: #f0f2f5;
+          color: var(--dp-ink);
         }
 
         .dp-desktop-link.is-active {
-          color: #f1c777;
+          color: var(--dp-gold);
         }
 
         .dp-desktop-link.is-active::after {
@@ -420,9 +420,9 @@ export default function AppNavigation() {
               !important;
             align-items: center !important;
             gap: 2px !important;
-            background: #111720 !important;
+            background: var(--dp-white) !important;
             border: none !important;
-            border-top: 1px solid #2a3340 !important;
+            border-top: 1px solid var(--dp-line) !important;
             border-radius: 0 !important;
             box-shadow: none !important;
             z-index: auto !important;
@@ -443,7 +443,7 @@ export default function AppNavigation() {
             background: transparent !important;
             border: 0 !important;
             border-radius: 10px !important;
-            color: #8995a4 !important;
+            color: var(--dp-muted) !important;
             text-decoration: none !important;
             font-family: inherit !important;
             cursor: pointer;
@@ -469,7 +469,7 @@ export default function AppNavigation() {
 
           .app-bottom-nav.dp-mobile-nav
             .app-bottom-link.dp-mobile-link.active {
-            color: #efc475 !important;
+            color: var(--dp-gold) !important;
             background: rgba(239, 196, 117, 0.07) !important;
           }
 
@@ -492,10 +492,10 @@ export default function AppNavigation() {
             );
             max-height: min(65dvh, 490px);
             overflow-y: auto;
-            background: #181f29;
-            border: 1px solid #37414e;
+            background: var(--dp-soft);
+            border: 1px solid var(--dp-deep-line);
             border-radius: 17px;
-            box-shadow: 0 18px 55px rgba(0, 0, 0, 0.65);
+            box-shadow: 0 18px 55px rgba(31, 49, 72, 0.16);
             z-index: 10002;
           }
 
@@ -504,12 +504,12 @@ export default function AppNavigation() {
             justify-content: space-between;
             align-items: center;
             padding: 19px 18px 16px;
-            border-bottom: 1px solid #2c3542;
+            border-bottom: 1px solid var(--dp-line);
           }
 
           .dp-menu-eyebrow {
             display: block;
-            color: #e6b96a;
+            color: var(--dp-gold);
             font-size: 10px;
             font-weight: 750;
             letter-spacing: 1.5px;
@@ -519,7 +519,7 @@ export default function AppNavigation() {
           .dp-menu-header h2 {
             margin: 0;
             padding: 0;
-            color: #f3f4f6;
+            color: var(--dp-ink);
             font-size: 19px;
             line-height: 1.25;
             font-weight: 750;
@@ -533,10 +533,10 @@ export default function AppNavigation() {
             width: 35px;
             height: 35px;
             padding: 0;
-            border: 1px solid #3b4553;
+            border: 1px solid var(--dp-deep-line);
             border-radius: 10px;
-            background: #252e3a;
-            color: #dfe4eb;
+            background: var(--dp-raised);
+            color: var(--dp-ink);
             cursor: pointer;
           }
 
@@ -554,18 +554,18 @@ export default function AppNavigation() {
             min-height: 53px;
             padding: 8px 12px;
             border-radius: 10px;
-            color: #e7eaf0;
+            color: var(--dp-ink);
             text-decoration: none;
             transition: background 0.15s ease;
           }
 
           .dp-menu-link:hover,
           .dp-menu-link.is-active {
-            background: #293342;
+            background: var(--dp-strong);
           }
 
           .dp-menu-link.is-active {
-            color: #eec477;
+            color: var(--dp-gold);
           }
 
           .dp-menu-link-icon {
@@ -576,8 +576,8 @@ export default function AppNavigation() {
             height: 36px;
             flex-shrink: 0;
             border-radius: 10px;
-            background: #27313e;
-            color: #d5b77e;
+            background: var(--dp-raised);
+            color: var(--dp-gold);
           }
 
           .dp-menu-link-label {
@@ -587,7 +587,7 @@ export default function AppNavigation() {
           }
 
           .dp-menu-arrow {
-            color: #84909e;
+            color: var(--dp-muted);
             font-size: 25px;
             font-weight: 300;
           }
@@ -601,9 +601,9 @@ export default function AppNavigation() {
           .app-bottom-nav.dp-mobile-nav { display: none !important; }
           .dp-tablet-nav {
             display: block !important;
-            background: linear-gradient(125deg,#111923,#1a2330);
-            border-bottom: 1px solid #3a4656;
-            box-shadow: 0 5px 17px rgba(0,0,0,.17);
+            background: linear-gradient(125deg,var(--dp-white),var(--dp-raised));
+            border-bottom: 1px solid var(--dp-deep-line);
+            box-shadow: 0 5px 17px rgba(31, 49, 72, 0.16);
           }
           .dp-tablet-nav-inner {
             max-width: 1160px;
@@ -622,7 +622,7 @@ export default function AppNavigation() {
             align-items: center;
             gap: 10px;
             min-width: 0;
-            color: #fff;
+            color: var(--dp-ink);
             text-decoration: none;
           }
           .dp-tablet-mark {
@@ -631,10 +631,10 @@ export default function AppNavigation() {
             flex-shrink: 0;
             display: grid;
             place-items: center;
-            border: 1px solid #d8b26d;
+            border: 1px solid var(--dp-gold-line);
             border-radius: 8px;
-            background: #3a3025;
-            color: #f5d394;
+            background: var(--dp-raised);
+            color: var(--dp-gold);
             font-size: 12px;
             font-weight: 950;
             letter-spacing: -.5px;
@@ -647,13 +647,13 @@ export default function AppNavigation() {
           }
           .dp-tablet-brand small {
             display: block;
-            color: #9eacbd;
+            color: var(--dp-muted);
             font-size: 9px;
             letter-spacing: 1px;
             font-weight: 750;
           }
           .dp-tablet-nav-caption {
-            color: #bba782;
+            color: var(--dp-gold);
             font-size: 10px;
             font-weight: 800;
             letter-spacing: 1.4px;
@@ -672,10 +672,10 @@ export default function AppNavigation() {
             justify-content: center;
             align-items: center;
             gap: 7px;
-            border: 1px solid #303c4c;
+            border: 1px solid var(--dp-deep-line);
             border-radius: 9px;
             background: rgba(255,255,255,.035);
-            color: #c0cbd8;
+            color: var(--dp-muted);
             text-decoration: none;
             font-size: 11px;
             font-weight: 750;
@@ -686,16 +686,16 @@ export default function AppNavigation() {
           .dp-tablet-link svg { flex-shrink: 0; }
           .dp-tablet-link:hover,
           .dp-tablet-link:focus-visible {
-            color: #fff;
-            background: #293749;
-            border-color: #bd995b;
+            color: var(--dp-ink);
+            background: var(--dp-strong);
+            border-color: var(--dp-gold-line);
           }
           .dp-tablet-link.is-active {
-            color: #f2d297;
-            background: #313126;
-            border-color: #b88b4b;
+            color: var(--dp-gold);
+            background: var(--dp-raised);
+            border-color: var(--dp-gold-line);
           }
-          .dp-tablet-link:focus-visible { outline: 2px solid #e7c784; outline-offset: 2px; }
+          .dp-tablet-link:focus-visible { outline: 2px solid var(--dp-gold-line); outline-offset: 2px; }
         }
         @media (min-width: 940px) and (max-width: 1199px) {
           .dp-tablet-links { grid-template-columns: repeat(8,minmax(0,1fr)); }

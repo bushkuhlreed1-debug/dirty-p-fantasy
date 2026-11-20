@@ -620,14 +620,14 @@ function ScoringCard() {
           justify-content: center;
           min-height: 115px;
           padding: 18px 10px;
-          background: #222a35;
-          border: 1px solid #34404d;
+          background: var(--dp-raised);
+          border: 1px solid var(--dp-deep-line);
           border-radius: 12px;
           text-align: center;
         }
 
         .goat-formula-item strong {
-          color: #e9bd67;
+          color: var(--dp-gold);
           font-size: 28px;
           font-weight: 900;
           line-height: 1.1;
@@ -635,23 +635,23 @@ function ScoringCard() {
         }
 
         .goat-formula-label {
-          color: #f2f4f7;
+          color: var(--dp-ink);
           font-size: 12px;
           font-weight: 750;
           line-height: 1.35;
         }
 
         .goat-formula-description {
-          color: #abb6c5;
+          color: var(--dp-muted);
           font-size: 10px;
           line-height: 1.4;
           margin-top: 5px;
         }
 
         .goat-formula-footer {
-          border-top: 1px solid #303947;
+          border-top: 1px solid var(--dp-line);
           padding: 16px 20px;
-          color: #aeb8c5;
+          color: var(--dp-muted);
           font-size: 12px;
           line-height: 1.6;
           text-align: center;

@@ -1718,7 +1718,7 @@ export default async function RecordsPage() {
         }
 
         .dp-record-card .owner-status {
-          color: #d8b475;
+          color: var(--dp-gold);
           font-size: 10px;
           font-weight: 800;
           letter-spacing: 1px;
@@ -1727,7 +1727,7 @@ export default async function RecordsPage() {
 
         .dp-record-value {
           margin: 5px 0;
-          color: #f4f6f9;
+          color: var(--dp-ink);
           font-size: clamp(21px, 3vw, 31px);
           line-height: 1.2;
           font-weight: 900;
@@ -1736,7 +1736,7 @@ export default async function RecordsPage() {
         }
 
         .dp-record-owner {
-          color: #f0f2f6;
+          color: var(--dp-ink);
           font-size: 15px;
           font-weight: 800;
           line-height: 1.5;
@@ -1745,14 +1745,14 @@ export default async function RecordsPage() {
 
         .dp-record-team {
           margin: 0;
-          color: #a8b3c1;
+          color: var(--dp-muted);
           font-size: 12px;
           line-height: 1.6;
         }
 
         .dp-record-note {
           margin: 4px 0 0;
-          color: #d5b477;
+          color: var(--dp-gold);
           font-size: 12px;
           font-weight: 700;
           line-height: 1.5;
@@ -1760,7 +1760,7 @@ export default async function RecordsPage() {
 
         .dp-record-secondary {
           margin: 0;
-          color: #9eacbb;
+          color: var(--dp-muted);
           font-size: 11px;
           line-height: 1.5;
         }

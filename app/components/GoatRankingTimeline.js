@@ -44,17 +44,17 @@ export default function GoatRankingTimeline({ seasons=[], snapshots=[], owners=[
       </div>
       <div className="dp-goat-timeline-chart-wrap">
         <svg viewBox="0 0 940 385" role="img" aria-label="Historical GOAT rankings by year, with first place at the top" className="dp-goat-timeline-chart">
-          <text x="6" y="15" fill="#e9bd67" fontSize="12" fontWeight="800">ALL-TIME RANK</text>
+          <text x="6" y="15" fill="var(--dp-gold)" fontSize="12" fontWeight="800">ALL-TIME RANK</text>
           {Array.from({length:maxRank},(_,index)=>index+1).map(rank=>(
             <g key={rank}>
               <line x1={left} x2={left+width} y1={y(rank)} y2={y(rank)}
                 stroke={rank===1?"#52694d":"#303f4f"} strokeDasharray={rank===1?"0":"4 6"}/>
-              <text x={left-16} y={y(rank)+5} fill="#b5c4d5" textAnchor="end" fontSize="13">{rank}</text>
+              <text x={left-16} y={y(rank)+5} fill="var(--dp-muted)" textAnchor="end" fontSize="13">{rank}</text>
             </g>
           ))}
           {seasons.map((year,i)=>(
             <g key={year}>
-              <text x={x(i)} y="357" textAnchor="middle" fill="#b4c6d7" fontSize="12">{year}</text>
+              <text x={x(i)} y="357" textAnchor="middle" fill="var(--dp-muted)" fontSize="12">{year}</text>
             </g>
           ))}
           {lines.map(line=>{

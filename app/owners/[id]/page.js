@@ -1429,19 +1429,19 @@ export default async function OwnerProfile({ params }) {
           gap: 7px;
           min-width: 0;
           padding: 16px;
-          background: #171d26;
-          border: 1px solid #303947;
+          background: var(--dp-soft);
+          border: 1px solid var(--dp-line);
           border-radius: 10px;
         }
 
         .dp-profile-stat strong {
-          color: #f4f6f8;
+          color: var(--dp-ink);
           font-size: 22px;
           font-variant-numeric: tabular-nums;
         }
 
         .dp-profile-stat span {
-          color: #aab6c4;
+          color: var(--dp-muted);
           font-size: 10px;
           letter-spacing: 0.7px;
           line-height: 1.4;
@@ -1455,8 +1455,8 @@ export default async function OwnerProfile({ params }) {
         }
 
         .dp-profile-details {
-          background: #171d26;
-          border: 1px solid #303947;
+          background: var(--dp-soft);
+          border: 1px solid var(--dp-line);
           border-radius: 13px;
           overflow: hidden;
         }
@@ -1487,18 +1487,18 @@ export default async function OwnerProfile({ params }) {
         }
 
         .dp-profile-summary strong {
-          color: #f2f4f7;
+          color: var(--dp-ink);
           font-size: 17px;
         }
 
         .dp-profile-summary span {
-          color: #9ca9b9;
+          color: var(--dp-muted);
           font-size: 12px;
         }
 
         .dp-profile-chevron {
           flex-shrink: 0;
-          color: #e9bd67;
+          color: var(--dp-gold);
           transition: transform 0.2s ease;
         }
 
@@ -1509,17 +1509,17 @@ export default async function OwnerProfile({ params }) {
 
         .dp-profile-details[open]
         .dp-profile-summary {
-          border-bottom: 1px solid #303947;
+          border-bottom: 1px solid var(--dp-line);
         }
 
         .dp-profile-details[open]
         .dp-profile-summary strong,
         .dp-profile-summary:hover strong {
-          color: #e9bd67;
+          color: var(--dp-gold);
         }
 
         .dp-profile-summary:focus-visible {
-          outline: 2px solid #e9bd67;
+          outline: 2px solid var(--dp-gold-line);
           outline-offset: -3px;
         }
 
@@ -1541,19 +1541,19 @@ export default async function OwnerProfile({ params }) {
         .dp-profile-table th,
         .dp-profile-table td {
           padding: 12px 10px;
-          border-bottom: 1px solid #303947;
+          border-bottom: 1px solid var(--dp-line);
           text-align: left;
           font-size: 12px;
           white-space: nowrap;
         }
 
         .dp-profile-table th {
-          color: #e9bd67;
+          color: var(--dp-gold);
           font-weight: 800;
         }
 
         .dp-profile-table td {
-          color: #dce2e9;
+          color: var(--dp-ink);
         }
 
         .dp-franchise-grid {
@@ -1568,23 +1568,23 @@ export default async function OwnerProfile({ params }) {
           flex-direction: column;
           gap: 7px;
           padding: 16px;
-          background: #202a35;
-          border: 1px solid #34404d;
+          background: var(--dp-raised);
+          border: 1px solid var(--dp-deep-line);
           border-radius: 10px;
           min-width: 0;
         }
 
         .dp-franchise-player strong {
-          color: #f4f6f8;
+          color: var(--dp-ink);
         }
 
         .dp-franchise-player > span:not(.owner-status) {
-          color: #aeb9c7;
+          color: var(--dp-muted);
           font-size: 12px;
         }
 
         .dp-franchise-player .dp-franchise-points {
-          color: #e9bd67;
+          color: var(--dp-gold);
         }
 
         .dp-profile-list {
@@ -1598,7 +1598,7 @@ export default async function OwnerProfile({ params }) {
           align-items: center;
           gap: 20px;
           padding: 14px 5px;
-          border-bottom: 1px solid #303947;
+          border-bottom: 1px solid var(--dp-line);
         }
 
         .dp-profile-list-row:last-child {
@@ -1606,12 +1606,12 @@ export default async function OwnerProfile({ params }) {
         }
 
         .dp-profile-list-row strong {
-          color: #f4f6f8;
+          color: var(--dp-ink);
           font-size: 13px;
         }
 
         .dp-profile-list-row span {
-          color: #d8b67b;
+          color: var(--dp-gold);
           text-align: right;
           font-size: 12px;
         }
@@ -1629,35 +1629,35 @@ export default async function OwnerProfile({ params }) {
           gap: 7px;
           padding: 16px;
           min-width: 0;
-          background: #202a35;
-          border: 1px solid #34404d;
+          background: var(--dp-raised);
+          border: 1px solid var(--dp-deep-line);
           border-radius: 10px;
         }
 
         .dp-highlight-card > strong {
-          color: #f4f6f8;
+          color: var(--dp-ink);
           font-size: 20px;
           overflow-wrap: anywhere;
         }
 
         .dp-highlight-card > span:not(.owner-status),
         .dp-highlight-card small {
-          color: #9eacbb;
+          color: var(--dp-muted);
           font-size: 12px;
         }
 
         .dp-result-win {
-          color: #65d6a5;
+          color: var(--dp-green);
           font-weight: 800;
         }
 
         .dp-result-loss {
-          color: #f18484;
+          color: var(--dp-red);
           font-weight: 800;
         }
 
         .dp-result-tie {
-          color: #e9bd67;
+          color: var(--dp-gold);
           font-weight: 800;
         }
 

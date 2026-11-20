@@ -1049,8 +1049,8 @@ export default async function ChampionsPage() {
           gap:14px;
           padding:15px 19px;
           margin:4px 0 25px;
-          background:#202936;
-          border:1px solid #806539;
+          background:var(--dp-raised);
+          border:1px solid var(--dp-gold-line);
           border-radius:12px;
           text-decoration:none;
           transition:
@@ -1060,8 +1060,8 @@ export default async function ChampionsPage() {
         }
 
         .dp-award-teaser:hover {
-          background:#283241;
-          border-color:#d7ad63;
+          background:var(--dp-raised);
+          border-color:var(--dp-gold-line);
           transform:translateY(-2px);
         }
 
@@ -1072,8 +1072,8 @@ export default async function ChampionsPage() {
           width:42px;
           height:42px;
           flex-shrink:0;
-          background:#34332e;
-          border:1px solid #806539;
+          background:var(--dp-raised);
+          border:1px solid var(--dp-gold-line);
           border-radius:10px;
           font-size:22px;
         }
@@ -1088,7 +1088,7 @@ export default async function ChampionsPage() {
 
         .dp-teaser-copy strong {
           display:block;
-          color:#f3f5f7;
+          color:var(--dp-ink);
           font-size:14px;
           font-weight:800;
           line-height:1.45;
@@ -1096,7 +1096,7 @@ export default async function ChampionsPage() {
 
         .dp-teaser-copy small {
           display:block;
-          color:#aeb9c7;
+          color:var(--dp-muted);
           font-size:12px;
           line-height:1.5;
         }
@@ -1106,7 +1106,7 @@ export default async function ChampionsPage() {
           align-items:center;
           justify-content:center;
           flex-shrink:0;
-          color:#e9bd67;
+          color:var(--dp-gold);
           font-size:24px;
           font-weight:900;
           width:30px;
@@ -1131,13 +1131,13 @@ export default async function ChampionsPage() {
           align-items:center;
           gap:16px;
           padding:20px;
-          background:#171d26;
-          border:1px solid #303947;
+          background:var(--dp-soft);
+          border:1px solid var(--dp-line);
           border-radius:12px;
         }
 
         .dp-champion-year {
-          color:#e9bd67;
+          color:var(--dp-gold);
           font-size:22px;
           font-weight:900;
         }
@@ -1145,7 +1145,7 @@ export default async function ChampionsPage() {
         .dp-champion-row h3 {
           margin:6px 0;
           font-size:16px;
-          color:#f5f6f8;
+          color:var(--dp-ink);
         }
 
         .dp-champion-row a {
@@ -1154,11 +1154,11 @@ export default async function ChampionsPage() {
         }
 
         .dp-champion-row a:hover {
-          color:#e9bd67;
+          color:var(--dp-gold);
         }
 
         .dp-champion-row p {
-          color:#a3afbe;
+          color:var(--dp-muted);
           margin:4px 0 0;
           font-size:12px;
         }
@@ -1166,7 +1166,7 @@ export default async function ChampionsPage() {
         .dp-champion-row > div > strong {
           display:block;
           margin-top:7px;
-          color:#f3f5f7;
+          color:var(--dp-ink);
           font-size:14px;
         }
 
@@ -1181,7 +1181,7 @@ export default async function ChampionsPage() {
           gap:12px;
           padding:18px 14px;
           margin-top:14px;
-          color:#d7ad63;
+          color:var(--dp-gold);
           text-align:center;
           text-decoration:none;
           font-size:13px;
@@ -1191,7 +1191,7 @@ export default async function ChampionsPage() {
         }
 
         .dp-history-bottom-link:hover {
-          color:#f1d39b;
+          color:var(--dp-gold);
         }
 
         .dp-history-bottom-link span:last-child {
@@ -1207,8 +1207,8 @@ export default async function ChampionsPage() {
         }
 
         .dp-award-card {
-          background:#171d26;
-          border:1px solid #51472e;
+          background:var(--dp-soft);
+          border:1px solid var(--dp-deep-line);
           border-radius:14px;
           overflow:hidden;
         }
@@ -1226,8 +1226,8 @@ export default async function ChampionsPage() {
           justify-content:center;
           width:48px;
           height:48px;
-          background:#292b2b;
-          border:1px solid #806539;
+          background:var(--dp-soft);
+          border:1px solid var(--dp-gold-line);
           border-radius:12px;
           font-size:24px;
           flex-shrink:0;
@@ -1240,7 +1240,7 @@ export default async function ChampionsPage() {
 
         .dp-award-eyebrow {
           display:block;
-          color:#d7ad63;
+          color:var(--dp-gold);
           font-size:10px;
           font-weight:800;
           letter-spacing:.6px;
@@ -1250,7 +1250,7 @@ export default async function ChampionsPage() {
         .dp-award-identity h3 {
           margin:0 0 5px;
           font-size:19px;
-          color:#f5f6f8;
+          color:var(--dp-ink);
         }
 
         .dp-award-identity h3 a {
@@ -1259,18 +1259,18 @@ export default async function ChampionsPage() {
         }
 
         .dp-award-identity h3 a:hover {
-          color:#e9bd67;
+          color:var(--dp-gold);
         }
 
         .dp-award-identity p {
           margin:0;
-          color:#a6b3c1;
+          color:var(--dp-muted);
           font-size:12px;
           line-height:1.6;
         }
 
         .dp-award-separator {
-          color:#d7ad63;
+          color:var(--dp-gold);
         }
 
         .dp-award-number {
@@ -1284,13 +1284,13 @@ export default async function ChampionsPage() {
 
         .dp-award-number strong {
           font-size:29px;
-          color:#e9bd67;
+          color:var(--dp-gold);
           font-weight:900;
           line-height:1;
         }
 
         .dp-award-number span {
-          color:#a9b4c0;
+          color:var(--dp-muted);
           font-size:9px;
           font-weight:800;
           letter-spacing:.8px;
@@ -1301,14 +1301,14 @@ export default async function ChampionsPage() {
         .dp-award-stats {
           display:grid;
           grid-template-columns:repeat(3,minmax(0,1fr));
-          background:#303947;
+          background:var(--dp-strong);
           gap:1px;
-          border-top:1px solid #303947;
-          border-bottom:1px solid #303947;
+          border-top:1px solid var(--dp-line);
+          border-bottom:1px solid var(--dp-line);
         }
 
         .dp-award-stats > div {
-          background:#1c2430;
+          background:var(--dp-raised);
           display:flex;
           flex-direction:column;
           align-items:center;
@@ -1320,14 +1320,14 @@ export default async function ChampionsPage() {
         }
 
         .dp-award-stats strong {
-          color:#f5f6f8;
+          color:var(--dp-ink);
           font-size:19px;
           font-weight:800;
           font-variant-numeric:tabular-nums;
         }
 
         .dp-award-stats span {
-          color:#a9b6c5;
+          color:var(--dp-muted);
           font-size:10px;
           font-weight:700;
           line-height:1.5;
@@ -1336,7 +1336,7 @@ export default async function ChampionsPage() {
         /* COLLAPSIBLE FORMULA */
 
         .dp-award-details {
-          background:#171d26;
+          background:var(--dp-soft);
         }
 
         .dp-award-details summary {
@@ -1346,7 +1346,7 @@ export default async function ChampionsPage() {
           gap:12px;
           padding:16px 22px;
           cursor:pointer;
-          color:#e9bd67;
+          color:var(--dp-gold);
           font-size:12px;
           font-weight:800;
           list-style:none;
@@ -1357,7 +1357,7 @@ export default async function ChampionsPage() {
         }
 
         .dp-award-details summary:hover {
-          background:#1d2530;
+          background:var(--dp-raised);
         }
 
         .dp-details-plus {
@@ -1372,8 +1372,8 @@ export default async function ChampionsPage() {
 
         .dp-award-explanation {
           padding:5px 22px 23px;
-          border-top:1px solid #303947;
-          color:#b5c0ce;
+          border-top:1px solid var(--dp-line);
+          color:var(--dp-muted);
           font-size:12px;
           line-height:1.75;
         }
@@ -1384,22 +1384,22 @@ export default async function ChampionsPage() {
 
         .dp-award-factor {
           padding:10px 0;
-          border-bottom:1px solid #303947;
+          border-bottom:1px solid var(--dp-line);
         }
 
         .dp-award-factor strong {
-          color:#f2f4f7;
+          color:var(--dp-ink);
           font-size:13px;
         }
 
         .dp-award-factor p {
           margin:5px 0 0;
-          color:#aeb9c7;
+          color:var(--dp-muted);
         }
 
         .dp-award-formula {
-          background:#202936;
-          border:1px solid #51472e;
+          background:var(--dp-raised);
+          border:1px solid var(--dp-deep-line);
           border-radius:10px;
           padding:17px;
           margin:18px 0;
@@ -1408,7 +1408,7 @@ export default async function ChampionsPage() {
 
         .dp-award-formula > span {
           display:block;
-          color:#d7ad63;
+          color:var(--dp-gold);
           font-size:10px;
           font-weight:900;
           letter-spacing:.8px;
@@ -1417,31 +1417,31 @@ export default async function ChampionsPage() {
 
         .dp-award-formula > strong {
           display:block;
-          color:#f3f5f7;
+          color:var(--dp-ink);
           font-size:16px;
         }
 
         .dp-award-formula p {
-          color:#e9bd67;
+          color:var(--dp-gold);
           font-size:13px;
           font-weight:800;
           margin:12px 0;
         }
 
         .dp-award-formula b {
-          color:#f5f6f8;
+          color:var(--dp-ink);
           padding:0 4px;
         }
 
         .dp-award-formula small {
           display:block;
-          color:#aeb9c7;
+          color:var(--dp-muted);
           font-size:11px;
           line-height:1.7;
         }
 
         .dp-award-note {
-          color:#97a5b5;
+          color:var(--dp-muted);
           font-size:11px;
         }
 
@@ -1450,7 +1450,7 @@ export default async function ChampionsPage() {
         }
 
         .dp-award-warning {
-          color:#aab5c2;
+          color:var(--dp-muted);
           font-size:12px;
           margin-top:12px;
           line-height:1.7;

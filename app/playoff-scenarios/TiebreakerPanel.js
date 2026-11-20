@@ -292,40 +292,40 @@ export default function TiebreakerPanel({
       </div>
 
       <style jsx global>{`
-        .dp-tiebreak-clean { margin-top: 18px; background: #111c2a; border: 1px solid #3b5067; border-radius: 12px; overflow: hidden; color: #eef3f9; }
+        .dp-tiebreak-clean { margin-top: 18px; background: var(--dp-soft); border: 1px solid var(--dp-deep-line); border-radius: 12px; overflow: hidden; color: var(--dp-ink); }
         .dp-tiebreak-clean * { box-sizing: border-box; }
         .dp-tiebreak-summary { display: flex; justify-content: space-between; gap: 14px; align-items: center; padding: 17px 19px; cursor: pointer; list-style: none; }
         .dp-tiebreak-summary::-webkit-details-marker, .dp-tiebreak-row summary::-webkit-details-marker { display: none; }
         .dp-tiebreak-summary > div { display: grid; gap: 4px; min-width: 0; }
-        .dp-tiebreak-eyebrow { color: #eac279; letter-spacing: 1.3px; font-size: 10px; font-weight: 800; }
+        .dp-tiebreak-eyebrow { color: var(--dp-gold); letter-spacing: 1.3px; font-size: 10px; font-weight: 800; }
         .dp-tiebreak-summary strong { font-size: 18px; }
-        .dp-tiebreak-summary small { color: #b6c6d7; line-height: 1.5; }
-        .dp-tiebreak-chevron { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; font-size: 23px; color: #edc77f; background: #25364a; border-radius: 50%; transition: transform .15s; }
+        .dp-tiebreak-summary small { color: var(--dp-muted); line-height: 1.5; }
+        .dp-tiebreak-chevron { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; font-size: 23px; color: var(--dp-gold); background: var(--dp-strong); border-radius: 50%; transition: transform .15s; }
         .dp-tiebreak-clean[open] > .dp-tiebreak-summary .dp-tiebreak-chevron { transform: rotate(180deg); }
-        .dp-tiebreak-content { border-top: 1px solid #32445b; padding: 17px; }
-        .dp-tiebreak-intro, .dp-tiebreak-footnote { margin: 0 0 15px; font-size: 12px; color: #bac9d8; line-height: 1.6; }
+        .dp-tiebreak-content { border-top: 1px solid var(--dp-deep-line); padding: 17px; }
+        .dp-tiebreak-intro, .dp-tiebreak-footnote { margin: 0 0 15px; font-size: 12px; color: var(--dp-muted); line-height: 1.6; }
         .dp-tiebreak-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
         .dp-tiebreak-toolbar strong { font-size: 13px; }
-        .dp-tiebreak-toolbar button { cursor: pointer; font-weight: 700; background: #263a51; color: #f3d293; border: 1px solid #5c7088; border-radius: 8px; padding: 9px 12px; }
+        .dp-tiebreak-toolbar button { cursor: pointer; font-weight: 700; background: var(--dp-strong); color: var(--dp-gold); border: 1px solid var(--dp-deep-line); border-radius: 8px; padding: 9px 12px; }
         .dp-tiebreak-list { display: grid; gap: 8px; }
-        .dp-tiebreak-row { border: 1px solid #374d64; background: #19283a; border-radius: 10px; overflow: hidden; }
+        .dp-tiebreak-row { border: 1px solid var(--dp-deep-line); background: var(--dp-raised); border-radius: 10px; overflow: hidden; }
         .dp-tiebreak-row summary { cursor: pointer; display: flex; align-items: center; gap: 12px; justify-content: space-between; list-style: none; padding: 12px 13px; }
-        .dp-tiebreak-row summary:hover, .dp-tiebreak-summary:hover { background: #233449; }
+        .dp-tiebreak-row summary:hover, .dp-tiebreak-summary:hover { background: var(--dp-strong); }
         .dp-tiebreak-opponent { flex: 1 1 140px; display: grid; gap: 4px; min-width: 0; }
-        .dp-tiebreak-opponent strong { font-size: 13px; color: #f5f7fb; }
-        .dp-tiebreak-opponent small, .dp-tiebreak-row-right small { color: #a9bacd; font-size: 11px; }
+        .dp-tiebreak-opponent strong { font-size: 13px; color: var(--dp-ink); }
+        .dp-tiebreak-opponent small, .dp-tiebreak-row-right small { color: var(--dp-muted); font-size: 11px; }
         .dp-tiebreak-row-right { display: grid; gap: 4px; text-align: right; flex: 0 1 190px; }
-        .dp-tiebreak-row-right b { font-size: 12px; color: #c7d1e0; }
-        .dp-tiebreak-row-right b.is-ahead { color: #7dddb0; }
-        .dp-tiebreak-row-right b.is-behind { color: #f4adab; }
-        .dp-tiebreak-row-chevron { font-size: 20px; color: #f0c984; transition: transform .15s; }
+        .dp-tiebreak-row-right b { font-size: 12px; color: var(--dp-ink); }
+        .dp-tiebreak-row-right b.is-ahead { color: var(--dp-green); }
+        .dp-tiebreak-row-right b.is-behind { color: var(--dp-red); }
+        .dp-tiebreak-row-chevron { font-size: 20px; color: var(--dp-gold); transition: transform .15s; }
         .dp-tiebreak-row[open] .dp-tiebreak-row-chevron { transform: rotate(180deg); }
-        .dp-tiebreak-row-detail { border-top: 1px solid #374d64; padding: 13px; display: flex; flex-wrap: wrap; gap: 10px 20px; background: #101c2b; color: #c5d4e3; font-size: 12px; line-height: 1.5; }
-        .dp-tiebreak-row-detail b { color: #f4cd87; }
+        .dp-tiebreak-row-detail { border-top: 1px solid var(--dp-deep-line); padding: 13px; display: flex; flex-wrap: wrap; gap: 10px 20px; background: var(--dp-soft); color: var(--dp-muted); font-size: 12px; line-height: 1.5; }
+        .dp-tiebreak-row-detail b { color: var(--dp-gold); }
         .dp-tiebreak-footnote { margin: 15px 1px 0; font-size: 11px; }
         .dp-tiebreak-select-label { display: grid; gap: 6px; max-width: 390px; font-size: 12px; }
-        .dp-tiebreak-select-label select { background: #24364b; color: #fff; border: 1px solid #5b6e82; border-radius: 8px; padding: 10px; }
-        .dp-tiebreak-clean summary:focus-visible, .dp-tiebreak-clean button:focus-visible { outline: 2px solid #ecc77f; outline-offset: -2px; }
+        .dp-tiebreak-select-label select { background: var(--dp-strong); color: var(--dp-ink); border: 1px solid var(--dp-deep-line); border-radius: 8px; padding: 10px; }
+        .dp-tiebreak-clean summary:focus-visible, .dp-tiebreak-clean button:focus-visible { outline: 2px solid var(--dp-gold-line); outline-offset: -2px; }
         @media(max-width: 520px) { .dp-tiebreak-content { padding: 12px; } .dp-tiebreak-row summary { gap: 8px; } .dp-tiebreak-row-right { flex-basis: 130px; } }
       `}</style>
     </details>
