@@ -16,9 +16,11 @@ const WATCHES = [
 const KEY_PREFIX = "catch-alert:2026-11-19";
 
 function chicagoDate() {
-  return new Intl.DateTimeFormat("en-CA", {
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(new Date());
+  }).formatToParts(new Date());
+  const part = type => parts.find(p => p.type === type)?.value;
+  return [part("year"), part("month"), part("day")].join("-");
 }
 
 async function json(url) {
@@ -71,7 +73,7 @@ export async function GET() {
       return NextResponse.json({ ok: true, watching: false, reason: "Outside November 19 game night" });
     }
     const league = await getLeagueData();
-    const reed = (league.owners || []).find(o => /\\breed\\b/i.test(String(o.name || "")));
+    const reed = (league.owners || []).find(o => normalize(o.name).includes("reed"));
     if (!reed) return NextResponse.json({ ok: false, error: "Reed owner not found" }, { status: 404 });
     const { data: subscriptions, error } = await supabaseAdmin.from("push_subscriptions")
       .select("id,endpoint,p256dh,auth").eq("enabled", true).eq("owner_id", Number(reed.id));
