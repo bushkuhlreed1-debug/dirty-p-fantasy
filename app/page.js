@@ -1029,9 +1029,6 @@ function EspnLineupRows({ players, nflGames = {} }) {
     const actual = valueOrNull(player.currentPoints ?? player.actualPoints);
     const projected = valueOrNull(player.projectedPoints);
     const nflGame = nflGames[String(player.nflTeam || "").toUpperCase()] || null;
-    const nflInfo = !nflGame ? null : nflGame.state === "pre"
-      ? `${nflGame.isHome ? "vs" : "@"} ${nflGame.opponent} · ${nflGame.status}`
-      : `${nflGame.isHome ? "vs" : "@"} ${nflGame.opponent} · ${nflGame.ownScore ?? "–"}-${nflGame.opponentScore ?? "–"} · ${nflGame.status}`;
     return (
       <div className="dp-espn-player" key={player.id || index}>
         <span className="dp-espn-slot">{player.slot || "—"}</span>
@@ -1041,22 +1038,11 @@ function EspnLineupRows({ players, nflGames = {} }) {
             <strong>{player.name || player.fullName}</strong>
           </span>
           <small>{[player.nflTeam, player.position].filter(Boolean).join(" · ") || "NFL Player"}</small>
-          {nflGame && (
-            <span className="dp-player-game">
-              <NflTeamLogo code={player.nflTeam} size={18} />
-              <strong>{player.nflTeam}</strong>
-              <span>{nflGame.isHome ? "vs" : "@"}</span>
-              <NflTeamLogo code={nflGame.opponent} size={18} />
-              <strong>{nflGame.opponent}</strong>
+          {nflGame?.opponent && (
+            <span className="dp-player-opponent" title={`Opponent: ${nflGame.opponent}`}>
+              <NflTeamLogo code={nflGame.opponent} size={21} />
             </span>
           )}
-          {nflInfo && <small className="dp-espn-nfl-game">{nflInfo}</small>}
-          {nflGame?.network && <small className="dp-broadcast-network">TV: {nflGame.network}</small>}
-          {nflGame?.watchUrl ? (
-            <a href={nflGame.watchUrl} target="_blank" rel="noopener noreferrer" className="dp-nfl-watch">Watch game ↗</a>
-          ) : nflGame?.eventUrl ? (
-            <a href={nflGame.eventUrl} target="_blank" rel="noopener noreferrer" className="dp-nfl-watch">Game details / viewing options ↗</a>
-          ) : null}
         </span>
         <span className="dp-espn-number">{projected === null ? "—" : one(projected)}</span>
         <b className="dp-espn-number dp-espn-actual">{actual === null ? "—" : points(actual)}</b>
@@ -2769,7 +2755,8 @@ export default async function Home() {
         }
 
         /* ESPN-style scoring grid: position, player, projected, actual. */
-        .dp-player-identity, .dp-player-game { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+        .dp-player-identity { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+        .dp-player-opponent { display:flex; align-items:center; min-height:22px; }
         .dp-player-identity strong { min-width:0; overflow-wrap:anywhere; }
         .dp-player-game { color:#b7cce0; font-size:10px; }
         .dp-player-game strong { color:#e7edf5; font-size:10px; }
