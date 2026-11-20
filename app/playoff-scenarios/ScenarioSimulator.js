@@ -14,6 +14,9 @@ const PAGE_SIZE = 8;
 
 // Below 3% = Long Shot
 const LONG_SHOT_CUTOFF = 0.03;
+// Ignore negligible differences when suggesting who to root for.
+const NEGLIGIBLE_SWING = 0.01;
+const SMALL_SWING = 0.03;
 
 const n = v => Number(v) || 0;
 
@@ -28,6 +31,20 @@ const rate = t => {
 
 const pct = x =>
   `${(100 * (x || 0)).toFixed(1)}%`;
+
+// Anchor estimated outcomes to ESPN’s published current playoff probability.
+// ESPN does not publish a conditional win/loss forecast, so those remain estimates.
+function anchoredOdds(estimate, modeledBaseline, espnBaseline) {
+  if (estimate == null) return null;
+  if (espnBaseline == null || !Number.isFinite(Number(espnBaseline))) return estimate;
+  if (estimate <= 0) return 0;
+  if (estimate >= 1) return 1;
+  const clamp = p => Math.max(0.0001, Math.min(0.9999, Number(p)));
+  const logit = p => Math.log(clamp(p) / (1 - clamp(p)));
+  const offset = logit(espnBaseline) - logit(modeledBaseline);
+  const z = logit(estimate) + offset;
+  return 1 / (1 + Math.exp(-z));
+}
 
 const qualified = kind =>
   kind !== "out";
@@ -457,8 +474,11 @@ function ownerReport(
   teams,
   games,
   baseline,
-  week
+  week,
+  espnBaseline = null
 ) {
+  const modeledBaseline = baseline.totals.get(ownerId)?.odds ?? 0;
+  const calibrate = p => anchoredOdds(p, modeledBaseline, espnBaseline);
   const relevant = games
     .map(
       (game, index) => ({
@@ -487,19 +507,19 @@ function ownerReport(
   const watch = relevant
     .filter(g => g !== own)
     .map(g => {
-      const homeOdds = conditional(
+      const homeOdds = calibrate(conditional(
         baseline.entries,
         g.index,
         g.homeId,
         ownerId
-      );
+      ));
 
-      const awayOdds = conditional(
+      const awayOdds = calibrate(conditional(
         baseline.entries,
         g.index,
         g.awayId,
         ownerId
-      );
+      ));
 
       const homeAlive =
         aliveEntries.some(
@@ -523,10 +543,7 @@ function ownerReport(
           homeOdds >= awayOdds
             ? g.homeId
             : g.awayId,
-        impact: Math.abs(
-          (homeOdds || 0) -
-          (awayOdds || 0)
-        ),
+        impact: Math.abs(homeOdds - awayOdds),
         mandatory:
           baseline.exact &&
           homeAlive !== awayAlive
@@ -547,12 +564,12 @@ function ownerReport(
     );
 
   const win = own
-    ? conditional(
+    ? calibrate(conditional(
         baseline.entries,
         own.index,
         ownerId,
         ownerId
-      )
+      ))
     : null;
 
   const opponent = own
@@ -562,12 +579,12 @@ function ownerReport(
     : null;
 
   const loss = own
-    ? conditional(
+    ? calibrate(conditional(
         baseline.entries,
         own.index,
         opponent,
         ownerId
-      )
+      ))
     : null;
 
   const winAlive =
@@ -603,7 +620,7 @@ function ownerReport(
         "clinch"
     );
 
-  let headline = "Every game matters";
+  let headline = "Your best path to the playoffs";
 
   if (baseline.exact && own) {
     if (!winAlive && !lossAlive) {
@@ -658,9 +675,9 @@ function ownerReport(
     ...grouped.values()
   ].map(g => ({
     ...g,
-    odds: g.total
+    odds: calibrate(g.total
       ? g.nominal / g.total
-      : 0
+      : 0)
   }));
 
   situations.sort(
@@ -1174,6 +1191,8 @@ export default function ScenarioSimulator({
 
   const stats =
     baseline.totals.get(id);
+  const espnBaseline = owner?.espnPlayoffPct ?? null;
+  const displayedBaseline = espnBaseline ?? stats?.odds ?? 0;
 
   // Mathematical elimination/clinching
   // only when exhaustive enumeration is
@@ -1187,12 +1206,12 @@ export default function ScenarioSimulator({
     : baseline.exact &&
       stats.clinch === baseline.iterations
     ? "clinched"
-    : stats.odds < LONG_SHOT_CUTOFF
+    : displayedBaseline < LONG_SHOT_CUTOFF
     ? "long-shot"
     : "in-hunt";
 
-  const showSurvivalAdvice =
-    ownerStatus === "in-hunt";
+  // Even long-shot teams should get a concrete rooting guide.
+  const showSurvivalAdvice = ownerStatus !== "unknown" && ownerStatus !== "eliminated" && ownerStatus !== "clinched";
 
   const statusName = {
     eliminated: "Eliminated (modeled)",
@@ -1228,7 +1247,8 @@ export default function ScenarioSimulator({
             teams,
             games,
             baseline,
-            week
+            week,
+            espnBaseline
           )
         : null,
     [
@@ -1238,7 +1258,8 @@ export default function ScenarioSimulator({
       teams,
       games,
       baseline,
-      week
+      week,
+      espnBaseline
     ]
   );
 
@@ -1254,7 +1275,7 @@ export default function ScenarioSimulator({
 
       <section className="dp-panel">
         <span className="dp-kicker">
-          DIRTY P ANALYTICS
+          PLAYOFF ANALYTICS
         </span>
 
         <h2>
@@ -1262,27 +1283,23 @@ export default function ScenarioSimulator({
         </h2>
 
         <p className="dp-muted">
-          Estimated playoff chances
-          based on records, current
-          points, and remaining games.
+          ESPN playoff probabilities when available. The simulator below separately models hypothetical win/loss outcomes.
         </p>
 
         <div className="dp-odds-grid">
           {[...teams]
             .sort(
               (a, b) =>
-                baseline.totals.get(
-                  b.ownerId
-                ).odds -
-                baseline.totals.get(
-                  a.ownerId
-                ).odds
+                (b.espnPlayoffPct ?? baseline.totals.get(b.ownerId).odds) -
+                (a.espnPlayoffPct ?? baseline.totals.get(a.ownerId).odds)
             )
             .map(t => {
               const s =
                 baseline.totals.get(
                   t.ownerId
                 );
+              const espn = t.espnPlayoffPct;
+              const displayed = espn == null ? s.odds : espn;
 
               return (
                 <div
@@ -1295,7 +1312,7 @@ export default function ScenarioSimulator({
                     </b>
 
                     <b className="dp-gold">
-                      {pct(s.odds)}
+                      {pct(displayed)}
                     </b>
                   </div>
 
@@ -1303,33 +1320,18 @@ export default function ScenarioSimulator({
                     <div
                       style={{
                         width:
-                          `${100 * s.odds}%`
+                          `${100 * displayed}%`
                       }}
                     />
                   </div>
-
-                  <small>
-                    {s.possible.toLocaleString()}
-                    {" of "}
-                    {baseline.iterations.toLocaleString()}
-                    {" "}
-                    {baseline.exact
-                      ? "possible outcomes"
-                      : "sampled outcomes"}
-                    {" "}preserve a playoff path
-                  </small>
+                   <small>{espn != null ? "ESPN standings playoff probability" : "Simulator estimate — ESPN projection unavailable"}</small>
                 </div>
               );
             })}
         </div>
 
         <p className="dp-muted">
-          {baseline.exact
-            ? `All ${baseline.iterations.toLocaleString()} remaining win/loss combinations evaluated.`
-            : `${SIMULATIONS.toLocaleString()} strength-weighted simulations sampled.`}
-          {" "}Playoff percentages are
-          estimates, not official
-          ESPN odds.
+          These are ESPN's official standings playoff percentages, refreshed from ESPN when available. Hypothetical outcomes below remain independent estimates.
         </p>
       </section>
 
@@ -1343,13 +1345,11 @@ export default function ScenarioSimulator({
         </span>
 
         <h2>
-          This Week: What You Need
+          Best Path to the Playoffs This Week
         </h2>
 
         <p className="dp-muted">
-          See what a win or loss means
-          and which other results you
-          should root for.
+          Pick any owner to see which results give them the highest estimated chance of reaching the playoffs. Games are ranked by their impact on that owner, not by which opponent they like.
         </p>
 
         {owner && (
@@ -1390,9 +1390,9 @@ export default function ScenarioSimulator({
                 </p>
 
                 <p className="dp-muted">
-                  Estimated playoff odds:{" "}
+                  Current playoff odds:{" "}
                   <b>
-                    {pct(stats?.odds || 0)}
+                    {pct(displayedBaseline)}
                   </b>
                 </p>
               </div>
@@ -1439,7 +1439,7 @@ export default function ScenarioSimulator({
                         </strong>
 
                         <small>
-                          Estimated playoff chance
+                          ESPN-anchored estimate (not official ESPN scenario odds)
                         </small>
                       </div>
 
@@ -1455,7 +1455,7 @@ export default function ScenarioSimulator({
                         </strong>
 
                         <small>
-                          Estimated playoff chance
+                          ESPN-anchored estimate (not official ESPN scenario odds)
                         </small>
                       </div>
                     </div>
@@ -1469,41 +1469,60 @@ export default function ScenarioSimulator({
                 )}
 
                 <h4>
-                  Who to Root For
+                  Other Results That Help You Most
                 </h4>
 
                 {report.watch.length ? (
-                  report.watch.map(g => (
-                    <div
-                      key={g.id}
-                      className="dp-watch"
-                    >
-                      <b>
-                        {name(g.awayId)}
-                        {" vs "}
-                        {name(g.homeId)}
-                      </b>
-
-                      <p>
-                        Root for{" "}
-                        <b className="dp-gold">
-                          {name(
-                            g.mandatory ||
-                            g.preferred
-                          )}
-                        </b>
-
-                        {g.mandatory
-                          ? " — required to preserve a possible path"
-                          : " — the more favorable result"}
-                      </p>
-                    </div>
-                  ))
+                  <>
+                    <p className="dp-muted">
+                      Root for the winner that maximizes your own playoff probability. The comparison includes all remaining games, not just this matchup. A difference below 1 percentage point is essentially a toss-up.
+                    </p>
+                    {report.watch.map(g => {
+                      const negligible = !g.mandatory && g.impact < NEGLIGIBLE_SWING;
+                      const small = !g.mandatory && g.impact < SMALL_SWING;
+                      return (
+                        <div key={g.id} className="dp-watch">
+                          <b>{name(g.awayId)}{" vs "}{name(g.homeId)}</b>
+                          <p>
+                            {negligible ? (
+                              <>Doesn't really matter who wins. Either result barely changes your playoff chances.</>
+                            ) : (
+                              <>
+                                Root for{" "}
+                                <b className="dp-gold">{name(g.mandatory || g.preferred)}</b>
+                                {g.mandatory
+                                  ? " — this result is required to keep a possible path alive."
+                                  : small
+                                    ? " — slight edge, but not a game worth worrying about."
+                                    : " — this is a meaningful result for your playoff chances."}
+                              </>
+                            )}
+                          </p>
+                          <small className="dp-muted">
+                            {g.mandatory ? "Must-have outcome · " : negligible ? "Little to no impact · " : small ? "Small impact · " : "Important matchup · "}
+                            {Math.abs(100 * g.impact).toFixed(1)} percentage-point difference
+                            {" · "}{name(g.homeId)} wins: {pct(g.homeOdds)}
+                            {" · "}{name(g.awayId)} wins: {pct(g.awayOdds)}
+                          </small>
+                        </div>
+                      );
+                    })}
+                  </>
                 ) : (
-                  <p className="dp-muted">
-                    No other matchups were
-                    provided for this week.
-                  </p>
+                  <p className="dp-muted">No other matchups were provided for this week.</p>
+                )}
+
+                {report.best && report.relevant.length > 0 && (
+                  <div className="dp-watch" style={{borderColor:"#447968"}}>
+                    <h4>Best combination of results this week</h4>
+                    <p>These winners give {name(id)} the highest modeled chance to make the playoffs this week: <b className="dp-gold">{pct(report.best.odds)}</b>.</p>
+                    {report.relevant.map((g, i) => (
+                      <p key={g.id}>
+                        <b>{name(report.best.winners[i])}</b> beats {name(report.best.winners[i] === g.homeId ? g.awayId : g.homeId)}
+                      </p>
+                    ))}
+                    <small className="dp-muted">This is the best combination found by the model, not a prediction of which teams will actually win or an official ESPN scenario.</small>
+                  </div>
                 )}
 
                 {report.worst &&
