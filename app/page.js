@@ -5,8 +5,8 @@ import { getLeagueData } from "../lib/leagueData";
 import { getMatchupIntel } from "../lib/matchupIntel";
 import { getEspnLiveScoreMap } from "../lib/espnLiveScore";
 import { getNflGameMap } from "../lib/nflGameScores";
+import { getNflPlayerBoxScores } from "../lib/nflPlayerBoxScores";
 import AutoRefresh from "./components/AutoRefresh";
-import ScoreboardExtras from "./components/ScoreboardExtras";
 
 export const dynamic = "force-dynamic";
 
@@ -1024,11 +1024,13 @@ function NflTeamLogo({ code, size = 22 }) {
   />;
 }
 
-function EspnLineupRows({ players, nflGames = {} }) {
+function EspnLineupRows({ players, nflGames = {}, playerBoxScores = {} }) {
   return players.map((player, index) => {
     const actual = valueOrNull(player.currentPoints ?? player.actualPoints);
     const projected = valueOrNull(player.projectedPoints);
     const nflGame = nflGames[String(player.nflTeam || "").toUpperCase()] || null;
+    const started = nflGame?.state === "in" || nflGame?.state === "post";
+    const gameStats = started ? playerBoxScores[String(player.playerId || player.id || "")] : null;
     return (
       <div className="dp-espn-player" key={player.id || index}>
         <span className="dp-espn-slot">{player.slot || "—"}</span>
@@ -1042,11 +1044,15 @@ function EspnLineupRows({ players, nflGames = {} }) {
             <>
               <small className="dp-espn-nfl-game">
                 {nflGame.isHome ? "vs " : "@ "}{nflGame.opponent}
-                {" · "}
-                {nflGame.kickoff ? new Intl.DateTimeFormat("en-US", {
-                  timeZone: "America/Chicago", weekday: "short", month: "short",
-                  day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short"
-                }).format(new Date(nflGame.kickoff)) : nflGame.status}
+                {nflGame.state === "pre" && (
+                  <>
+                    {" · "}
+                    {nflGame.kickoff ? new Intl.DateTimeFormat("en-US", {
+                      timeZone: "America/Chicago", weekday: "short", month: "short",
+                      day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short"
+                    }).format(new Date(nflGame.kickoff)) : nflGame.status}
+                  </>
+                )}
               </small>
               {nflGame.state === "in" && (
                 <small className="dp-espn-nfl-game">
@@ -1056,6 +1062,7 @@ function EspnLineupRows({ players, nflGames = {} }) {
               {nflGame.state === "post" && (
                 <small className="dp-espn-nfl-game">FINAL · {nflGame.ownScore ?? "–"}-{nflGame.opponentScore ?? "–"}</small>
               )}
+              {started && <small className="dp-live-statline">{gameStats || "Live player box score unavailable"}</small>}
               <small className="dp-broadcast-network">
                 TV: {nflGame.network || "Not announced"}
               </small>
@@ -1076,14 +1083,14 @@ function EspnLineupRows({ players, nflGames = {} }) {
             </>
           )}
         </span>
-        <span className="dp-espn-number">{projected === null ? "—" : one(projected)}</span>
+        <span className="dp-espn-number">{started || projected === null ? "—" : one(projected)}</span>
         <b className="dp-espn-number dp-espn-actual">{actual === null ? "—" : points(actual)}</b>
       </div>
     );
   });
 }
 
-function LiveLineup({ name, team, nflGames = {} }) {
+function LiveLineup({ name, team, nflGames = {}, playerBoxScores = {} }) {
   const starters = liveStarters(team);
   const bench = liveBench(team);
   return (
@@ -1092,13 +1099,13 @@ function LiveLineup({ name, team, nflGames = {} }) {
       <div className="dp-espn-columns">
         <span>POS</span><span>PLAYER</span><span>PROJ</span><span>PTS</span>
       </div>
-      {starters.length ? <EspnLineupRows players={starters} nflGames={nflGames} /> : (
+      {starters.length ? <EspnLineupRows players={starters} nflGames={nflGames} playerBoxScores={playerBoxScores} /> : (
         <p className="dp-muted">ESPN lineup data is not available yet.</p>
       )}
       {bench.length > 0 && (
         <details className="dp-espn-bench">
           <summary>Bench ({bench.length}) <span>⌄</span></summary>
-          <EspnLineupRows players={bench} nflGames={nflGames} />
+          <EspnLineupRows players={bench} nflGames={nflGames} playerBoxScores={playerBoxScores} />
         </details>
       )}
 
@@ -1114,7 +1121,8 @@ function MatchupCard({
   matchup,
   live = false,
   featured = false,
-  nflGames = {}
+  nflGames = {},
+  playerBoxScores = {}
 }) {
   const sides = [
     {
@@ -1244,6 +1252,7 @@ function MatchupCard({
               name={first(side.name)}
               team={side.liveTeam}
               nflGames={nflGames}
+              playerBoxScores={playerBoxScores}
             />
           ))}
         </div>
@@ -1528,6 +1537,7 @@ export default async function Home() {
     new Map();
 
   let nflGames = {};
+  let playerBoxScores = {};
 
   try {
     intel =
@@ -1558,6 +1568,12 @@ export default async function Home() {
     nflGames = await getNflGameMap(season, displayWeek);
   } catch (error) {
     console.error("NFL game information unavailable:", error);
+  }
+
+  try {
+    playerBoxScores = await getNflPlayerBoxScores(nflGames);
+  } catch (error) {
+    console.error("NFL player box scores unavailable:", error);
   }
 
   const hasLivePoints = [
@@ -2164,13 +2180,6 @@ export default async function Home() {
             </span>
           </div>
 
-          <ScoreboardExtras
-            matchups={rankedMatchups}
-            games={nflGames}
-            week={displayWeek}
-            playoffTeams={n(playoffTeamCount) || PLAYOFF_TEAMS}
-          />
-
           <div className="dp-matchup-grid">
             {rankedMatchups.map(
               matchup => (
@@ -2180,6 +2189,7 @@ export default async function Home() {
                   }
                   matchup={matchup}
                   nflGames={nflGames}
+                  playerBoxScores={playerBoxScores}
                   live
                 />
               )
@@ -2787,6 +2797,7 @@ export default async function Home() {
         }
 
         /* ESPN-style scoring grid: position, player, projected, actual. */
+        .dp-live-statline { color:#e2ca8c!important; font-size:10px; line-height:1.5; }
         .dp-player-identity { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
         .dp-player-opponent { display:flex; align-items:center; min-height:22px; }
         .dp-player-identity strong { min-width:0; overflow-wrap:anywhere; }
