@@ -9,6 +9,7 @@ import { getNflPlayerBoxScores } from "../lib/nflPlayerBoxScores";
 import AutoRefresh from "./components/AutoRefresh";
 import MatchupLineupSwitcher from "./components/MatchupLineupSwitcher";
 import { buildRecordWatches, buildPlayoffPulse } from "../lib/liveFeatures";
+import { buildWeekHistory } from "../lib/weekHistory";
 
 export const dynamic = "force-dynamic";
 
@@ -1589,6 +1590,17 @@ export default async function Home() {
   );
 
   const pregame = !live;
+  const weekMoments = buildWeekHistory({
+    games:league.historicalMatchups || [],
+    owners:league.owners || [],
+    week:displayWeek,
+    currentSeason
+  });
+  const chicagoDay = Number(new Intl.DateTimeFormat("en-US",{
+    timeZone:"America/Chicago",day:"numeric"
+  }).format(new Date()));
+  const featuredMoment = weekMoments.length
+    ? weekMoments[chicagoDay % weekMoments.length] : null;
   const recordWatches = live ? buildRecordWatches(league, displayWeek, liveScores) : [];
   const playoffPulse = live ? buildPlayoffPulse(league, displayWeek, liveScores, live) : null;
 
@@ -2336,6 +2348,47 @@ export default async function Home() {
               schedule is available.
             </div>
           )}
+        </section>
+      )}
+
+      {/* ==========================================
+          THIS WEEK IN DIRTY P HISTORY
+      ========================================== */}
+
+      {featuredMoment && (
+        <section className="section-block dp-history-week-section">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">FROM THE ARCHIVE</p>
+              <h2>This Week in Dirty P History</h2>
+            </div>
+            <Link href="/records">Explore records →</Link>
+          </div>
+          <details className="dp-history-week-feature">
+            <summary>
+              <span className="dp-history-week-date">
+                WEEK {displayWeek} · {featuredMoment.year} THROWBACK
+              </span>
+              <span className="dp-history-week-headline">
+                {featuredMoment.title}
+              </span>
+              <span className="dp-history-week-bottom">
+                <span>{featuredMoment.label}</span>
+                <span>See the story <span aria-hidden="true">⌄</span></span>
+              </span>
+            </summary>
+            <div className="dp-history-week-details">
+              <p>{featuredMoment.detail}</p>
+              {weekMoments.filter(moment=>moment.key!==featuredMoment.key).map(moment=>(
+                <div className="dp-history-week-extra" key={moment.key+"-"+moment.label}>
+                  <small>{moment.label} · {moment.year}</small>
+                  <strong>{moment.title}</strong>
+                  <p>{moment.detail}</p>
+                </div>
+              ))}
+              <small>Historical scores from completed regular-season matchups in the Dirty P archive.</small>
+            </div>
+          </details>
         </section>
       )}
 
