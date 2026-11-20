@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getLeagueData } from "../../lib/leagueData";
+import { buildLuckRankings } from "../../lib/luckRankings";
+import LuckRankings from "../components/LuckRankings";
 
 export const dynamic = "force-dynamic";
 
@@ -596,6 +598,8 @@ export default async function RecordsPage() {
   const regularGames = completedGames.filter(
     isRegularSeasonGame
   );
+
+  const luckData = buildLuckRankings(regularGames, owners);
 
 
   const playoffGames = completedGames.filter(
@@ -1242,14 +1246,6 @@ export default async function RecordsPage() {
           ← Home
         </Link>
 
-        <Link
-          href="/records/luck"
-          id="luck-rankings"
-          className="dp-goat-history-link"
-        >
-          🍀 View Luck Rankings
-        </Link>
-
         <span>
           {latestCompletedWeek > 0
             ? `Through ${currentSeason} Week ${latestCompletedWeek}`
@@ -1668,6 +1664,28 @@ export default async function RecordsPage() {
         )}
 
       </RecordSection>
+
+      {/* LUCK RANKINGS — CLOSED BY DEFAULT BELOW THE RECORD BOOK */}
+
+      <section className="owners-section" id="luck-rankings">
+        <details className="dp-feature-disclosure">
+          <summary>
+            <span className="dp-feature-disclosure-icon" aria-hidden="true">🍀</span>
+            <span className="dp-feature-disclosure-copy">
+              <span className="eyebrow">THE SCHEDULE LUCK INDEX</span>
+              <strong>Luck Rankings</strong>
+              <small>Find out who's winning more—or fewer—games than their scoring deserves</small>
+            </span>
+            <span className="dp-feature-disclosure-chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div className="dp-feature-disclosure-content">
+            <LuckRankings data={luckData} />
+            <div className="dp-feature-disclosure-footer">
+              <Link href="/records/luck">Open full Luck Rankings →</Link>
+            </div>
+          </div>
+        </details>
+      </section>
 
       {/* FOOTER */}
 
