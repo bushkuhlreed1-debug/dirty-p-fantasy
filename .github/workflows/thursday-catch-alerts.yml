@@ -2,26 +2,53 @@ name: Thursday Night Catch Alerts
 
 on:
   schedule:
-    # November 19 evening in Central Time = November 20, 01:00-05:59 UTC.
-    # GitHub can delay scheduled job starts, so polls are best-effort.
+    # GitHub can start schedules at most every 5 minutes and may delay them.
+    # Once a runner starts, keep it running and poll every 30 seconds.
+    # November 19 in Chicago = November 20, 01:00-05:59 UTC.
     - cron: "*/5 1-5 20 11 *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
+  # One continuous monitor at a time; a queued run can take over if the
+  # current runner is interrupted. Do not cancel a healthy running monitor.
   group: thursday-catch-alerts-2026
   cancel-in-progress: false
 
 jobs:
   check-catches:
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 300
     steps:
-      - name: Check Tyler Warren and Xavier Hutchinson every 30 seconds
+      - name: Check Tyler Warren and Xavier Hutchinson every 30 seconds until game night ends
         shell: bash
         run: |
-          for i in $(seq 1 10); do
-            curl --fail --show-error --silent --max-time 20 \
-              "https://dirty-p-fantasy.vercel.app/api/notifications/catches" || true
-            echo
-            if [ "$i" -lt 10 ]; then sleep 30; fi
+          set -uo pipefail
+          game_night_utc="2026-11-20"
+          end_epoch=$(date -u -d "2026-11-20 06:00:00 UTC" +%s)
+
+          if [[ "$(date -u +%Y-%m-%d)" != "$game_night_utc" ]]; then
+            echo "Outside the November 19 Central Time game window; nothing to monitor."
+            exit 0
+          fi
+
+          while [[ $(date -u +%s) -lt "$end_epoch" ]]; do
+            started=$SECONDS
+            result=$(curl --fail --show-error --silent --max-time 20 \
+              "https://dirty-p-fantasy.vercel.app/api/notifications/catches" || true)
+            echo "$(date -u +%FT%TZ) ${result:-No response from catch-alert endpoint}"
+
+            # The endpoint reports watching=false with an updates array when
+            # the game is final. Do NOT stop just because no phone has subscribed yet.
+            if printf '%s' "$result" | jq -e \
+              '.ok == true and .watching == false and (.updates | type == "array")' \
+              > /dev/null 2>&1; then
+              echo "NFL game is final; catch monitoring complete."
+              break
+            fi
+
+            elapsed=$((SECONDS - started))
+            if (( elapsed < 30 )); then sleep $((30 - elapsed)); fi
           done
