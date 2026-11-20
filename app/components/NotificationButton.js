@@ -90,6 +90,11 @@ export default function NotificationButton({
   ] = useState(true);
 
   const [
+    needsHomeScreen,
+    setNeedsHomeScreen,
+  ] = useState(false);
+
+  const [
     enabled,
     setEnabled,
   ] = useState(false);
@@ -131,6 +136,13 @@ export default function NotificationButton({
       setSupported(
         pushSupported
       );
+
+      const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isHomeScreenApp =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+
+      setNeedsHomeScreen(isAppleMobile && !isHomeScreenApp);
 
 
       if (!pushSupported) {
@@ -230,7 +242,7 @@ export default function NotificationButton({
 
           if (savedOwnerId) {
             setMessage(
-              "Tap Enable Notifications to reconnect this device."
+              "Tap Subscribe to Notifications to reconnect this device."
             );
           }
 
@@ -580,12 +592,10 @@ export default function NotificationButton({
 
 
         <p>
-          Get matchup start alerts,
-          touchdown notifications,
-          lead changes after both teams
-          reach 50 points, Thursday and
-          Sunday score updates, and final
-          scores.
+          Get game updates, touchdowns,
+          lead changes, final scores,
+          and special reception alerts
+          when a catch watch is active.
         </p>
 
       </div>
@@ -596,8 +606,9 @@ export default function NotificationButton({
         {!supported && (
 
           <span className="notification-status">
-            Push notifications are not
-            supported in this browser.
+            {needsHomeScreen
+              ? "To get iPhone alerts: open Dirty P in Safari, choose Share → Add to Home Screen, then open the Home Screen app and subscribe here."
+              : "Push notifications are not supported in this browser."}
           </span>
 
         )}
@@ -666,7 +677,7 @@ export default function NotificationButton({
 
               {loading
                 ? "Enabling..."
-                : "Enable Notifications"}
+                : "Subscribe to Notifications"}
 
             </button>
 
@@ -698,7 +709,7 @@ export default function NotificationButton({
               ? "Working..."
               : enabled
                 ? "Notifications On"
-                : "Enable Notifications"}
+                : "Subscribe to Notifications"}
 
           </button>
 
