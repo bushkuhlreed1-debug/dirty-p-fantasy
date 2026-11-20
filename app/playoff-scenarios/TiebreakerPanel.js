@@ -42,7 +42,9 @@ const statusText = (team) =>
 export default function TiebreakerPanel({
   teams = [],
   completedGames = [],
-  seedingRule = ""
+  seedingRule = "",
+  ownerId = null,
+  embedded = false
 }) {
   const [selected, setSelected] = useState("");
   const [tiedOnly, setTiedOnly] = useState(false);
@@ -56,7 +58,9 @@ export default function TiebreakerPanel({
 
   const preferred = sortedTeams.find((t) => t.ownerName === "Reed Bushkuhl");
   const fallback = preferred || sortedTeams[0];
-  const selectedOwnerId = sortedTeams.some(
+  const selectedOwnerId = ownerId != null && sortedTeams.some(
+    (t) => t.ownerId === Number(ownerId)
+  ) ? Number(ownerId) : sortedTeams.some(
     (t) => String(t.ownerId) === selected
   ) ? Number(selected) : fallback?.ownerId;
   const owner = sortedTeams.find((t) => t.ownerId === selectedOwnerId);
@@ -213,16 +217,25 @@ export default function TiebreakerPanel({
     color: "#f1f4f8"
   };
 
+  if (!owner) return null;
+
   return (
-    <section style={surface}>
+    <section style={embedded ? {
+      ...surface,
+      background: "#111b29",
+      border: "1px solid #3d5268",
+      borderRadius: 12,
+      padding: 16,
+      marginTop: 18
+    } : surface}>
       <div style={{
         color: "#e6b65b", fontSize: 11, fontWeight: 800,
         letterSpacing: 1.8, textTransform: "uppercase"
       }}>
-        PLAYOFF SEEDING
+        {embedded ? owner.ownerName + " · PLAYOFF TIEBREAKERS" : "PLAYOFF SEEDING"}
       </div>
       <h2 style={{ margin: "7px 0 10px", fontSize: 23 }}>
-        Who Holds the Tiebreaker?
+        {embedded ? "Tiebreakers & Seeding" : "Who Holds the Tiebreaker?"}
       </h2>
       <p style={{ color: "#bac4d2", margin: "0 0 12px" }}>
         Check which owner has the edge if two teams finish with the
@@ -244,7 +257,7 @@ export default function TiebreakerPanel({
         )}
       </div>
 
-      {rule.key === "PF" && tiedGroups.length > 0 && (
+      {!embedded && rule.key === "PF" && tiedGroups.length > 0 && (
         <div style={{
           border: "1px solid #536076", borderRadius: 10,
           background: "#141e2a", padding: 12, marginBottom: 14
@@ -284,7 +297,7 @@ export default function TiebreakerPanel({
         display: "flex", flexWrap: "wrap", gap: 10,
         alignItems: "flex-end", marginBottom: 14
       }}>
-        <label style={{ display: "grid", gap: 5, flex: "1 1 210px" }}>
+        {!embedded && <label style={{ display: "grid", gap: 5, flex: "1 1 210px" }}>
           <span style={{ fontSize: 12, color: "#bac4d2" }}>
             Compare this owner
           </span>
@@ -304,7 +317,7 @@ export default function TiebreakerPanel({
               </option>
             ))}
           </select>
-        </label>
+        </label>}
         <button
           type="button"
           onClick={() => setTiedOnly((v) => !v)}
