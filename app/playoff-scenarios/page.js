@@ -43,6 +43,8 @@ export default async function PlayoffScenariosPage() {
     currentSeason = 2026,
     currentWeek = 1,
     playoffTeamCount = 4,
+    playoffSeedingRule = "",
+    completedCurrentMatchups = [],
     owners = [],
     currentTeams = [],
     currentSeasonMatchups = [],
@@ -190,6 +192,8 @@ export default async function PlayoffScenariosPage() {
         currentWeek={n(currentWeek)}
         season={n(currentSeason)}
         playoffCount={n(playoffTeamCount) || 4}
+        completedGames={completedCurrentMatchups}
+        seedingRule={playoffSeedingRule}
       />
 
       <footer className="site-footer">
