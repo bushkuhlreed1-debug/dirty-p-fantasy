@@ -6,6 +6,7 @@ import { getLeagueData } from "../../../../lib/leagueData";
 import { getMatchupIntel } from "../../../../lib/matchupIntel";
 import { getEspnLiveScoreMap } from "../../../../lib/espnLiveScore";
 import { readPushPreferences, notificationCategory, matchesPlayer } from "../../../../lib/pushPreferences";
+import { buildRecordWatches, buildPlayoffPulse } from "../../../../lib/liveFeatures";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -288,6 +289,16 @@ async function getNflSummary(event, season, week) {
       players: Array.isArray(data?.boxscore?.players)
         ? data.boxscore.players
         : [],
+    },
+    drives: {
+      previous: Array.isArray(data?.drives?.previous)
+        ? data.drives.previous.map(d=>({plays:(d.plays || []).map(p=>({
+          id:p.id, text:p.text, shortText:p.shortText, statYardage:p.statYardage, type:p.type,
+        }))}))
+        : [],
+      current: data?.drives?.current?.plays ? {plays:data.drives.current.plays.map(p=>({
+        id:p.id, text:p.text, shortText:p.shortText,statYardage:p.statYardage,type:p.type,
+      }))} : null,
     },
   };
 
@@ -1098,6 +1109,135 @@ async function runNotifications() {
     season,
     week
   );
+
+  // ===================================================
+  // CUSTOM PLAYER ALERTS: receptions, milestones, and
+  // big plays. Each category uses persistent baselines
+  // to avoid replaying events from before activation.
+  // ===================================================
+
+  const allPlays = [];
+  for (const event of nflEvents) {
+    if (eventState(event)==="pre") continue;
+    const summary=summaryByEvent.get(String(event.id));
+    if (!summary) continue;
+    const drives=[
+      ...(summary.drives?.previous || []),
+      ...(summary.drives?.current ? [summary.drives.current] : [])
+    ];
+    for (const drive of drives) {
+      for(const play of drive?.plays || []) {
+        const text=String(play.text || play.shortText || "");
+        const yards=numberOrNull(play.statYardage);
+        const kind=String(play.type?.text || "").toLowerCase();
+        if(yards===null || yards<20 || !/pass|rush|run|scrambl/i.test(kind+" "+text))continue;
+        allPlays.push({
+          key:String(event.id)+":"+String(play.id||normalize(text)).slice(0,130),
+          text,yards
+        });
+      }
+    }
+  }
+  const bigSeenKey="custom-big-play:"+season+":"+week;
+  const bigBaseline=await getState(bigSeenKey);
+  const previousBig=new Set(bigBaseline?.seen || []);
+  const currentBig=new Set(allPlays.map(p=>p.key));
+
+  for (const game of matchups) {
+    for (const ownerId of [Number(game.away_owner_id),Number(game.home_owner_id)]) {
+      const starters=ownerIntel(ownerId)?.starters || [];
+      const teamPoints=fantasyPoints.get(espnTeamIdForOwner(ownerId)) || new Map();
+      for(const starter of starters) {
+        const name=starter?.name;
+        if(!name)continue;
+        const playerId=String(starter?.playerId || starter?.id || normalize(name));
+        const box=findPlayerBoxStats(starter,summaries);
+
+        const recStat=getStat(findCategory(box,"receiv"),["REC","RECEPTIONS"]);
+        const receptions=numberOrNull(recStat);
+        if(receptions!==null) {
+          const key="custom-rec:"+season+":"+week+":"+ownerId+":"+playerId;
+          const old=await getState(key);
+          if(old && receptions>num(old.count)){
+            const delta=receptions-num(old.count);
+            pushesSent+=await pushToOwner(subscriptions,ownerId,{
+              category:"receptions",
+              title:"🏈 RECEPTION — "+name,
+              body:delta===1 ?
+                name+" caught a pass · "+receptions+" total receptions" :
+                name+" added "+delta+" catches · "+receptions+" total receptions",
+              tag:key+":"+receptions,url:"/"
+            },name);
+          }
+          if(!old || receptions!==num(old.count))await setState(key,{count:receptions});
+        }
+
+        const actual=teamPoints.has(playerId) ?
+          numberOrNull(teamPoints.get(playerId)) :
+          numberOrNull(liveScores.get(espnTeamIdForOwner(ownerId))?.startingLineup?.find(p=>String(p.playerId || p.id)===playerId)?.actualPoints);
+        if(actual!==null){
+          const key="custom-points:"+season+":"+week+":"+ownerId+":"+playerId;
+          const old=await getState(key);
+          const crossed=[10,20,30].filter(level=>actual>=level && old && num(old.points)<level);
+          for(const level of crossed) {
+            pushesSent+=await pushToOwner(subscriptions,ownerId,{
+              category:"milestones",title:"⭐ POINT MILESTONE — "+name,
+              body:name+" reached "+level+" fantasy points (now "+actual.toFixed(1)+").",
+              tag:key+":"+level,url:"/"
+            },name);
+          }
+          if(!old || actual!==num(old.points))await setState(key,{points:actual});
+        }
+
+        if (bigBaseline) for(const play of allPlays) {
+          if(previousBig.has(play.key))continue;
+          if(!starterMatchesPlay(starter,{
+            participantIds:[],text:play.text
+          }))continue;
+          // Do not misattribute QB pass yardage to the passer.
+          if(String(starter.position||"").toUpperCase()==="QB" &&
+             /pass/i.test(play.text) && !/scrambl/i.test(play.text))continue;
+          pushesSent+=await pushToOwner(subscriptions,ownerId,{
+            category:"bigPlays",title:"💥 BIG PLAY — "+name,
+            body:play.text,tag:"custom-big:"+play.key+":"+ownerId,url:"/"
+          },name);
+        }
+      }
+    }
+  }
+
+  await setState(bigSeenKey,{seen:[...currentBig].slice(-1000)});
+
+  // Record notifications are targeted to the owner's own record watch;
+  // send one approach alert and, if reached, a separate new-record alert.
+  for(const watch of buildRecordWatches(league,week,liveScores)){
+    if(!watch.ownerId)continue;
+    const phase=watch.surpassed?"broken":"approaching";
+    const key="custom-record:"+season+":"+week+":"+watch.kind+":"+watch.ownerId+":"+phase;
+    if(await getState(key))continue;
+    pushesSent+=await pushToOwner(subscriptions,watch.ownerId,{
+      category:"recordWatch",title:watch.surpassed?"🏆 RECORD WATCH — NEW MARK":"🔥 RECORD WATCH",
+      body:watch.title+". "+watch.current.toFixed(1)+" / "+watch.record.toFixed(1)+" points.",
+      tag:key,url:"/"
+    });
+    await setState(key,{sent:true});
+  }
+
+  const pulse=buildPlayoffPulse(league,week,liveScores,Boolean(intel?.weekStarted));
+  if(pulse) for(const owner of pulse.movers){
+    if(Math.abs(owner.change)<10)continue;
+    const direction=owner.change>0?"rise":"fall";
+    const step=Math.floor(Math.abs(owner.change)/10)*10;
+    const key="custom-playoff:"+season+":"+week+":"+owner.ownerId+":"+direction+":"+step;
+    if(await getState(key))continue;
+    pushesSent+=await pushToOwner(subscriptions,owner.ownerId,{
+      category:"playoffPulse",title:"📈 PLAYOFF PULSE",
+      body:owner.name+": "+owner.before+"% benchmark → "+owner.after+"% live estimate ("+
+        (owner.change>0?"+":"")+owner.change+" percentage points).",
+      tag:key,url:"/"
+    });
+    await setState(key,{sent:true});
+  }
 
   // ===================================================
   // MATCHUP START NOTIFICATIONS
