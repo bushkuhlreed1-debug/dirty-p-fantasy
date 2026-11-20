@@ -6,6 +6,7 @@ import { getMatchupIntel } from "../lib/matchupIntel";
 import { getEspnLiveScoreMap } from "../lib/espnLiveScore";
 import { getNflGameMap } from "../lib/nflGameScores";
 import AutoRefresh from "./components/AutoRefresh";
+import ScoreboardExtras from "./components/ScoreboardExtras";
 
 export const dynamic = "force-dynamic";
 
@@ -1010,6 +1011,19 @@ function PregamePlayers({
   );
 }
 
+function NflTeamLogo({ code, size = 22 }) {
+  const normalized = ({ WSH: "was", JAC: "jax", LA: "lar", OAK: "lv", SD: "lac", STL: "lar" })[String(code || "").toUpperCase()] || String(code || "").toLowerCase();
+  if (!normalized) return null;
+  return <img
+    src={`https://a.espncdn.com/i/teamlogos/nfl/500/${normalized}.png`}
+    alt={`${code} logo`}
+    width={size}
+    height={size}
+    loading="lazy"
+    className="dp-nfl-logo"
+  />;
+}
+
 function EspnLineupRows({ players, nflGames = {} }) {
   return players.map((player, index) => {
     const actual = valueOrNull(player.currentPoints ?? player.actualPoints);
@@ -1022,9 +1036,27 @@ function EspnLineupRows({ players, nflGames = {} }) {
       <div className="dp-espn-player" key={player.id || index}>
         <span className="dp-espn-slot">{player.slot || "—"}</span>
         <span className="dp-espn-player-info">
-          <strong>{player.name || player.fullName}</strong>
+          <span className="dp-player-identity">
+            <NflTeamLogo code={player.nflTeam} size={24} />
+            <strong>{player.name || player.fullName}</strong>
+          </span>
           <small>{[player.nflTeam, player.position].filter(Boolean).join(" · ") || "NFL Player"}</small>
+          {nflGame && (
+            <span className="dp-player-game">
+              <NflTeamLogo code={player.nflTeam} size={18} />
+              <strong>{player.nflTeam}</strong>
+              <span>{nflGame.isHome ? "vs" : "@"}</span>
+              <NflTeamLogo code={nflGame.opponent} size={18} />
+              <strong>{nflGame.opponent}</strong>
+            </span>
+          )}
           {nflInfo && <small className="dp-espn-nfl-game">{nflInfo}</small>}
+          {nflGame?.network && <small className="dp-broadcast-network">TV: {nflGame.network}</small>}
+          {nflGame?.watchUrl ? (
+            <a href={nflGame.watchUrl} target="_blank" rel="noopener noreferrer" className="dp-nfl-watch">Watch game ↗</a>
+          ) : nflGame?.eventUrl ? (
+            <a href={nflGame.eventUrl} target="_blank" rel="noopener noreferrer" className="dp-nfl-watch">Game details / viewing options ↗</a>
+          ) : null}
         </span>
         <span className="dp-espn-number">{projected === null ? "—" : one(projected)}</span>
         <b className="dp-espn-number dp-espn-actual">{actual === null ? "—" : points(actual)}</b>
@@ -2114,6 +2146,13 @@ export default async function Home() {
             </span>
           </div>
 
+          <ScoreboardExtras
+            matchups={rankedMatchups}
+            games={nflGames}
+            week={displayWeek}
+            playoffTeams={n(playoffTeamCount) || PLAYOFF_TEAMS}
+          />
+
           <div className="dp-matchup-grid">
             {rankedMatchups.map(
               matchup => (
@@ -2730,7 +2769,14 @@ export default async function Home() {
         }
 
         /* ESPN-style scoring grid: position, player, projected, actual. */
-        .dp-espn-lineup { padding: 0; }
+        .dp-player-identity, .dp-player-game { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+        .dp-player-identity strong { min-width:0; overflow-wrap:anywhere; }
+        .dp-player-game { color:#b7cce0; font-size:10px; }
+        .dp-player-game strong { color:#e7edf5; font-size:10px; }
+        .dp-nfl-logo { object-fit:contain; flex-shrink:0; vertical-align:middle; }
+        .dp-broadcast-network { color:#e3bf7c!important; }
+        .dp-nfl-watch { color:#73b9f2; text-decoration:underline; font-size:10px; font-weight:700; width:fit-content; }
+                .dp-espn-lineup { padding: 0; }
         .dp-espn-team-title { padding: 13px 12px; color: #f0c676; font-size: 11px; letter-spacing: .7px; font-weight: 900; }
         .dp-espn-columns, .dp-espn-player {
           display: grid;
