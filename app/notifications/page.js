@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getLeagueData } from "../../lib/leagueData";
 import NotificationButton from "../components/NotificationButton";
+import NotificationPreferences from "../components/NotificationPreferences";
+import { getEspnLiveScoreMap } from "../../lib/espnLiveScore";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +14,30 @@ export const metadata = {
 export default async function NotificationsPage() {
   let owners = [];
   let error = null;
+  let playersByOwner = {};
+  let ownerNames = {};
 
   try {
     const league = await getLeagueData();
     owners = (league.owners || []).map(owner => ({
       id: owner.id, name: owner.name
     }));
+    ownerNames = Object.fromEntries(owners.map(owner=>[String(owner.id),owner.name]));
+
+    // Use ESPN's current starting lineup; player choices follow the owner,
+    // rather than allowing an unrelated list of NFL players.
+    try {
+      const liveMap = await getEspnLiveScoreMap(league.currentSeason || 2026, league.currentWeek || 1);
+      for(const team of league.currentTeams || []) {
+        const roster=liveMap.get(Number(team.espn_team_id))?.startingLineup || [];
+        playersByOwner[String(team.owner_id)] = roster
+          .filter(p=>p?.name)
+          .map(p=>({id:String(p.id||p.playerId||p.name),name:p.name,
+            position:p.position || p.slot || "",nflTeam:p.nflTeam || ""}));
+      }
+    } catch (caught) {
+      console.error("Notification starters unavailable",caught);
+    }
   } catch (caught) {
     console.error("Notification signup: league owners unavailable", caught);
     error = "We couldn't load the league owners. Try refreshing this page.";
@@ -50,7 +70,10 @@ export default async function NotificationsPage() {
       {error ? (
         <p className="dp-notification-error" role="alert">{error}</p>
       ) : (
-        <NotificationButton owners={owners} />
+        <>
+          <NotificationButton owners={owners} />
+          <NotificationPreferences playersByOwner={playersByOwner} ownerNames={ownerNames}/>
+        </>
       )}
 
       <p className="dp-notification-footnote">
