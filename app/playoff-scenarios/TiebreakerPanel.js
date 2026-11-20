@@ -182,6 +182,26 @@ export default function TiebreakerPanel({
       );
   }, [owner, sortedTeams, completed, divisionRecords, rule.key]);
 
+  const tiedGroups = useMemo(() => {
+    const groups = new Map();
+    for (const team of teams) {
+      const record = statusText(team);
+      if (!groups.has(record)) groups.set(record, []);
+      groups.get(record).push(team);
+    }
+    return [...groups.entries()]
+      .filter(([, group]) => group.length > 1)
+      .map(([record, group]) => ({
+        record,
+        teams: group.sort((a, b) =>
+          number(b.pointsFor) - number(a.pointsFor)
+        )
+      }))
+      .sort((a, b) =>
+        number(b.teams[0].wins) - number(a.teams[0].wins)
+      );
+  }, [teams]);
+
   const visible = comparisons.filter((c) => !tiedOnly || c.tied);
   const tiedCount = comparisons.filter((c) => c.tied).length;
 
@@ -223,6 +243,42 @@ export default function TiebreakerPanel({
           </p>
         )}
       </div>
+
+      {rule.key === "PF" && tiedGroups.length > 0 && (
+        <div style={{
+          border: "1px solid #536076", borderRadius: 10,
+          background: "#141e2a", padding: 12, marginBottom: 14
+        }}>
+          <b style={{ color: "#e6b65b", fontSize: 14 }}>
+            Current standings ties — points-for order
+          </b>
+          {tiedGroups.map((group) => (
+            <div key={group.record} style={{
+              borderTop: "1px solid #364255",
+              marginTop: 10, paddingTop: 9
+            }}>
+              <b style={{ fontSize: 13 }}>
+                {group.record} record
+              </b>
+              <div style={{
+                display: "flex", gap: 7, flexWrap: "wrap",
+                marginTop: 6, fontSize: 13, color: "#d8e2ec"
+              }}>
+                {group.teams.map((team, index) => (
+                  <span key={team.ownerId}>
+                    {index ? "› " : ""}
+                    {team.ownerName} ({points(team.pointsFor)})
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+          <small style={{ color: "#aab6c7", display: "block", marginTop: 9 }}>
+            Ordered by current points scored. The advantage can change
+            before the regular season ends.
+          </small>
+        </div>
+      )}
 
       <div style={{
         display: "flex", flexWrap: "wrap", gap: 10,
