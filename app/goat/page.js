@@ -374,7 +374,7 @@ function GoatOwnerCard({
             )}
           </strong>
 
-          <span>CAREER RECORD</span>
+          <span>REGULAR SEASON RECORD</span>
         </div>
 
         <div>
@@ -383,6 +383,19 @@ function GoatOwnerCard({
           </strong>
 
           <span>WIN %</span>
+        </div>
+      </div>
+
+      {/* PLAYOFF RECORD: ONLY SEMIFINALS AND CHAMPIONSHIP GAMES */}
+
+      <div className="owner-record">
+        <div>
+          <strong>{formatRecord(owner.playoffWins, owner.playoffLosses, owner.playoffTies)}</strong>
+          <span>PLAYOFF RECORD</span>
+        </div>
+        <div>
+          <strong>{getWinPct(owner.playoffWins, owner.playoffLosses, owner.playoffTies).toFixed(1)}%</strong>
+          <span>PLAYOFF WIN %</span>
         </div>
       </div>
 
@@ -735,6 +748,24 @@ export default async function GoatPage() {
     completedGames
   );
 
+  // Match the GOAT award rules: semifinal and championship games
+  // count toward the playoff record, not third-place or consolation.
+  const playoffRecords = new Map();
+  for (const game of completedGames) {
+    if (!getGoatPlayoffRound(game)) continue;
+    const homeId = Number(game.home_owner_id);
+    const awayId = Number(game.away_owner_id);
+    if (!homeId || !awayId || homeId === awayId) continue;
+    const winner = getWinnerOwnerId(game);
+    for (const ownerId of [homeId,awayId]) {
+      const record = playoffRecords.get(ownerId) || {wins:0,losses:0,ties:0};
+      if (winner === null) record.ties++;
+      else if (winner === ownerId) record.wins++;
+      else record.losses++;
+      playoffRecords.set(ownerId,record);
+    }
+  }
+
   // ====================================================
   // BUILD OWNER STATISTICS
   // ====================================================
@@ -811,6 +842,8 @@ export default async function GoatPage() {
     const qualifyingPlayoffWins =
       semifinalWins + championshipGameWins;
 
+    const playoffRecord = playoffRecords.get(ownerId) || {wins:0,losses:0,ties:0};
+
     // CAREER SEASONS
 
     const seasonYears = ownerSeasons
@@ -883,6 +916,9 @@ export default async function GoatPage() {
       semifinalWins,
       championshipGameWins,
       qualifyingPlayoffWins,
+      playoffWins: playoffRecord.wins,
+      playoffLosses: playoffRecord.losses,
+      playoffTies: playoffRecord.ties,
 
       seasons,
       hasCurrentSeason,
