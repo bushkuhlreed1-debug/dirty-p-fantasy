@@ -96,6 +96,7 @@ export default async function PlayoffScenariosPage() {
           team.playoffSeed ??
           team.seed
         ),
+        espnPlayoffPct: team.espn_playoff_pct ?? null,
       };
     })
     .filter((team) => team.ownerId > 0);
