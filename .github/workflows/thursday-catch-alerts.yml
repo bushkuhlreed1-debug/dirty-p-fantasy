@@ -1,0 +1,16 @@
+name: Thursday Night Catch Alerts
+
+on:
+  schedule:
+    - cron: "*/5 1-5 20 11 *"
+  workflow_dispatch:
+
+jobs:
+  check-catches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check Tyler Warren and Xavier Hutchinson receptions
+        run: |
+          curl --fail --show-error --silent --max-time 90 \
+            "https://dirty-p-fantasy.vercel.app/api/notifications/catches"
