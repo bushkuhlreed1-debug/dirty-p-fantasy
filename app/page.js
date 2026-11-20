@@ -1062,7 +1062,6 @@ function EspnLineupRows({ players, nflGames = {}, playerBoxScores = {} }) {
               {nflGame.state === "post" && (
                 <small className="dp-espn-nfl-game">FINAL · {nflGame.ownScore ?? "–"}-{nflGame.opponentScore ?? "–"}</small>
               )}
-              {started && <small className="dp-live-statline">{gameStats || "Live player box score unavailable"}</small>}
               <small className="dp-broadcast-network">
                 TV: {nflGame.network || "Not announced"}
               </small>
@@ -1083,7 +1082,9 @@ function EspnLineupRows({ players, nflGames = {}, playerBoxScores = {} }) {
             </>
           )}
         </span>
-        <span className="dp-espn-number">{started || projected === null ? "—" : one(projected)}</span>
+        <span className={"dp-espn-stat-focus" + (started ? " dp-espn-stat-active" : "")}>
+          {started ? (gameStats || "Stats pending") : (projected === null ? "—" : one(projected))}
+        </span>
         <b className="dp-espn-number dp-espn-actual">{actual === null ? "—" : points(actual)}</b>
       </div>
     );
@@ -1097,7 +1098,7 @@ function LiveLineup({ name, team, nflGames = {}, playerBoxScores = {} }) {
     <div className="dp-live-lineup dp-espn-lineup">
       <div className="dp-espn-team-title">{name} · LINEUP</div>
       <div className="dp-espn-columns">
-        <span>POS</span><span>PLAYER</span><span>PROJ</span><span>PTS</span>
+        <span>POS</span><span>PLAYER</span><span>STATS / PROJ</span><span>PTS</span>
       </div>
       {starters.length ? <EspnLineupRows players={starters} nflGames={nflGames} playerBoxScores={playerBoxScores} /> : (
         <p className="dp-muted">ESPN lineup data is not available yet.</p>
@@ -2810,7 +2811,7 @@ export default async function Home() {
         .dp-espn-team-title { padding: 13px 12px; color: #f0c676; font-size: 11px; letter-spacing: .7px; font-weight: 900; }
         .dp-espn-columns, .dp-espn-player {
           display: grid;
-          grid-template-columns: 41px minmax(0, 1fr) 47px 50px;
+          grid-template-columns: 34px minmax(0, 1fr) minmax(105px, 1fr) 53px;
           align-items: center;
           column-gap: 7px;
         }
@@ -2824,6 +2825,10 @@ export default async function Home() {
           font-weight: 800;
         }
         .dp-espn-columns span:nth-child(3), .dp-espn-columns span:nth-child(4) { text-align: right; }
+        .dp-espn-stat-focus { text-align:right; overflow-wrap:anywhere; line-height:1.35; font-variant-numeric:tabular-nums; color:#b6c7d8; font-size:12px; font-weight:700; }
+        .dp-espn-stat-active { font-size:13px; font-weight:900; color:#f0cb85; letter-spacing:.08px; }
+        .dp-espn-player:has(.dp-espn-stat-active) { min-height:94px; }
+        .dp-espn-player:has(.dp-espn-stat-active) .dp-espn-actual { font-size:17px; color:#fff; font-weight:900; }
         .dp-espn-player {
           min-height: 52px;
           padding: 9px 10px;
@@ -2842,7 +2847,9 @@ export default async function Home() {
         .dp-espn-bench > summary::-webkit-details-marker { display: none; }
         .dp-espn-bench[open] > summary span { transform: rotate(180deg); }
         @media(max-width: 480px) {
-          .dp-espn-columns, .dp-espn-player { grid-template-columns: 31px minmax(0, 1fr) 35px 42px; column-gap: 4px; }
+          .dp-espn-columns, .dp-espn-player { grid-template-columns: 27px minmax(0, 1fr) minmax(83px, .95fr) 47px; column-gap: 5px; }
+          .dp-espn-stat-active { font-size:12px; }
+          .dp-espn-player:has(.dp-espn-stat-active) .dp-espn-actual { font-size:15px; }
           .dp-espn-columns, .dp-espn-player { padding-left: 6px; padding-right: 6px; }
           .dp-espn-player-info strong { font-size: 10px; }
         }
