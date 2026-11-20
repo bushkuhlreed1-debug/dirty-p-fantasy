@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { getLeagueData } from "../lib/leagueData";
 import { getMatchupIntel } from "../lib/matchupIntel";
 import { getEspnLiveScoreMap } from "../lib/espnLiveScore";
+import { getNflGameMap } from "../lib/nflGameScores";
 import AutoRefresh from "./components/AutoRefresh";
 
 export const dynamic = "force-dynamic";
@@ -1009,16 +1010,21 @@ function PregamePlayers({
   );
 }
 
-function EspnLineupRows({ players }) {
+function EspnLineupRows({ players, nflGames = {} }) {
   return players.map((player, index) => {
     const actual = valueOrNull(player.currentPoints ?? player.actualPoints);
     const projected = valueOrNull(player.projectedPoints);
+    const nflGame = nflGames[String(player.nflTeam || "").toUpperCase()] || null;
+    const nflInfo = !nflGame ? null : nflGame.state === "pre"
+      ? `${nflGame.isHome ? "vs" : "@"} ${nflGame.opponent} · ${nflGame.status}`
+      : `${nflGame.isHome ? "vs" : "@"} ${nflGame.opponent} · ${nflGame.ownScore ?? "–"}-${nflGame.opponentScore ?? "–"} · ${nflGame.status}`;
     return (
       <div className="dp-espn-player" key={player.id || index}>
         <span className="dp-espn-slot">{player.slot || "—"}</span>
         <span className="dp-espn-player-info">
           <strong>{player.name || player.fullName}</strong>
           <small>{[player.nflTeam, player.position].filter(Boolean).join(" · ") || "NFL Player"}</small>
+          {nflInfo && <small className="dp-espn-nfl-game">{nflInfo}</small>}
         </span>
         <span className="dp-espn-number">{projected === null ? "—" : one(projected)}</span>
         <b className="dp-espn-number dp-espn-actual">{actual === null ? "—" : points(actual)}</b>
@@ -1027,7 +1033,7 @@ function EspnLineupRows({ players }) {
   });
 }
 
-function LiveLineup({ name, team }) {
+function LiveLineup({ name, team, nflGames = {} }) {
   const starters = liveStarters(team);
   const bench = liveBench(team);
   return (
@@ -1036,18 +1042,21 @@ function LiveLineup({ name, team }) {
       <div className="dp-espn-columns">
         <span>POS</span><span>PLAYER</span><span>PROJ</span><span>PTS</span>
       </div>
-      {starters.length ? <EspnLineupRows players={starters} /> : (
+      {starters.length ? <EspnLineupRows players={starters} nflGames={nflGames} /> : (
         <p className="dp-muted">ESPN lineup data is not available yet.</p>
       )}
       {bench.length > 0 && (
         <details className="dp-espn-bench">
           <summary>Bench ({bench.length}) <span>⌄</span></summary>
-          <EspnLineupRows players={bench} />
+          <EspnLineupRows players={bench} nflGames={nflGames} />
         </details>
       )}
       <style jsx global>{`
         .dp-espn-lineup { padding: 0; min-width: 0; }
         .dp-espn-team-title { padding: 13px 12px; color: #f0c676; font-size: 11px; letter-spacing: .7px; font-weight: 900; }
+        .dp-team-live-totals { display: flex; gap: 5px; flex-direction: column; align-items: center; }
+        .dp-team-live-totals strong { font-size: 25px; color: #f6f7fa; }
+        .dp-team-projected { color: #eac57e; font-size: 11px; font-weight: 750; }
         .dp-espn-columns, .dp-espn-player { display: grid; grid-template-columns: 41px minmax(0, 1fr) 47px 50px; align-items: center; column-gap: 7px; }
         .dp-espn-columns { background: #101925; border-top: 1px solid #324050; border-bottom: 1px solid #394a60; color: #a7b8ca; padding: 9px 10px; font-size: 10px; font-weight: 800; }
         .dp-espn-columns span:nth-child(3), .dp-espn-columns span:nth-child(4) { text-align: right; }
@@ -1057,6 +1066,7 @@ function LiveLineup({ name, team }) {
         .dp-espn-player-info { min-width: 0; display: grid; gap: 4px; }
         .dp-espn-player-info strong { font-size: 11px; color: #f1f5fa; overflow-wrap: anywhere; }
         .dp-espn-player-info small { font-size: 10px; color: #a8b9cc; }
+        .dp-espn-player-info .dp-espn-nfl-game { color: #e5bf7e; font-size: 10px; line-height: 1.4; }
         .dp-espn-number { text-align: right; font-variant-numeric: tabular-nums; color: #b6c7d8; font-size: 11px; }
         .dp-espn-actual { color: #f6f7fb; font-size: 12px; }
         .dp-espn-bench { background: #151e2a; }
@@ -1079,7 +1089,8 @@ function LiveLineup({ name, team }) {
 function MatchupCard({
   matchup,
   live = false,
-  featured = false
+  featured = false,
+  nflGames = {}
 }) {
   const sides = [
     {
@@ -1174,13 +1185,16 @@ function MatchupCard({
                 {record(side.standing)}
               </small>
 
-              {valueOrNull(
-                side.score
-              ) !== null && (
-                <strong>
-                  {points(side.score)}
-                </strong>
-              )}
+              <div className="dp-team-live-totals">
+                {valueOrNull(side.score) !== null && (
+                  <strong>{points(side.score)}</strong>
+                )}
+                {live && valueOrNull(side.liveTeam?.liveProjectedPoints ?? side.intel?.projectedPoints) !== null && (
+                  <small className="dp-team-projected">
+                    Projected {one(side.liveTeam?.liveProjectedPoints ?? side.intel?.projectedPoints)}
+                  </small>
+                )}
+              </div>
 
               {!live &&
                 valueOrNull(
@@ -1205,6 +1219,7 @@ function MatchupCard({
               key={side.ownerId}
               name={first(side.name)}
               team={side.liveTeam}
+              nflGames={nflGames}
             />
           ))}
         </div>
@@ -1488,6 +1503,8 @@ export default async function Home() {
   let liveScores =
     new Map();
 
+  let nflGames = {};
+
   try {
     intel =
       await getMatchupIntel(
@@ -1511,6 +1528,12 @@ export default async function Home() {
       "Live scores failed:",
       error
     );
+  }
+
+  try {
+    nflGames = await getNflGameMap(season, displayWeek);
+  } catch (error) {
+    console.error("NFL game information unavailable:", error);
   }
 
   const hasLivePoints = [
@@ -2125,6 +2148,7 @@ export default async function Home() {
                     pairKey(matchup.game)
                   }
                   matchup={matchup}
+                  nflGames={nflGames}
                   live
                 />
               )
