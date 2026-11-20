@@ -1340,6 +1340,11 @@ export default function ScenarioSimulator({
           1. PLAYOFF PERCENTAGES
       ======================================== */}
 
+      <details className="dp-topic">
+        <summary className="dp-topic-summary">
+          <span><small>LEAGUE OUTLOOK</small><strong>Playoff Percentages</strong><em>ESPN's current postseason odds for every owner</em></span>
+          <span className="dp-topic-arrow" aria-hidden="true">⌄</span>
+        </summary>
       <section className="dp-panel">
         <span className="dp-kicker">
           PLAYOFF ANALYTICS
@@ -1401,11 +1406,17 @@ export default function ScenarioSimulator({
           These are ESPN's official standings playoff percentages, refreshed from ESPN when available. Hypothetical outcomes below remain independent estimates.
         </p>
       </section>
+      </details>
 
       {/* ========================================
           2. THIS WEEK: WHAT YOU NEED
       ======================================== */}
 
+      <details className="dp-topic">
+        <summary className="dp-topic-summary">
+          <span><small>WEEK {currentWeek}</small><strong>Best Path This Week</strong><em>Who to root for and how each matchup changes your chances</em></span>
+          <span className="dp-topic-arrow" aria-hidden="true">⌄</span>
+        </summary>
       <section className="dp-panel">
         <span className="dp-kicker">
           WEEKLY PLAYOFF GUIDE
@@ -1671,11 +1682,17 @@ export default function ScenarioSimulator({
           </p>
         )}
       </section>
+      </details>
 
       {/* ========================================
           3. ROAD TO THE PLAYOFFS
       ======================================== */}
 
+      <details className="dp-topic" open>
+        <summary className="dp-topic-summary">
+          <span><small>POSTSEASON SCENARIOS</small><strong>Road to the Playoffs</strong><em>Paths to qualify, scenarios, and owner tiebreakers</em></span>
+          <span className="dp-topic-arrow" aria-hidden="true">⌄</span>
+        </summary>
       <section className="dp-panel dp-road-panel">
         <div className="dp-road-header">
           <div>
@@ -1852,12 +1869,27 @@ export default function ScenarioSimulator({
           classifications to be definitive.
         </p>
       </section>
+      </details>
 
       {/* ========================================
           STYLES
       ======================================== */}
 
       <style jsx>{`
+        .dp-topic { background: #172230; border: 1px solid #3c4e63; border-radius: 14px; overflow: hidden; min-width: 0; }
+        .dp-topic[open] { border-color: #586d84; }
+        .dp-topic-summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 19px 21px; background: #1b293a; }
+        .dp-topic-summary::-webkit-details-marker { display: none; }
+        .dp-topic-summary:hover { background: #263950; }
+        .dp-topic-summary > span:first-child { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .dp-topic-summary small { color: #eac277; font-size: 10px; font-weight: 900; letter-spacing: 1.5px; font-style: normal; }
+        .dp-topic-summary strong { color: #f5f7fb; font-size: clamp(17px, 2.5vw, 22px); font-weight: 850; }
+        .dp-topic-summary em { color: #b6c6d8; font-size: 12px; font-style: normal; line-height: 1.5; }
+        .dp-topic-arrow { flex: 0 0 34px; width: 34px; height: 34px; border: 1px solid #607690; border-radius: 50%; color: #f2cd86; background: #283950; display: grid; place-items: center; font-size: 24px; transition: transform .15s; }
+        .dp-topic[open] .dp-topic-arrow { transform: rotate(180deg); }
+        .dp-topic > .dp-panel { border: 0; border-top: 1px solid #384b61; border-radius: 0; margin: 0; }
+        .dp-topic-summary:focus-visible { outline: 2px solid #f0c877; outline-offset: -3px; }
+        @media(max-width: 550px) { .dp-topic-summary { padding: 15px; } .dp-topic-summary em { font-size: 11px; } }
         .dp-root {
           display: flex;
           flex-direction: column;
