@@ -1802,7 +1802,7 @@ export default function ScenarioSimulator({
           color: #f1f4f8;
         }
 
-        .dp-road-panel {
+        .dp-panel.dp-road-panel {
           background: linear-gradient(165deg, #192535 0%, #121922 68%);
           border-color: #40546b;
         }
