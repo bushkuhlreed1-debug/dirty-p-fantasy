@@ -3299,6 +3299,69 @@ export default async function Home() {
             font-size: 23px;
           }
         }
+        /* Home and live-score layout tuned for iPad-sized screens. */
+        @media (min-width:700px) and (max-width:1199px) {
+          .dp-recap-grid {
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:12px;
+          }
+          .dp-recap-stat {padding:16px;}
+          .dp-live-record-grid {
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:12px;
+          }
+          .dp-live-record-card {padding:17px;}
+          .dp-live-matchup-grid {
+            grid-template-columns:minmax(0,1fr);
+            gap:18px;
+          }
+          .dp-live-matchup-grid .dp-matchup-versus {
+            padding:17px 13px;
+          }
+          .dp-matchup-top {padding:12px 15px;}
+          .dp-matchup-expand-row {padding:12px 14px;}
+          .dp-playoff-pulse-row {
+            grid-template-columns:100px minmax(50px,1fr) minmax(200px,230px);
+            gap:10px;
+          }
+          .dp-live-columns .dp-espn-team-title {
+            padding:14px 13px;
+          }
+          .dp-live-columns .dp-espn-player {
+            padding-top:11px;
+            padding-bottom:11px;
+          }
+        }
+        @media (min-width:700px) and (max-width:1050px) {
+          .dp-live-columns {grid-template-columns:minmax(0,1fr);}
+          .dp-live-columns > div + div {
+            border-left:0;
+            border-top:3px solid #39485a;
+          }
+          .dp-live-columns .dp-espn-columns,
+          .dp-live-columns .dp-espn-player {
+            grid-template-columns:37px minmax(0,1.3fr) minmax(105px,1fr) 70px;
+            column-gap:10px;
+          }
+        }
+        @media (min-width:700px) and (max-width:899px) {
+          .dp-divisions-grid {grid-template-columns:minmax(0,1fr);}
+          .dp-matchup-grid {grid-template-columns:minmax(0,1fr);}
+          .dp-playoff-pulse-row {
+            grid-template-columns:90px minmax(42px,1fr) minmax(165px,210px);
+            gap:8px;
+          }
+        }
+        @media (min-width:900px) and (max-width:1100px) {
+          .dp-divisions-grid {grid-template-columns:minmax(0,1fr);}
+        }
+        @media (min-width:900px) and (max-width:1199px) {
+          .dp-matchup-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
+        }
+        @media (min-width:1051px) and (max-width:1199px) {
+          .dp-live-columns {grid-template-columns:repeat(2,minmax(0,1fr));}
+        }
+
       `}</style>
     </main>
   );
