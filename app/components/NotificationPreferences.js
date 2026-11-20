@@ -22,7 +22,7 @@ const DEFAULTS = {
 };
 const normalized = value => String(value || "").toLowerCase().replace(/[^a-z0-9]/g,"");
 
-export default function NotificationPreferences({ playersByOwner = {} }) {
+export default function NotificationPreferences({ playersByOwner = {}, ownerNames = {} }) {
   const [ready,setReady]=useState(false);
   const [ownerId,setOwnerId]=useState("");
   const [prefs,setPrefs]=useState(DEFAULTS);
@@ -94,9 +94,7 @@ export default function NotificationPreferences({ playersByOwner = {} }) {
         </div>
       ) : (
         <>
-          <div className="dp-custom-alert-owner">Managing alerts for <strong>{
-            (()=>{const saved=playersByOwner[String(ownerId)];return saved?.ownerName || "your selected owner";})()
-          }</strong></div>
+          <div className="dp-custom-alert-owner">Managing alerts for <strong>{ownerNames[String(ownerId)] || "your selected owner"}</strong></div>
           <div className="dp-custom-alert-options">
             {OPTIONS.map(option=>(
               <label className="dp-custom-alert-option" key={option.key}>
