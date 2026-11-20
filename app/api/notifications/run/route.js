@@ -5,6 +5,7 @@ import { sendPush } from "../../../../lib/push";
 import { getLeagueData } from "../../../../lib/leagueData";
 import { getMatchupIntel } from "../../../../lib/matchupIntel";
 import { getEspnLiveScoreMap } from "../../../../lib/espnLiveScore";
+import { readPushPreferences, notificationCategory, matchesPlayer } from "../../../../lib/pushPreferences";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -135,7 +136,17 @@ async function loadSubscriptions() {
 
   const byOwner = new Map();
 
-  for (const subscription of data || []) {
+  const withPrefs = await Promise.all((data || []).map(async subscription => {
+    try {
+      return {...subscription, preferences:await readPushPreferences(subscription.endpoint)};
+    } catch (error) {
+      console.error("Unable to load per-device push preferences",error);
+      // Fail closed rather than send unrequested notifications.
+      return null;
+    }
+  }));
+
+  for (const subscription of withPrefs.filter(Boolean)) {
     const ownerId = Number(subscription.owner_id);
 
     if (!ownerId) {
@@ -155,14 +166,18 @@ async function loadSubscriptions() {
 async function pushToOwner(
   subscriptionsByOwner,
   ownerId,
-  payload
+  payload,
+  playerName = null
 ) {
   const subscriptions =
     subscriptionsByOwner.get(Number(ownerId)) || [];
 
   let sent = 0;
+  const category = payload.category || notificationCategory(payload);
 
   for (const subscription of subscriptions) {
+    if (category && subscription.preferences?.[category] === false) continue;
+    if (playerName && !matchesPlayer(subscription.preferences || {}, playerName)) continue;
     try {
       await sendPush(subscription, payload);
       sent++;
@@ -1302,7 +1317,8 @@ async function runNotifications() {
                 `td:${play.key}:${ownerId}`,
 
               url: "/",
-            }
+            },
+            names
           );
         }
       }
@@ -1466,7 +1482,8 @@ async function runNotifications() {
               body,
               tag: stateKey,
               url: "/",
-            }
+            },
+            player.name
           );
 
           await setState(stateKey, {
