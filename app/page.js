@@ -1236,7 +1236,7 @@ function MatchupCard({
       </div>
 
       {live ? (
-        <div className="dp-two-columns">
+        <div className="dp-two-columns dp-live-columns">
           {sides.map(side => (
             <LiveLineup
               key={side.ownerId}
@@ -2171,7 +2171,7 @@ export default async function Home() {
             </span>
           </div>
 
-          <div className="dp-matchup-grid">
+          <div className="dp-matchup-grid dp-live-matchup-grid">
             {rankedMatchups.map(
               matchup => (
                 <MatchupCard
@@ -2647,6 +2647,7 @@ export default async function Home() {
           gap: 16px;
         }
 
+        .dp-live-matchup-grid { grid-template-columns:minmax(0,1fr); gap:22px; }
         .dp-matchup-card {
           min-width: 0;
           overflow: hidden;
@@ -2709,7 +2710,7 @@ export default async function Home() {
 
         .dp-matchup-team a {
           color: #f3f5f7;
-          font-size: 14px;
+          font-size: 16px;
           font-weight: 800;
           text-decoration: none;
           overflow-wrap: anywhere;
@@ -2722,7 +2723,7 @@ export default async function Home() {
 
         .dp-matchup-team strong {
           color: #f5f6f8;
-          font-size: 26px;
+          font-size: 30px;
         }
 
         .dp-matchup-analysis,
@@ -2844,6 +2845,45 @@ export default async function Home() {
           .dp-espn-player:has(.dp-espn-stat-active) .dp-espn-actual { font-size:15px; }
           .dp-espn-columns, .dp-espn-player { padding-left: 6px; padding-right: 6px; }
           .dp-espn-player-info strong { font-size: 10px; }
+        }
+
+        /* Readable live fantasy scoreboard: one full-width matchup per card. */
+        .dp-live-matchup-grid .dp-matchup-card { border-color:#3b4859; box-shadow:0 5px 20px rgba(0,0,0,.13); }
+        .dp-live-matchup-grid .dp-matchup-versus { padding:22px 14px; background:#1b2532; }
+        .dp-live-columns { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .dp-live-columns .dp-espn-team-title { font-size:14px; padding:17px 15px; }
+        .dp-live-columns .dp-espn-columns, .dp-live-columns .dp-espn-player {
+          grid-template-columns:38px minmax(115px,1.2fr) minmax(124px,1.15fr) 73px;
+          column-gap:12px; padding-left:14px; padding-right:14px;
+        }
+        .dp-live-columns .dp-espn-columns { font-size:11px; padding-top:12px; padding-bottom:12px; }
+        .dp-live-columns .dp-espn-player { padding-top:13px; padding-bottom:13px; min-height:82px; }
+        .dp-live-columns .dp-espn-player-info { gap:6px; }
+        .dp-live-columns .dp-player-identity { gap:8px; }
+        .dp-live-columns .dp-player-identity strong { font-size:14px; line-height:1.35; }
+        .dp-live-columns .dp-espn-player-info small { font-size:12px; line-height:1.4; }
+        .dp-live-columns .dp-espn-slot { font-size:12px; }
+        .dp-live-columns .dp-espn-stat-focus { font-size:13px; line-height:1.5; }
+        .dp-live-columns .dp-espn-stat-active { font-size:15px; }
+        .dp-live-columns .dp-espn-actual { font-size:18px; color:#fff; }
+        .dp-live-columns .dp-espn-projection { font-size:18px; }
+        .dp-live-columns .dp-espn-projection small { font-size:10px; }
+        @media(max-width:1050px) {
+          .dp-live-columns { grid-template-columns:minmax(0,1fr); }
+          .dp-live-columns>div+div { border-left:0; border-top:3px solid #39485a; }
+          .dp-live-columns .dp-espn-columns,.dp-live-columns .dp-espn-player { grid-template-columns:37px minmax(0,1.3fr) minmax(105px,1fr) 70px; }
+        }
+        @media(max-width:550px) {
+          .dp-live-columns .dp-espn-columns,.dp-live-columns .dp-espn-player {
+            grid-template-columns:28px minmax(0,1.15fr) minmax(85px,1fr) 54px; gap:6px; padding-left:8px; padding-right:8px;
+          }
+          .dp-live-columns .dp-espn-player { padding-top:12px; padding-bottom:12px; }
+          .dp-live-columns .dp-player-identity strong { font-size:12px; }
+          .dp-live-columns .dp-espn-player-info small { font-size:11px; }
+          .dp-live-columns .dp-espn-stat-active { font-size:13px; }
+          .dp-live-columns .dp-espn-actual { font-size:16px; }
+          .dp-live-columns .dp-espn-projection { font-size:16px; }
+          .dp-live-columns .dp-espn-team-title { font-size:13px; }
         }
 
         .dp-live-player {
