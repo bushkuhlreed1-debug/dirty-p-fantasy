@@ -1864,6 +1864,12 @@ export default async function Home() {
         </div>
       </header>
 
+      <Link href="/notifications" className="dp-mobile-notification-cta">
+        <span aria-hidden="true">🔔</span>
+        <strong>Subscribe to Notifications</strong>
+        <span className="dp-notification-cta-arrow" aria-hidden="true">›</span>
+      </Link>
+
       <section className="owners-hero">
         <div>
           <p className="eyebrow">
