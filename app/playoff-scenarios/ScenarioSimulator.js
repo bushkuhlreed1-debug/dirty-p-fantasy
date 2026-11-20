@@ -1688,7 +1688,7 @@ export default function ScenarioSimulator({
           3. ROAD TO THE PLAYOFFS
       ======================================== */}
 
-      <details className="dp-topic" open>
+      <details className="dp-topic" open={true}>
         <summary className="dp-topic-summary">
           <span><small>POSTSEASON SCENARIOS</small><strong>Road to the Playoffs</strong><em>Paths to qualify, scenarios, and owner tiebreakers</em></span>
           <span className="dp-topic-arrow" aria-hidden="true">⌄</span>
