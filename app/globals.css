@@ -2892,3 +2892,16 @@ summary:focus-visible,
   .dp-history-week-feature summary {padding:15px;}
   .dp-history-week-details {padding:15px;}
 }
+
+/* Compact link to historical GOAT rankings */
+.dp-goat-history-link {
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:10px 14px;border-radius:10px;
+  border:1px solid #5b6d80;background:#27364a;color:#f2d095;
+  font-weight:850;font-size:12px;text-decoration:none;white-space:nowrap;
+}
+.dp-goat-history-link:hover {border-color:#eac579;background:#35455b;}
+.dp-goat-history-link span {font-size:15px;}
+@media(max-width:600px){
+  .dp-goat-history-link{font-size:11px;padding:9px 11px;}
+}
