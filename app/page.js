@@ -7,6 +7,7 @@ import { getEspnLiveScoreMap } from "../lib/espnLiveScore";
 import { getNflGameMap } from "../lib/nflGameScores";
 import { getNflPlayerBoxScores } from "../lib/nflPlayerBoxScores";
 import AutoRefresh from "./components/AutoRefresh";
+import MatchupLineupSwitcher from "./components/MatchupLineupSwitcher";
 
 export const dynamic = "force-dynamic";
 
@@ -1249,17 +1250,17 @@ function MatchupCard({
               </span>
             </div>
           </summary>
-          <div className="dp-two-columns dp-live-columns">
-                    {sides.map(side => (
-                      <LiveLineup
-                        key={side.ownerId}
-                        name={first(side.name)}
-                        team={side.liveTeam}
-                        nflGames={nflGames}
-                        playerBoxScores={playerBoxScores}
-                      />
-                    ))}
-                  </div>
+          <MatchupLineupSwitcher awayName={first(sides[0].name)} homeName={first(sides[1].name)}>
+            {sides.map(side => (
+              <LiveLineup
+                key={side.ownerId}
+                name={first(side.name)}
+                team={side.liveTeam}
+                nflGames={nflGames}
+                playerBoxScores={playerBoxScores}
+              />
+            ))}
+          </MatchupLineupSwitcher>
         </details>
       ) : (
         <>
@@ -2946,6 +2947,32 @@ export default async function Home() {
           }
           .dp-live-columns .dp-nfl-logo-badge .dp-nfl-logo { width:33px; height:33px; }
           .dp-live-columns .dp-espn-bench > summary { font-size:13px; padding:15px 12px; }
+        }
+
+
+        /* On phones, open one team at a time. Desktop keeps both lineups. */
+        .dp-matchup-mobile-tabs { display:none; }
+        @media(max-width:700px) {
+          .dp-matchup-mobile-tabs {
+            display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:8px; padding:11px 12px; background:#111a25;
+            border-bottom:1px solid #344459;
+          }
+          .dp-matchup-mobile-tabs button {
+            padding:12px 7px; min-height:45px;
+            border:1px solid #46566b; border-radius:10px;
+            background:#1e2a38; color:#bcc9d8;
+            font-size:13px; font-family:inherit; font-weight:850;
+            overflow-wrap:anywhere; cursor:pointer;
+          }
+          .dp-matchup-mobile-tabs button.dp-selected {
+            color:#131821; background:#edc379; border-color:#edc379;
+          }
+          .dp-matchup-mobile-tabs button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+          .dp-matchup-lineup-switcher .dp-live-columns { display:block; }
+          .dp-matchup-side-0 .dp-live-columns > :nth-child(2) { display:none; }
+          .dp-matchup-side-1 .dp-live-columns > :nth-child(1) { display:none; }
+          .dp-matchup-lineup-switcher .dp-live-columns > div { border:0; }
         }
 
         .dp-live-player {
