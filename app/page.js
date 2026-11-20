@@ -941,76 +941,23 @@ function lineupSlot(entry) {
   );
 }
 
+const ESPN_LINEUP_ORDER = {
+  TQB: 0, QB: 1, RB: 2, "RB/WR": 3, WR: 4, "WR/TE": 5,
+  TE: 6, OP: 7, FLEX: 8, "D/ST": 9, K: 10, P: 11,
+  BE: 12, BN: 12, IR: 13
+};
+
 function liveStarters(team) {
-  const entries =
-    team?.startingLineup ??
-    team?.starters ??
-    team?.roster?.entries ??
-    [];
+  const entries = team?.startingLineup ?? team?.starters ?? [];
+  return Array.isArray(entries)
+    ? entries.filter(entry => entry?.isStarter !== false)
+        .sort((a, b) => (ESPN_LINEUP_ORDER[a.slot] ?? 50) - (ESPN_LINEUP_ORDER[b.slot] ?? 50))
+    : [];
+}
 
-  if (!Array.isArray(entries)) {
-    return [];
-  }
-
-  return entries
-    .filter(entry => {
-      if (
-        entry.isStarter === false
-      ) {
-        return false;
-      }
-
-      const slot =
-        lineupSlot(entry);
-
-      return (
-        slot &&
-        !BENCH_SLOTS.has(slot)
-      );
-    })
-    .map((entry, index) => {
-      const player =
-        entry?.playerPoolEntry?.player ??
-        entry?.player ??
-        entry;
-
-      const name =
-        player?.fullName ??
-        player?.name ??
-        entry?.name;
-
-      if (!name) {
-        return null;
-      }
-
-      return {
-        id:
-          entry?.playerId ??
-          player?.id ??
-          `${name}-${index}`,
-
-        name,
-
-        slot: lineupSlot(entry),
-
-        position:
-          entry?.position ??
-          player?.position ??
-          "",
-
-        nflTeam:
-          entry?.nflTeam ??
-          player?.proTeamAbbreviation ??
-          "",
-
-        score: valueOrNull(
-          entry?.currentPoints ??
-          entry?.actualPoints ??
-          entry?.livePoints
-        )
-      };
-    })
-    .filter(Boolean);
+function liveBench(team) {
+  const entries = team?.bench ?? [];
+  return Array.isArray(entries) ? entries : [];
 }
 
 function PregamePlayers({
@@ -1062,50 +1009,41 @@ function PregamePlayers({
   );
 }
 
+function EspnLineupRows({ players }) {
+  return players.map((player, index) => {
+    const actual = valueOrNull(player.currentPoints ?? player.actualPoints);
+    const projected = valueOrNull(player.projectedPoints);
+    return (
+      <div className="dp-espn-player" key={player.id || index}>
+        <span className="dp-espn-slot">{player.slot || "—"}</span>
+        <span className="dp-espn-player-info">
+          <strong>{player.name || player.fullName}</strong>
+          <small>{[player.nflTeam, player.position].filter(Boolean).join(" · ") || "NFL Player"}</small>
+        </span>
+        <span className="dp-espn-number">{projected === null ? "—" : one(projected)}</span>
+        <b className="dp-espn-number dp-espn-actual">{actual === null ? "—" : points(actual)}</b>
+      </div>
+    );
+  });
+}
+
 function LiveLineup({ name, team }) {
-  const starters =
-    liveStarters(team);
-
+  const starters = liveStarters(team);
+  const bench = liveBench(team);
   return (
-    <div className="dp-live-lineup">
-      <h4>
-        {name} · STARTERS
-      </h4>
-
-      {starters.length ? (
-        starters.map(player => (
-          <div
-            className="dp-live-player"
-            key={player.id}
-          >
-            <span className="dp-live-slot">
-              {player.slot}
-            </span>
-
-            <div className="dp-live-player-name">
-              <strong>
-                {player.name}
-              </strong>
-
-              <small>
-                {[
-                  player.position,
-                  player.nflTeam
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </small>
-            </div>
-
-            <b>
-              {points(player.score)}
-            </b>
-          </div>
-        ))
-      ) : (
-        <p className="dp-muted">
-          Live lineup data is not available.
-        </p>
+    <div className="dp-live-lineup dp-espn-lineup">
+      <div className="dp-espn-team-title">{name} · LINEUP</div>
+      <div className="dp-espn-columns">
+        <span>POS</span><span>PLAYER</span><span>PROJ</span><span>PTS</span>
+      </div>
+      {starters.length ? <EspnLineupRows players={starters} /> : (
+        <p className="dp-muted">ESPN lineup data is not available yet.</p>
+      )}
+      {bench.length > 0 && (
+        <details className="dp-espn-bench">
+          <summary>Bench ({bench.length}) <span>⌄</span></summary>
+          <EspnLineupRows players={bench} />
+        </details>
       )}
     </div>
   );
@@ -2768,6 +2706,48 @@ export default async function Home() {
 
         .dp-player-row span {
           color: #9ba8b7;
+        }
+
+        /* ESPN-style scoring grid: position, player, projected, actual. */
+        .dp-espn-lineup { padding: 0; }
+        .dp-espn-team-title { padding: 13px 12px; color: #f0c676; font-size: 11px; letter-spacing: .7px; font-weight: 900; }
+        .dp-espn-columns, .dp-espn-player {
+          display: grid;
+          grid-template-columns: 41px minmax(0, 1fr) 47px 50px;
+          align-items: center;
+          column-gap: 7px;
+        }
+        .dp-espn-columns {
+          background: #101925;
+          border-top: 1px solid #324050;
+          border-bottom: 1px solid #394a60;
+          color: #a7b8ca;
+          padding: 9px 10px;
+          font-size: 10px;
+          font-weight: 800;
+        }
+        .dp-espn-columns span:nth-child(3), .dp-espn-columns span:nth-child(4) { text-align: right; }
+        .dp-espn-player {
+          min-height: 52px;
+          padding: 9px 10px;
+          background: #1b2634;
+          border-bottom: 1px solid #314051;
+        }
+        .dp-espn-player:nth-child(even) { background: #202d3d; }
+        .dp-espn-slot { color: #eac47f; font-size: 10px; font-weight: 900; }
+        .dp-espn-player-info { min-width: 0; display: grid; gap: 4px; }
+        .dp-espn-player-info strong { font-size: 11px; color: #f1f5fa; overflow-wrap: anywhere; }
+        .dp-espn-player-info small { font-size: 10px; color: #a8b9cc; }
+        .dp-espn-number { text-align: right; font-variant-numeric: tabular-nums; color: #b6c7d8; font-size: 11px; }
+        .dp-espn-actual { color: #f6f7fb; font-size: 12px; }
+        .dp-espn-bench { background: #151e2a; }
+        .dp-espn-bench > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; padding: 12px; cursor: pointer; color: #e9c37e; font-weight: 800; font-size: 11px; }
+        .dp-espn-bench > summary::-webkit-details-marker { display: none; }
+        .dp-espn-bench[open] > summary span { transform: rotate(180deg); }
+        @media(max-width: 480px) {
+          .dp-espn-columns, .dp-espn-player { grid-template-columns: 31px minmax(0, 1fr) 35px 42px; column-gap: 4px; }
+          .dp-espn-columns, .dp-espn-player { padding-left: 6px; padding-right: 6px; }
+          .dp-espn-player-info strong { font-size: 10px; }
         }
 
         .dp-live-player {
