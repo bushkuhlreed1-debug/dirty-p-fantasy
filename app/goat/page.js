@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getLeagueData } from "../../lib/leagueData";
+import GoatRankingTimeline from "../components/GoatRankingTimeline";
 
 export const dynamic = "force-dynamic";
 
@@ -378,6 +379,64 @@ function calculateQualifyingWins(games) {
   }
 
   return records;
+}
+
+// ======================================================
+// ALL-TIME GOAT RANKINGS AT THE END OF EVERY SEASON
+//
+// Reconstruct each season's ranking from only results
+// available through that season. Never credit future titles
+// or playoff wins to an earlier historical snapshot.
+// ======================================================
+
+function historicalGoatTimeline({owners,seasonResults,completedGames}) {
+  const years=[...new Set(seasonResults.map(s=>Number(s.season_year)))]
+    .filter(Number.isFinite).filter(y=>y>=2014)
+    .sort((a,b)=>a-b);
+
+  const snapshots=years.map(year=>{
+    const eligible=seasonResults.filter(s=>Number(s.season_year)<=year);
+    const gamesToDate=completedGames.filter(g=>Number(g.season_year)<=year);
+    const winsByOwner=calculateQualifyingWins(gamesToDate);
+    const rankings=owners.map(owner=>{
+      const ownerSeasons=eligible.filter(s=>Number(s.owner_id)===Number(owner.id));
+      if (!ownerSeasons.length) return null;
+      const total=field=>ownerSeasons.reduce((sum,s)=>sum+num(s[field]),0);
+      const count=field=>ownerSeasons.filter(s=>Boolean(s[field])).length;
+      const wins=total("wins"),losses=total("losses"),ties=total("ties");
+      const postseasonWins=winsByOwner.get(Number(owner.id))?.total || 0;
+      const playoffAppearances=count("playoff_appearance");
+      const finals=count("championship_appearance");
+      const titles=count("champion");
+      const score=
+        wins*GOAT_POINTS.REGULAR_WIN +
+        playoffAppearances*GOAT_POINTS.PLAYOFF_APPEARANCE +
+        postseasonWins*GOAT_POINTS.PLAYOFF_WIN +
+        finals*GOAT_POINTS.CHAMPIONSHIP_APPEARANCE +
+        titles*GOAT_POINTS.CHAMPIONSHIP;
+      return {
+        ownerId:Number(owner.id),name:owner.name,score,
+        wins,losses,ties,pointsFor:total("points_for"),
+        playoffAppearances,postseasonWins,finals,titles,
+        winPct:getWinPct(wins,losses,ties)
+      };
+    }).filter(Boolean);
+    rankings.sort((a,b)=>
+      b.score-a.score ||
+      b.titles-a.titles ||
+      b.finals-a.finals ||
+      b.postseasonWins-a.postseasonWins ||
+      b.wins-a.wins ||
+      b.playoffAppearances-a.playoffAppearances ||
+      b.winPct-a.winPct ||
+      b.pointsFor-a.pointsFor ||
+      a.name.localeCompare(b.name)
+    );
+    return {year,rankings:rankings.map((o,i)=>({
+      ownerId:o.ownerId,name:o.name,score:o.score,rank:i+1
+    }))};
+  });
+  return {years,snapshots};
 }
 
 // ======================================================
@@ -1012,6 +1071,10 @@ export default async function GoatPage() {
     };
   });
 
+  const rankingTimeline=historicalGoatTimeline({
+    owners,seasonResults,completedGames
+  });
+
   // ====================================================
   // RANK OWNERS
   // ====================================================
@@ -1176,6 +1239,25 @@ export default async function GoatPage() {
 
         <ScoringCard />
       </section>
+
+      {/* HISTORICAL GOAT RANKING MOVEMENT */}
+
+      {rankingTimeline.years.length > 1 && (
+        <section className="owners-section" id="goat-history">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">THEN VS. NOW</p>
+              <h2>Historical Ranking Movement</h2>
+            </div>
+            <span>2014–{currentSeason}</span>
+          </div>
+          <GoatRankingTimeline
+            seasons={rankingTimeline.years}
+            snapshots={rankingTimeline.snapshots}
+            owners={owners}
+          />
+        </section>
+      )}
 
       {/* COMPLETE GOAT RANKINGS SECOND */}
 
