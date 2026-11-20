@@ -2795,3 +2795,100 @@ summary:focus-visible,
 .dp-custom-alert-option strong {font-size:13px;}
 .dp-custom-alert-option small {font-size:11px;}
 }
+
+
+/* DIRTY P HISTORY AND LUCK FEATURES */
+/* Records · all-play luck rankings */
+.dp-luck-module {background:#172332;border:1px solid #3b4d60;border-radius:15px;padding:20px;min-width:0;}
+.dp-luck-toolbar {display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:17px;}
+.dp-luck-toolbar p {margin:0;max-width:600px;line-height:1.55;color:#bbc8d8;font-size:13px;}
+.dp-luck-toolbar label {display:flex;flex-direction:column;gap:6px;color:#d5e1ee;font-size:11px;font-weight:850;min-width:155px;}
+.dp-luck-toolbar select,.dp-goat-timeline-filters select,.dp-goat-timeline-snapshot-heading select {
+ background:#243348;border:1px solid #50657e;color:#f9f9fb;border-radius:9px;padding:10px 12px;font:inherit;max-width:100%;cursor:pointer;
+}
+.dp-luck-spotlights {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:17px;}
+.dp-luck-spotlight {padding:17px;background:#1d2e37;border:1px solid #486358;border-radius:12px;display:flex;flex-direction:column;gap:6px;min-width:0;}
+.dp-luck-unfortunate {background:#2b252b;border-color:#70505b;}
+.dp-luck-tag {font-size:10px;color:#a7e0b7;font-weight:900;letter-spacing:.65px;}
+.dp-luck-unfortunate .dp-luck-tag {color:#f0adb4;}
+.dp-luck-spotlight strong {font-size:17px;color:#fff;line-height:1.35;}
+.dp-luck-spotlight strong a {color:inherit;text-decoration:none;}
+.dp-luck-spotlight strong a:hover {text-decoration:underline;}
+.dp-luck-spotlight>b {font-size:25px;color:#7cdea6;font-variant-numeric:tabular-nums;}
+.dp-luck-unfortunate>b {color:#f7a6b2;}
+.dp-luck-spotlight small {font-size:11px;color:#b6c7d6;}
+.dp-luck-table-scroll {overflow-x:auto;border-radius:11px;border:1px solid #3c4d61;}
+.dp-luck-table {border-collapse:collapse;width:100%;min-width:690px;font-size:13px;}
+.dp-luck-table th {text-align:left;padding:12px 13px;background:#243248;color:#d7e1ed;font-size:11px;white-space:nowrap;font-weight:850;}
+.dp-luck-table td {border-top:1px solid #344658;padding:12px 13px;color:#e2e8ef;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.dp-luck-table tbody tr:nth-child(2n){background:#1c2b3a;}
+.dp-luck-table td:nth-child(2) a {color:#f2f4f6;text-decoration:none;font-weight:800;}
+.dp-luck-table td:nth-child(2) small {display:block;color:#97abc0;font-size:10px;margin-top:3px;}
+.dp-luck-table td:last-child b {font-size:15px;}
+.dp-luck-positive {color:#86e2a8;}
+.dp-luck-negative {color:#eea4b0;}
+.dp-luck-explainer {color:#aabdd0;font-size:12px;line-height:1.65;margin:18px 0 0;}
+.dp-luck-explainer strong {color:#e9c681;}
+.dp-luck-empty {padding:20px 0;color:#b6c5d4;}
+/* GOAT chart & ranking snapshots */
+.dp-goat-timeline {background:#182433;border:1px solid #394e64;border-radius:15px;padding:20px;min-width:0;}
+.dp-goat-timeline-filters {display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:14px;}
+.dp-goat-timeline-filters>div>strong {color:#fff;font-size:16px;}
+.dp-goat-timeline-filters p {color:#aabbcf;font-size:12px;margin:6px 0 0;line-height:1.5;}
+.dp-goat-timeline-filters label {display:flex;flex-direction:column;gap:6px;color:#bfcfe0;font-size:11px;font-weight:850;min-width:160px;}
+.dp-goat-timeline-chart-wrap {overflow-x:auto;border:1px solid #304359;border-radius:12px;background:#121d29;}
+.dp-goat-timeline-chart {display:block;width:100%;min-width:700px;height:auto;}
+.dp-goat-timeline-legend {display:flex;flex-wrap:wrap;gap:7px;padding:13px 0 17px;}
+.dp-goat-timeline-legend button {display:flex;align-items:center;gap:6px;background:#25354a;border:1px solid #43546a;border-radius:22px;padding:7px 11px;color:#d5e0ec;font-size:11px;font-weight:800;cursor:pointer;}
+.dp-goat-timeline-legend button.dp-active {background:#41516a;border-color:#f2cf86;color:#fff;}
+.dp-goat-timeline-legend i {display:block;width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.dp-goat-timeline-snapshot {background:#142030;border:1px solid #394d62;border-radius:12px;overflow:hidden;}
+.dp-goat-timeline-snapshot-heading {display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px;background:#233146;}
+.dp-goat-timeline-snapshot-heading>div {display:flex;flex-direction:column;gap:4px;}
+.dp-goat-timeline-snapshot-heading strong {color:#f6f7f8;font-size:14px;}
+.dp-goat-timeline-snapshot-heading small {color:#b0bed0;font-size:11px;}
+.dp-goat-timeline-standings {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;padding:4px 14px;}
+.dp-goat-timeline-standing {display:grid;grid-template-columns:35px minmax(0,1fr) 38px 68px;align-items:center;gap:7px;border-bottom:1px solid #334356;padding:11px 4px;color:#cdd8e5;font-size:12px;}
+.dp-goat-timeline-standing.dp-highlighted {background:#2b3d51;}
+.dp-goat-timeline-standing>b {color:#efd090;}
+.dp-goat-timeline-standing a {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f1f3f6;text-decoration:none;font-weight:750;}
+.dp-goat-timeline-standing>strong {color:#f0c77e;text-align:right;font-variant-numeric:tabular-nums;}
+.dp-goat-timeline-standing>small {text-align:center;font-size:10px;color:#bdcad9;font-weight:800;}
+.dp-goat-timeline-standing .dp-goat-up {color:#80e1a2;}
+.dp-goat-timeline-standing .dp-goat-down {color:#eaa3a6;}
+.dp-goat-timeline-note {color:#a9bccf;font-size:11px;line-height:1.6;margin:14px 0 0;}
+/* Compact historic moment on home page */
+.dp-history-week-section {margin-top:25px;}
+.dp-history-week-feature {border:1px solid #63533a;background:linear-gradient(135deg,#292b33,#1a2533);border-radius:15px;overflow:hidden;}
+.dp-history-week-feature summary {list-style:none;cursor:pointer;padding:18px 21px;display:flex;flex-direction:column;gap:11px;}
+.dp-history-week-feature summary::-webkit-details-marker {display:none;}
+.dp-history-week-feature summary:focus-visible {outline:2px solid #f1c57e;outline-offset:-3px;}
+.dp-history-week-date {color:#e7bb70;font-weight:900;font-size:11px;letter-spacing:.9px;}
+.dp-history-week-headline {font-size:clamp(16px,2.7vw,21px);font-weight:850;line-height:1.35;color:#f4f6fa;}
+.dp-history-week-bottom {display:flex;justify-content:space-between;gap:12px;align-items:center;padding-top:8px;border-top:1px solid #494b51;color:#b9c8d7;font-size:11px;font-weight:800;}
+.dp-history-week-bottom>span:last-child {color:#efc581;}
+.dp-history-week-bottom>span:last-child span {display:inline-block;margin-left:7px;font-size:17px;line-height:1;transition:transform .15s;}
+.dp-history-week-feature[open] .dp-history-week-bottom>span:last-child span {transform:rotate(180deg);}
+.dp-history-week-details {border-top:1px solid #424c5a;padding:18px 21px;color:#c8d4e0;}
+.dp-history-week-details>p,.dp-history-week-extra p {line-height:1.55;font-size:13px;margin:0 0 10px;}
+.dp-history-week-extra {border-top:1px solid #39495d;padding-top:13px;margin-top:13px;display:grid;gap:5px;}
+.dp-history-week-extra small {color:#edc47a;font-size:10px;font-weight:850;letter-spacing:.5px;}
+.dp-history-week-extra strong {color:#eef1f4;font-size:14px;}
+.dp-history-week-details>small {display:block;color:#8fa1b3;line-height:1.4;margin-top:15px;}
+@media(max-width:750px){
+  .dp-goat-timeline-standings {grid-template-columns:1fr;}
+  .dp-goat-timeline {padding:13px;}
+  .dp-goat-timeline-filters,.dp-luck-toolbar {align-items:stretch;flex-direction:column;gap:13px;}
+  .dp-goat-timeline-filters label,.dp-luck-toolbar label {min-width:0;}
+  .dp-goat-timeline-snapshot-heading {align-items:stretch;flex-wrap:wrap;}
+  .dp-luck-module {padding:12px;}
+  .dp-luck-spotlights {gap:9px;}
+  .dp-luck-spotlight {padding:13px;}
+  .dp-luck-spotlight>b {font-size:20px;}
+  .dp-luck-spotlight strong {font-size:14px;}
+}
+@media(max-width:390px){
+  .dp-luck-spotlights {grid-template-columns:1fr;}
+  .dp-history-week-feature summary {padding:15px;}
+  .dp-history-week-details {padding:15px;}
+}
