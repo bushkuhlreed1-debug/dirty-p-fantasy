@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 // DIRTY P PLAYOFF PREDICTOR
 
 const REGULAR_SEASON_END_WEEK = 14;
+// Show extended playoff paths from Rivalry Week onward.
+const EXTENDED_SCENARIOS_START_WEEK = 11;
 const EXACT_GAME_LIMIT = 14;
 const SIMULATIONS = 25000;
 const PAGE_SIZE = 8;
@@ -716,7 +718,7 @@ function resultLines(
 }
 
 // ==================================================
-// FINAL TWO WEEKS: QUALIFYING COMBINATIONS
+// EXTENDED PLAYOFF PATHS: EXACT OR SAMPLED
 // ==================================================
 
 function FinalPaths({
@@ -869,9 +871,21 @@ function FinalPaths({
         to Make the Playoffs
       </h3>
 
+      {!baseline.exact && (
+        <p className="dp-warning">
+          Showing examples from {baseline.iterations.toLocaleString()} sampled seasons.
+          These paths are not exhaustive, and shared results are not
+          mathematically required. Zero sampled paths does not prove elimination.
+        </p>
+      )}
+
       <p className="dp-major">
-        {mustWinOut
-          ? "MUST WIN OUT"
+        {smallestWins === null
+          ? baseline.exact
+            ? "NO QUALIFYING PLAYOFF PATH"
+            : "NO QUALIFYING PATH FOUND IN SAMPLED OUTCOMES"
+          : mustWinOut
+          ? baseline.exact ? "MUST WIN OUT" : "WIN OUT IN EVERY SAMPLED QUALIFYING PATH"
           : smallestWins === 0
           ? "CAN STILL QUALIFY WITHOUT ANOTHER WIN"
           : `NEEDS AT LEAST ${smallestWins} MORE ${
@@ -882,11 +896,9 @@ function FinalPaths({
       </p>
 
       <p className="dp-muted">
-        This is the minimum number of wins
-        in any modeled qualifying
-        combination. It does not mean
-        that winning that many games
-        automatically guarantees a berth.
+        {baseline.exact
+          ? "This is the minimum number of wins in any modeled qualifying combination. It does not mean that winning that many games guarantees a berth."
+          : "These are examples from sampled outcomes, not an exhaustive list. A different winning path may exist, even when none was sampled."}
       </p>
 
       <div className="dp-filters">
@@ -939,15 +951,16 @@ function FinalPaths({
         <b>
           {paths.length.toLocaleString()}
         </b>
-        {" "}qualifying combinations
+        {" "}{baseline.exact ? "qualifying combinations" : "qualifying sampled outcomes"}
         match this finish.
       </p>
 
       {necessities.length > 0 && (
         <div className="dp-necessary">
           <b>
-            Results Required in Every
-            Qualifying Combination Shown
+            {baseline.exact
+              ? "Results Required in Every Qualifying Combination"
+              : "Results Shared by Every Sampled Qualifying Path"}
           </b>
 
           {necessities.map(g => (
@@ -1126,11 +1139,9 @@ export default function ScenarioSimulator({
     ]
   );
 
-  const finalTwo =
-    currentWeek >=
-      REGULAR_SEASON_END_WEEK - 1 &&
-    currentWeek <=
-      REGULAR_SEASON_END_WEEK;
+  const extendedAvailable =
+    currentWeek >= EXTENDED_SCENARIOS_START_WEEK &&
+    currentWeek <= REGULAR_SEASON_END_WEEK;
 
   const week = [
     ...new Set(
@@ -1591,9 +1602,8 @@ export default function ScenarioSimulator({
         <p className="dp-muted">
           See how many outcomes guarantee
           a berth, leave a path open, or
-          eliminate an owner. Detailed
-          combinations appear in the
-          final two regular-season weeks.
+          eliminate an owner. Extended playoff scenarios are available starting in Week 11.
+          Before all results can be enumerated, detailed paths are sampled.
         </p>
 
         {!baseline.exact && (
@@ -1720,28 +1730,17 @@ export default function ScenarioSimulator({
               )}
 
               {showSurvivalAdvice &&
-                !finalTwo &&
+                !extendedAvailable &&
                 !noGames && (
                   <div className="dp-locked">
-                    <b>
-                      Detailed Combinations
-                      Unlock in Weeks{" "}
-                      {REGULAR_SEASON_END_WEEK - 1}
-                      {"–"}
-                      {REGULAR_SEASON_END_WEEK}
-                    </b>
-
-                    <p>
-                      For now, use the weekly
-                      guide above to see
-                      what matters right away.
-                    </p>
+                    <b>Detailed playoff paths open in Week {EXTENDED_SCENARIOS_START_WEEK}</b>
+                    <p>The weekly rooting guide remains available before then.</p>
                   </div>
                 )}
 
               {showSurvivalAdvice &&
-                finalTwo &&
-                baseline.exact && (
+                extendedAvailable &&
+                !noGames && (
                   <FinalPaths
                     key={owner.ownerId}
                     owner={owner}
@@ -1753,19 +1752,7 @@ export default function ScenarioSimulator({
                   />
                 )}
 
-              {showSurvivalAdvice &&
-                finalTwo &&
-                !baseline.exact && (
-                  <p className="dp-warning">
-                    Too many games remain
-                    for a complete combination
-                    list. Detailed paths
-                    require{" "}
-                    {EXACT_GAME_LIMIT}
-                    {" "}or fewer remaining
-                    games.
-                  </p>
-                )}
+              
             </div>
           </>
         )}
