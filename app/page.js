@@ -2183,8 +2183,8 @@ export default async function Home() {
           </div>
           <div className="dp-playoff-pulse">
             <div className="dp-playoff-pulse-header">
-              <strong>Projected playoff chances</strong>
-              <span>Model estimates · Week {displayWeek}</span>
+              <strong>ESPN odds vs. live matchup estimate</strong>
+              <span>Week {displayWeek} · Percentage points, not fantasy points</span>
             </div>
             <div className="dp-playoff-pulse-rows">
               {playoffPulse.movers.map(owner => (
@@ -2195,16 +2195,24 @@ export default async function Home() {
                   <div className="dp-playoff-pulse-track" aria-hidden="true">
                     <span style={{width: owner.after + "%"}}/>
                   </div>
-                  <div className="dp-playoff-pulse-change">
-                    <strong>{owner.after}%</strong>
-                    <small className={owner.change>0 ? "dp-pulse-up" : owner.change<0 ? "dp-pulse-down" : ""}>
-                      {owner.change>0 ? "+" : ""}{owner.change} pts
+                  <div className="dp-playoff-pulse-comparison">
+                    <span className="dp-playoff-pulse-value">
+                      <small>{owner.baselineSource === "ESPN published" ? "ESPN" : "Model base"}</small>
+                      <b>{owner.before}%</b>
+                    </span>
+                    <span className="dp-pulse-arrow" aria-label="compared with">→</span>
+                    <span className="dp-playoff-pulse-value">
+                      <small>Live estimate</small>
+                      <strong>{owner.after}%</strong>
+                    </span>
+                    <small className={"dp-playoff-pulse-delta " + (owner.change>0 ? "dp-pulse-up" : owner.change<0 ? "dp-pulse-down" : "")}>
+                      {owner.change>0 ? "+" : ""}{owner.change} pp
                     </small>
                   </div>
                 </div>
               ))}
             </div>
-            <p>Change compares a season-strength simulation with a simulation using ESPN's live projected matchup scores. Estimates are not official odds or clinching scenarios.</p>
+            <p><strong>What does the change mean?</strong> The left percentage is ESPN’s published playoff probability when available. The right percentage is Dirty P’s alternative estimate using live projected matchup scores, calibrated to that ESPN benchmark. “pp” means percentage points: for example, 68% → 70% is +2 pp, not two fantasy points. This is a comparison of two estimates, not a measured increase since kickoff or an official clinching scenario.</p>
           </div>
         </section>
       )}
@@ -3119,21 +3127,31 @@ export default async function Home() {
         .dp-playoff-pulse-header strong {font-size:15px;color:#f6f7fa;}
         .dp-playoff-pulse-header span {color:#a3c9ad;font-size:11px;}
         .dp-playoff-pulse-rows {display:grid;gap:13px;}
-        .dp-playoff-pulse-row {display:grid;grid-template-columns:110px minmax(0,1fr) 69px;align-items:center;gap:13px;}
+        .dp-playoff-pulse-row {display:grid;grid-template-columns:95px minmax(55px,1fr) minmax(210px,240px);align-items:center;gap:13px;}
         .dp-playoff-pulse-owner {display:flex;flex-direction:column;gap:4px;min-width:0;}
         .dp-playoff-pulse-owner strong {color:#f1f5f2;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .dp-playoff-pulse-owner small {color:#b2ceba;font-size:10px;}
         .dp-playoff-pulse-track {height:10px;border-radius:8px;background:#34483b;overflow:hidden;}
         .dp-playoff-pulse-track span {display:block;height:100%;border-radius:8px;background:#5bc68c;}
-        .dp-playoff-pulse-change {display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-variant-numeric:tabular-nums;}
-        .dp-playoff-pulse-change strong {font-size:19px;color:#fff;}
-        .dp-playoff-pulse-change small {color:#b5c6b9;font-size:11px;}
-        .dp-playoff-pulse-change .dp-pulse-up {color:#87e8ab;}
-        .dp-playoff-pulse-change .dp-pulse-down {color:#f09397;}
+        .dp-playoff-pulse-comparison {display:flex;justify-content:flex-end;align-items:center;gap:10px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+        .dp-playoff-pulse-value {display:flex;flex-direction:column;gap:3px;align-items:center;}
+        .dp-playoff-pulse-value small {font-size:10px;color:#b4cabc;}
+        .dp-playoff-pulse-value b {font-size:16px;color:#d5e0d8;}
+        .dp-playoff-pulse-value strong {font-size:19px;color:#fff;}
+        .dp-pulse-arrow {color:#a5c7b2;font-size:17px;}
+        .dp-playoff-pulse-delta {font-size:11px;color:#b5c6b9;text-align:right;min-width:35px;}
+        .dp-playoff-pulse-comparison .dp-pulse-up {color:#87e8ab;}
+        .dp-playoff-pulse-comparison .dp-pulse-down {color:#f09397;}
         .dp-playoff-pulse>p {font-size:11px;line-height:1.6;color:#a9c0b0;border-top:1px solid #345340;padding-top:13px;margin:19px 0 0;}
         @media(max-width:550px) {
           .dp-playoff-pulse {padding:15px 12px;}
-          .dp-playoff-pulse-row {grid-template-columns:67px minmax(0,1fr) 62px;gap:9px;}
+          .dp-playoff-pulse-row {grid-template-columns:1fr 1fr;gap:7px 10px;padding:7px 0;border-bottom:1px solid #2e503a;}
+          .dp-playoff-pulse-owner {grid-column:1;grid-row:1;}
+          .dp-playoff-pulse-comparison {grid-column:2;grid-row:1;gap:5px;justify-content:flex-end;}
+          .dp-playoff-pulse-value small {font-size:9px;}
+          .dp-playoff-pulse-value b,.dp-playoff-pulse-value strong {font-size:16px;}
+          .dp-playoff-pulse-delta {font-size:10px;min-width:26px;}
+          .dp-playoff-pulse-track {grid-column:1 / -1;grid-row:2;}
           .dp-playoff-pulse-header {gap:5px;}
           .dp-live-record-card {padding:15px;}
         }
