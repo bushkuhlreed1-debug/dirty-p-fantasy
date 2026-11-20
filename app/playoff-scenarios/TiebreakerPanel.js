@@ -209,190 +209,125 @@ export default function TiebreakerPanel({
   const visible = comparisons.filter((c) => !tiedOnly || c.tied);
   const tiedCount = comparisons.filter((c) => c.tied).length;
 
-  const surface = {
-    background: "#171d26",
-    border: "1px solid #303b49",
-    borderRadius: 14,
-    padding: 20,
-    color: "#f1f4f8"
-  };
 
   if (!owner) return null;
 
   return (
-    <section style={embedded ? {
-      ...surface,
-      background: "#111b29",
-      border: "1px solid #3d5268",
-      borderRadius: 12,
-      padding: 16,
-      marginTop: 18
-    } : surface}>
-      <div style={{
-        color: "#e6b65b", fontSize: 11, fontWeight: 800,
-        letterSpacing: 1.8, textTransform: "uppercase"
-      }}>
-        {embedded ? owner.ownerName + " · PLAYOFF TIEBREAKERS" : "PLAYOFF SEEDING"}
-      </div>
-      <h2 style={{ margin: "7px 0 10px", fontSize: 23 }}>
-        {embedded ? "Tiebreakers & Seeding" : "Who Holds the Tiebreaker?"}
-      </h2>
-      <p style={{ color: "#bac4d2", margin: "0 0 12px" }}>
-        Check which owner has the edge if two teams finish with the
-        same regular-season record. The comparison uses completed
-        2026 matchups and current season scoring, not all-time rivalry records.
-      </p>
-      <div style={{
-        background: "#101722", padding: "10px 12px",
-        borderRadius: 9, border: "1px solid #344255",
-        marginBottom: 14, fontSize: 13
-      }}>
-        <b>ESPN seeding tiebreaker: </b>{rule.label}
-        {rule.key === "UNKNOWN" && (
-          <p style={{ color: "#bac4d2", margin: "5px 0 0" }}>
-            ESPN did not return a recognized seeding rule. Head-to-head
-            and points totals are shown below for reference, but no
-            official pairwise leader is assigned.
-          </p>
-        )}
-      </div>
-
-      {!embedded && rule.key === "PF" && tiedGroups.length > 0 && (
-        <div style={{
-          border: "1px solid #536076", borderRadius: 10,
-          background: "#141e2a", padding: 12, marginBottom: 14
-        }}>
-          <b style={{ color: "#e6b65b", fontSize: 14 }}>
-            Current standings ties — points-for order
-          </b>
-          {tiedGroups.map((group) => (
-            <div key={group.record} style={{
-              borderTop: "1px solid #364255",
-              marginTop: 10, paddingTop: 9
-            }}>
-              <b style={{ fontSize: 13 }}>
-                {group.record} record
-              </b>
-              <div style={{
-                display: "flex", gap: 7, flexWrap: "wrap",
-                marginTop: 6, fontSize: 13, color: "#d8e2ec"
-              }}>
-                {group.teams.map((team, index) => (
-                  <span key={team.ownerId}>
-                    {index ? "› " : ""}
-                    {team.ownerName} ({points(team.pointsFor)})
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-          <small style={{ color: "#aab6c7", display: "block", marginTop: 9 }}>
-            Ordered by current points scored. The advantage can change
-            before the regular season ends.
-          </small>
+    <details className="dp-tiebreak-clean">
+      <summary className="dp-tiebreak-summary">
+        <div>
+          <span className="dp-tiebreak-eyebrow">PLAYOFF SEEDING</span>
+          <strong>Tiebreakers</strong>
+          <small>{owner.ownerName} · {rule.label}</small>
         </div>
-      )}
+        <span className="dp-tiebreak-chevron" aria-hidden="true">⌄</span>
+      </summary>
 
-      <div style={{
-        display: "flex", flexWrap: "wrap", gap: 10,
-        alignItems: "flex-end", marginBottom: 14
-      }}>
-        {!embedded && <label style={{ display: "grid", gap: 5, flex: "1 1 210px" }}>
-          <span style={{ fontSize: 12, color: "#bac4d2" }}>
-            Compare this owner
-          </span>
-          <select
-            aria-label="Select owner for tiebreaker comparison"
-            value={selectedOwnerId ?? ""}
-            onChange={(e) => setSelected(e.target.value)}
-            style={{
-              width: "100%", background: "#0f1722",
-              color: "white", border: "1px solid #455164",
-              borderRadius: 8, padding: "10px", fontSize: 15
-            }}
-          >
-            {sortedTeams.map((t) => (
-              <option key={t.ownerId} value={t.ownerId}>
-                {t.ownerName} ({statusText(t)})
-              </option>
-            ))}
-          </select>
-        </label>}
-        <button
-          type="button"
-          onClick={() => setTiedOnly((v) => !v)}
-          aria-pressed={tiedOnly}
-          style={{
-            background: tiedOnly ? "#e6b65b" : "#283547",
-            color: tiedOnly ? "#14191e" : "white",
-            border: "1px solid #506079", borderRadius: 8,
-            padding: "11px 13px", fontWeight: 750, cursor: "pointer"
-          }}
-        >
-          {tiedOnly ? "Show all opponents" :
-            "Same record only (" + tiedCount + ")"}
-        </button>
-      </div>
-
-      <div style={{ display: "grid", gap: 9 }}>
-        {visible.map((c) => {
-          const leading = c.leaderId === owner.ownerId
-            ? owner.ownerName
-            : c.leaderId === c.other.ownerId
-              ? c.other.ownerName
-              : null;
-          return (
-            <div key={c.other.ownerId} style={{
-              border: "1px solid #344255", borderRadius: 10,
-              background: "#1c2735", padding: 13
-            }}>
-              <div style={{
-                display: "flex", gap: 8, flexWrap: "wrap",
-                justifyContent: "space-between", alignItems: "baseline"
-              }}>
-                <b>{owner.ownerName} vs. {c.other.ownerName}</b>
-                {c.tied && (
-                  <span style={{
-                    fontSize: 11, color: "#e6b65b",
-                    fontWeight: 800
-                  }}>SAME RECORD</span>
-                )}
-              </div>
-              <p style={{ color: "#d9e1ec", margin: "7px 0 4px", fontSize: 13 }}>
-                2026 head-to-head: <b>{c.myWins}–{c.theirWins}
-                {c.ties ? "–" + c.ties : ""}</b>
-                {" · "}Points difference: <b>{Math.abs(c.myPF - c.theirPF) < 0.005 ? "Tied" : `${c.myPF > c.theirPF ? owner.ownerName : c.other.ownerName} leads by ${points(Math.abs(c.myPF - c.theirPF))}`}</b>
-              </p>
-              <div style={{
-                color: leading ? "#7ed9b0" : "#c6cbd4",
-                fontWeight: 700, fontSize: 13
-              }}>
-                {leading
-                  ? "Current tiebreaker edge: " + leading +
-                    " (" + c.decidedBy + ")"
-                  : rule.key === "UNKNOWN"
-                    ? "Official edge not determined; seeding rule unavailable."
-                    : "No confirmed pairwise edge from the available criteria."}
-              </div>
-            </div>
-          );
-        })}
-        {visible.length === 0 && (
-          <p style={{ color: "#bac4d2", margin: 0 }}>
-            This owner is not currently tied with anyone in the standings.
-            Choose “Show all opponents” to compare possible future ties.
-          </p>
+      <div className="dp-tiebreak-content">
+        <p className="dp-tiebreak-intro">
+          Compare who currently holds the edge. Points shown are the difference,
+          not total season points. These can change as games are played.
+        </p>
+        {!embedded && (
+          <label className="dp-tiebreak-select-label">
+            Owner
+            <select value={selectedOwnerId ?? ""} onChange={e => setSelected(e.target.value)}>
+              {sortedTeams.map(t => (
+                <option key={t.ownerId} value={t.ownerId}>
+                  {t.ownerName} ({statusText(t)})
+                </option>
+              ))}
+            </select>
+          </label>
         )}
+
+        <div className="dp-tiebreak-toolbar">
+          <strong>Opponent comparisons</strong>
+          <button
+            type="button"
+            onClick={() => setTiedOnly(v => !v)}
+          >
+            {tiedOnly ? "Show all teams" : `Only tied teams (${tiedCount})`}
+          </button>
+        </div>
+
+        <div className="dp-tiebreak-list">
+          {visible.map(c => {
+            const gap = Math.abs(c.myPF - c.theirPF);
+            const pointsLeader = gap < 0.005 ? null
+              : c.myPF > c.theirPF ? owner.ownerName : c.other.ownerName;
+            const edge = c.leaderId === owner.ownerId ? "Advantage"
+              : c.leaderId === c.other.ownerId ? "Behind" : "Unconfirmed";
+            return (
+              <details className="dp-tiebreak-row" key={c.other.ownerId}>
+                <summary>
+                  <div className="dp-tiebreak-opponent">
+                    <strong>{c.other.ownerName}</strong>
+                    <small>{statusText(c.other)} record{c.tied ? " · Same record" : ""}</small>
+                  </div>
+                  <div className="dp-tiebreak-row-right">
+                    <b className={edge === "Advantage" ? "is-ahead" : edge === "Behind" ? "is-behind" : ""}>
+                      {edge}
+                    </b>
+                    <small>{pointsLeader ? `${pointsLeader === owner.ownerName ? "Ahead" : "Behind"} by ${points(gap)} pts` : "Points tied"}</small>
+                  </div>
+                  <span className="dp-tiebreak-row-chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <div className="dp-tiebreak-row-detail">
+                  <span>2026 head-to-head: <b>{c.myWins}–{c.theirWins}{c.ties ? "–" + c.ties : ""}</b></span>
+                  <span>Points gap: <b>{points(gap)}</b></span>
+                  <span>{c.leaderId != null ? `Current edge: ${c.leaderId === owner.ownerId ? owner.ownerName : c.other.ownerName} (${c.decidedBy})` : "Official edge not confirmed"}</span>
+                </div>
+              </details>
+            );
+          })}
+          {!visible.length && (
+            <p className="dp-tiebreak-intro">No teams have this owner's exact record right now. Choose "Show all teams" to compare the rest.</p>
+          )}
+        </div>
+        <p className="dp-tiebreak-footnote">
+          Provisional comparisons based on ESPN's current seeding rule.
+          Future results and multi-team ties can change the order.
+        </p>
       </div>
-      <p style={{
-        color: "#aab6c7", fontSize: 12, marginBottom: 0,
-        lineHeight: 1.6
-      }}>
-        These are provisional edges, not locked playoff tiebreakers.
-        Future wins and scoring can change them. In multi-team ties,
-        ESPN may apply group tiebreak rules rather than one-on-one results.
-        Scenario win/loss percentages remain estimates, not ESPN forecasts.
-      </p>
-    </section>
+
+      <style jsx global>{`
+        .dp-tiebreak-clean { margin-top: 18px; background: #111c2a; border: 1px solid #3b5067; border-radius: 12px; overflow: hidden; color: #eef3f9; }
+        .dp-tiebreak-clean * { box-sizing: border-box; }
+        .dp-tiebreak-summary { display: flex; justify-content: space-between; gap: 14px; align-items: center; padding: 17px 19px; cursor: pointer; list-style: none; }
+        .dp-tiebreak-summary::-webkit-details-marker, .dp-tiebreak-row summary::-webkit-details-marker { display: none; }
+        .dp-tiebreak-summary > div { display: grid; gap: 4px; min-width: 0; }
+        .dp-tiebreak-eyebrow { color: #eac279; letter-spacing: 1.3px; font-size: 10px; font-weight: 800; }
+        .dp-tiebreak-summary strong { font-size: 18px; }
+        .dp-tiebreak-summary small { color: #b6c6d7; line-height: 1.5; }
+        .dp-tiebreak-chevron { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; font-size: 23px; color: #edc77f; background: #25364a; border-radius: 50%; transition: transform .15s; }
+        .dp-tiebreak-clean[open] > .dp-tiebreak-summary .dp-tiebreak-chevron { transform: rotate(180deg); }
+        .dp-tiebreak-content { border-top: 1px solid #32445b; padding: 17px; }
+        .dp-tiebreak-intro, .dp-tiebreak-footnote { margin: 0 0 15px; font-size: 12px; color: #bac9d8; line-height: 1.6; }
+        .dp-tiebreak-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+        .dp-tiebreak-toolbar strong { font-size: 13px; }
+        .dp-tiebreak-toolbar button { cursor: pointer; font-weight: 700; background: #263a51; color: #f3d293; border: 1px solid #5c7088; border-radius: 8px; padding: 9px 12px; }
+        .dp-tiebreak-list { display: grid; gap: 8px; }
+        .dp-tiebreak-row { border: 1px solid #374d64; background: #19283a; border-radius: 10px; overflow: hidden; }
+        .dp-tiebreak-row summary { cursor: pointer; display: flex; align-items: center; gap: 12px; justify-content: space-between; list-style: none; padding: 12px 13px; }
+        .dp-tiebreak-row summary:hover, .dp-tiebreak-summary:hover { background: #233449; }
+        .dp-tiebreak-opponent { flex: 1 1 140px; display: grid; gap: 4px; min-width: 0; }
+        .dp-tiebreak-opponent strong { font-size: 13px; color: #f5f7fb; }
+        .dp-tiebreak-opponent small, .dp-tiebreak-row-right small { color: #a9bacd; font-size: 11px; }
+        .dp-tiebreak-row-right { display: grid; gap: 4px; text-align: right; flex: 0 1 190px; }
+        .dp-tiebreak-row-right b { font-size: 12px; color: #c7d1e0; }
+        .dp-tiebreak-row-right b.is-ahead { color: #7dddb0; }
+        .dp-tiebreak-row-right b.is-behind { color: #f4adab; }
+        .dp-tiebreak-row-chevron { font-size: 20px; color: #f0c984; transition: transform .15s; }
+        .dp-tiebreak-row[open] .dp-tiebreak-row-chevron { transform: rotate(180deg); }
+        .dp-tiebreak-row-detail { border-top: 1px solid #374d64; padding: 13px; display: flex; flex-wrap: wrap; gap: 10px 20px; background: #101c2b; color: #c5d4e3; font-size: 12px; line-height: 1.5; }
+        .dp-tiebreak-row-detail b { color: #f4cd87; }
+        .dp-tiebreak-footnote { margin: 15px 1px 0; font-size: 11px; }
+        .dp-tiebreak-select-label { display: grid; gap: 6px; max-width: 390px; font-size: 12px; }
+        .dp-tiebreak-select-label select { background: #24364b; color: #fff; border: 1px solid #5b6e82; border-radius: 8px; padding: 10px; }
+        .dp-tiebreak-clean summary:focus-visible, .dp-tiebreak-clean button:focus-visible { outline: 2px solid #ecc77f; outline-offset: -2px; }
+        @media(max-width: 520px) { .dp-tiebreak-content { padding: 12px; } .dp-tiebreak-row summary { gap: 8px; } .dp-tiebreak-row-right { flex-basis: 130px; } }
+      `}</style>
+    </details>
   );
 }
