@@ -1363,29 +1363,6 @@ export default async function Home() {
   );
 
   // ==================================================
-  // DEFENDING CHAMPION
-  // ==================================================
-
-  const {
-    data: championRows
-  } = await supabase
-    .from("seasons")
-    .select(`
-      year,
-      champion:champion_owner_id(name),
-      runner_up:runner_up_owner_id(name)
-    `)
-    .lt("year", season)
-    .order(
-      "year",
-      { ascending: false }
-    )
-    .limit(1);
-
-  const defending =
-    championRows?.[0] || null;
-
-  // ==================================================
   // COMPLETED WEEKLY MATCHUPS
   // ==================================================
 
@@ -1897,48 +1874,6 @@ export default async function Home() {
           </span>
         </div>
       </section>
-
-      {/* ==========================================
-          DEFENDING CHAMPION
-      ========================================== */}
-
-      {defending?.champion && (
-        <section className="section-block">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">
-                DEFENDING CHAMPION
-              </p>
-
-              <h2>
-                {defending.champion.name}
-              </h2>
-            </div>
-
-            <Link href="/champions">
-              Championship History →
-            </Link>
-          </div>
-
-          <div className="dp-panel">
-            <span className="dp-gold">
-              {defending.year} DIRTY P CHAMPION
-            </span>
-
-            <h3>
-              {defending.champion.name}
-            </h3>
-
-            {defending.runner_up?.name && (
-              <p>
-                Defeated{" "}
-                {defending.runner_up.name}
-                {" "}in the championship game.
-              </p>
-            )}
-          </div>
-        </section>
-      )}
 
       {/* ==========================================
           OWNER MAPPING WARNINGS
