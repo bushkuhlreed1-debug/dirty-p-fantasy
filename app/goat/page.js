@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getLeagueData } from "../../lib/leagueData";
+import { historicalGoatTimeline } from "../../lib/goatTimeline";
+import GoatRankingTimeline from "../components/GoatRankingTimeline";
 
 export const dynamic = "force-dynamic";
 
@@ -1012,6 +1014,10 @@ export default async function GoatPage() {
     };
   });
 
+  const rankingTimeline = historicalGoatTimeline({
+    owners, seasonResults, completedGames,
+  });
+
   // ====================================================
   // RANK OWNERS
   // ====================================================
@@ -1208,6 +1214,34 @@ export default async function GoatPage() {
           ))}
         </div>
       </section>
+
+      {/* COMPACT EXPANDABLE HISTORY AFTER THE OWNER RANKINGS */}
+
+      {rankingTimeline.years.length > 1 && (
+        <section className="owners-section" id="goat-history">
+          <details className="dp-feature-disclosure">
+            <summary>
+              <span className="dp-feature-disclosure-icon" aria-hidden="true">↗</span>
+              <span className="dp-feature-disclosure-copy">
+                <span className="eyebrow">ALL-TIME · 2014–{currentSeason}</span>
+                <strong>Historical Ranking Movement</strong>
+                <small>See how every owner's GOAT ranking changed over the years</small>
+              </span>
+              <span className="dp-feature-disclosure-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div className="dp-feature-disclosure-content">
+              <GoatRankingTimeline
+                seasons={rankingTimeline.years}
+                snapshots={rankingTimeline.snapshots}
+                owners={owners}
+              />
+              <div className="dp-feature-disclosure-footer">
+                <Link href="/goat/history">Open full ranking history →</Link>
+              </div>
+            </div>
+          </details>
+        </section>
+      )}
 
       {/* FOOTER */}
 
