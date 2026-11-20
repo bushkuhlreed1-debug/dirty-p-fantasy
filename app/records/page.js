@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getLeagueData } from "../../lib/leagueData";
+import { buildLuckRankings } from "../../lib/luckRankings";
+import LuckRankings from "../components/LuckRankings";
 
 export const dynamic = "force-dynamic";
 
@@ -596,6 +598,8 @@ export default async function RecordsPage() {
   const regularGames = completedGames.filter(
     isRegularSeasonGame
   );
+
+  const luckData = buildLuckRankings(regularGames,owners);
 
   const playoffGames = completedGames.filter(
     (game) =>
@@ -1247,6 +1251,19 @@ export default async function RecordsPage() {
             : `${firstSeason}–${latestSeason}`}
         </span>
       </nav>
+
+      {/* LUCK RANKINGS · COMPLETE SCORING WEEKS */}
+
+      <section className="owners-section" id="luck-rankings">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">ACTUAL RECORD VS. ALL-PLAY</p>
+            <h2>Luck Rankings</h2>
+          </div>
+          <span>All-time &amp; by season</span>
+        </div>
+        <LuckRankings data={luckData} />
+      </section>
 
       {/* WEEKLY RECORDS */}
 
