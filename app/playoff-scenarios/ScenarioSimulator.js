@@ -884,10 +884,17 @@ function FinalPaths({
 
   return (
     <div className="dp-detail">
-      <h3>
-        What {owner.ownerName} Needs
-        to Make the Playoffs
-      </h3>
+      <div className="dp-detail-heading">
+        <div>
+          <span className="dp-detail-kicker">PLAYOFF PATH EXPLORER</span>
+          <h3>What {owner.ownerName} Needs to Make the Playoffs</h3>
+          <p className="dp-detail-subtitle">Explore the remaining possible finishes and the results that could put {owner.ownerName.split(" ")[0]} in the postseason.</p>
+        </div>
+        <div className="dp-detail-counter">
+          <strong>{paths.length.toLocaleString()}</strong>
+          <span>{baseline.exact ? "QUALIFYING COMBINATIONS" : "QUALIFYING SAMPLED PATHS"}</span>
+        </div>
+      </div>
 
       {!baseline.exact && (
         <p className="dp-warning">
@@ -919,8 +926,12 @@ function FinalPaths({
           : "These are examples from sampled outcomes, not an exhaustive list. A different winning path may exist, even when none was sampled."}
       </p>
 
-      <div className="dp-filters">
-        <button
+      <div className="dp-filter-head">
+        <strong>Filter by remaining record</strong>
+        <span>W = win · L = loss</span>
+      </div>
+      <div className="dp-filters" role="group" aria-label="Filter playoff paths by remaining record">
+        <button type="button"
           className={
             finish === "all" ? "on" : ""
           }
@@ -935,6 +946,7 @@ function FinalPaths({
 
         {patterns.map(pattern => (
           <button
+            type="button"
             key={pattern}
             className={
               finish === pattern
@@ -965,13 +977,11 @@ function FinalPaths({
         ))}
       </div>
 
-      <p>
-        <b>
-          {paths.length.toLocaleString()}
-        </b>
-        {" "}{baseline.exact ? "qualifying combinations" : "qualifying sampled outcomes"}
-        match this finish.
-      </p>
+      <div className="dp-results-summary">
+        <span>SCENARIO RESULTS</span>
+        <strong>{paths.length.toLocaleString()} {baseline.exact ? "qualifying combinations" : "qualifying sampled outcomes"}</strong>
+        <small>Showing {paths.length ? (safePage - 1) * PAGE_SIZE + 1 : 0}–{Math.min(safePage * PAGE_SIZE, paths.length)} of {paths.length.toLocaleString()}</small>
+      </div>
 
       {necessities.length > 0 && (
         <div className="dp-necessary">
@@ -1016,6 +1026,8 @@ function FinalPaths({
               key={index}
             >
               <button
+                type="button"
+                aria-expanded={opened === index}
                 className="dp-path-trigger"
                 onClick={() =>
                   setOpened(
@@ -1025,9 +1037,8 @@ function FinalPaths({
                   )
                 }
               >
-                <span>
-                  Combination {index + 1}
-
+                <span className="dp-path-trigger-title">
+                  <b>Scenario {index + 1}</b>
                   <small>
                     {label(
                       entry.kinds.get(
@@ -1037,10 +1048,8 @@ function FinalPaths({
                   </small>
                 </span>
 
-                <span>
-                  {opened === index
-                    ? "−"
-                    : "+"}
+                <span className="dp-path-icon">
+                  {opened === index ? "−" : "+"}
                 </span>
               </button>
 
@@ -1084,7 +1093,7 @@ function FinalPaths({
 
       {maxPage > 1 && (
         <div className="dp-pagination">
-          <button
+          <button type="button"
             disabled={safePage <= 1}
             onClick={() => {
               setPage(p => p - 1);
@@ -1098,7 +1107,7 @@ function FinalPaths({
             Page {safePage} of {maxPage}
           </span>
 
-          <button
+          <button type="button"
             disabled={safePage >= maxPage}
             onClick={() => {
               setPage(p => p + 1);
@@ -1109,6 +1118,61 @@ function FinalPaths({
           </button>
         </div>
       )}
+
+      <style jsx global>{`
+        .dp-detail { margin-top: 24px; padding-top: 24px; border-top: 1px solid #3c4b60; color: #eff3f9; }
+        .dp-detail * { box-sizing: border-box; }
+        .dp-detail-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; margin-bottom: 18px; }
+        .dp-detail-kicker { color: #e6b65b; font-size: 11px; font-weight: 800; letter-spacing: 1.7px; }
+        .dp-detail-heading h3 { color: #f6f7fb; font-size: clamp(20px, 2.4vw, 27px); line-height: 1.3; margin: 9px 0 8px; }
+        .dp-detail-subtitle { color: #b1c0d1; font-size: 13px; line-height: 1.6; margin: 0; max-width: 550px; }
+        .dp-detail-counter { display: flex; flex-direction: column; gap: 5px; padding: 14px 18px; background: #112233; border: 1px solid #425c76; border-radius: 12px; min-width: 185px; }
+        .dp-detail-counter strong { font-size: 29px; color: #efca80; line-height: 1.1; }
+        .dp-detail-counter span { color: #b8c9dc; font-size: 10px; font-weight: 800; letter-spacing: .8px; }
+        .dp-detail .dp-warning { background: #302918; border: 1px solid #806a3d; color: #e3d3b4; border-radius: 10px; padding: 13px 15px; font-size: 12px; line-height: 1.65; margin: 13px 0; }
+        .dp-detail .dp-major { display: inline-block; color: #8de3b4!important; font-size: 14px!important; font-weight: 850; background: #112c28; border: 1px solid #376b5a; border-radius: 9px; padding: 10px 13px; margin: 9px 0 5px; }
+        .dp-detail .dp-muted { color: #b4c3d4; font-size: 12px; line-height: 1.6; }
+        .dp-detail .dp-filter-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
+        .dp-detail .dp-filter-head strong { font-size: 13px; color: #f0f4fb; }
+        .dp-detail .dp-filter-head span { font-size: 11px; color: #a7bacd; }
+        .dp-detail .dp-filters { display: flex; flex-wrap: wrap; gap: 9px; margin: 12px 0 22px; }
+        .dp-detail .dp-filters button { appearance: none; background: #233247; border: 1px solid #41546c; border-radius: 9px; color: #d8e5f3; font-size: 12px; font-weight: 700; line-height: 1.3; padding: 10px 13px; min-height: 39px; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+        .dp-detail .dp-filters button:hover { background: #31435b; border-color: #7690ad; }
+        .dp-detail .dp-filters button.on { background: #4c3a20; color: #ffdc95; border-color: #daac58; box-shadow: inset 0 0 0 1px #daac5838; }
+        .dp-detail .dp-filters button:focus-visible, .dp-detail .dp-path-trigger:focus-visible, .dp-detail .dp-pagination button:focus-visible { outline: 2px solid #f8cd76; outline-offset: 2px; }
+        .dp-detail .dp-results-summary { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; padding-bottom: 12px; border-bottom: 1px solid #405167; margin: 4px 0 12px; }
+        .dp-detail .dp-results-summary span { color: #e6b65b; letter-spacing: 1px; font-size: 10px; font-weight: 900; }
+        .dp-detail .dp-results-summary strong { color: #f2f6fb; font-size: 14px; }
+        .dp-detail .dp-results-summary small { color: #a9bed2; font-size: 11px; }
+        .dp-detail .dp-combinations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 10px; margin-top: 12px; }
+        .dp-detail .dp-path { border: 1px solid #3a516b; border-radius: 12px; background: #142335; overflow: hidden; min-width: 0; }
+        .dp-detail .dp-path:has(.dp-path-trigger[aria-expanded="true"]) { border-color: #bc975f; }
+        .dp-detail .dp-path-trigger { width: 100%; background: transparent; border: 0; padding: 15px; color: #f1f5fa; text-align: left; display: flex; justify-content: space-between; gap: 14px; align-items: center; cursor: pointer; }
+        .dp-detail .dp-path-trigger:hover { background: #1f334a; }
+        .dp-detail .dp-path-trigger-title { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+        .dp-detail .dp-path-trigger-title b { font-size: 14px; color: #fff; }
+        .dp-detail .dp-path-trigger-title small { font-size: 11px; line-height: 1.4; color: #d8bc83; }
+        .dp-detail .dp-path-icon { flex: 0 0 26px; height: 26px; display: flex; justify-content: center; align-items: center; color: #f9d38a; border: 1px solid #64758b; background: #27364a; border-radius: 50%; font-size: 18px; }
+        .dp-detail .dp-path-body { background: #0f1b2b; border-top: 1px solid #3c5169; padding: 16px; font-size: 12px; }
+        .dp-detail .dp-path-body b { display: block; color: #ebc581; font-size: 12px; margin-top: 5px; }
+        .dp-detail .dp-path-body p { color: #dbe6f2; padding: 8px 0; border-bottom: 1px solid #2e3e50; margin: 2px 0; line-height: 1.5; }
+        .dp-detail .dp-path-body b:not(:first-child) { margin-top: 19px; }
+        .dp-detail .dp-path-body small { display: block; color: #9eafc3; margin-top: 15px; line-height: 1.5; }
+        .dp-detail .dp-necessary { background: #2d281d; border: 1px solid #79633c; border-radius: 10px; padding: 14px; margin: 12px 0 17px; }
+        .dp-detail .dp-necessary b { color: #f1cd84; font-size: 13px; }
+        .dp-detail .dp-necessary p { color: #e2d6bd; font-size: 12px; margin: 9px 0 0; }
+        .dp-detail .dp-pagination { display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap; margin: 21px 0 8px; font-size: 12px; color: #c4d0df; }
+        .dp-detail .dp-pagination button { appearance: none; background: #25374e; border: 1px solid #566d88; border-radius: 9px; color: #f1f5fa; padding: 10px 16px; min-width: 90px; font-size: 12px; font-weight: 750; cursor: pointer; }
+        .dp-detail .dp-pagination button:disabled { cursor: not-allowed; opacity: .35; }
+        @media (max-width: 780px) { .dp-detail .dp-combinations { grid-template-columns: minmax(0, 1fr); } }
+        @media (max-width: 520px) {
+          .dp-detail-heading { flex-direction: column; }
+          .dp-detail-counter { width: 100%; }
+          .dp-detail .dp-filters { flex-wrap: nowrap; overflow-x: auto; padding: 3px 2px 12px; scrollbar-width: thin; }
+          .dp-detail .dp-filters button { flex: 0 0 auto; }
+          .dp-detail .dp-results-summary { flex-direction: column; }
+        }
+      `}</style>
     </div>
   );
 }
