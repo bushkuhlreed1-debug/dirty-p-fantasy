@@ -8,6 +8,7 @@ import { getNflGameMap } from "../lib/nflGameScores";
 import { getNflPlayerBoxScores } from "../lib/nflPlayerBoxScores";
 import AutoRefresh from "./components/AutoRefresh";
 import MatchupLineupSwitcher from "./components/MatchupLineupSwitcher";
+import { buildRecordWatches, buildPlayoffPulse } from "../lib/liveFeatures";
 
 export const dynamic = "force-dynamic";
 
@@ -1588,6 +1589,8 @@ export default async function Home() {
   );
 
   const pregame = !live;
+  const recordWatches = live ? buildRecordWatches(league, displayWeek, liveScores) : [];
+  const playoffPulse = live ? buildPlayoffPulse(league, displayWeek, liveScores, live) : null;
 
   // The previous week's recap stays up through Wednesday in
   // the league's Central time zone, then disappears on Thursday.
@@ -2126,6 +2129,84 @@ export default async function Home() {
         <AroundTheLeague
           recap={recap}
         />
+      )}
+
+      {/* ==========================================
+          LIVE RECORD WATCH
+      ========================================== */}
+
+      {recordWatches.length > 0 && (
+        <section className="section-block dp-live-feature-section">
+          <div className="section-heading">
+            <div><p className="eyebrow">LEAGUE HISTORY · LIVE</p><h2>Live Record Watch</h2></div>
+            <Link href="/records">All records →</Link>
+          </div>
+          <div className="dp-live-record-grid">
+            {recordWatches.map((watch, index) => (
+              <div className="dp-live-record-card" key={watch.kind + "-" + index}>
+                <div className="dp-live-feature-eyebrow">🔥 {watch.label}</div>
+                <strong>{watch.title}</strong>
+                <p>{watch.description}</p>
+                <div className="dp-record-numbers">
+                  <b>{watch.current.toFixed(1)}</b>
+                  <small>Archive record {watch.record.toFixed(1)}</small>
+                </div>
+                <div className="dp-record-progress" role="meter"
+                  aria-label={watch.label}
+                  aria-valuemin={0} aria-valuemax={watch.record}
+                  aria-valuenow={Math.min(watch.current, watch.record)}>
+                  <span style={{ width: Math.min(100, 100 * watch.current / Math.max(watch.record,1)) + "%" }}/>
+                </div>
+                <div className="dp-record-distance">
+                  {watch.surpassed
+                    ? (watch.final ? "New record in the archive!" : "Above the record mark — pending final score")
+                    : watch.distance.toFixed(1) + " points from the record"}
+                </div>
+              </div>
+            ))}
+          </div>
+          <small className="dp-feature-disclaimer">
+            Records use the historical regular-season archive. Live scores can change until final.
+          </small>
+        </section>
+      )}
+
+      {/* ==========================================
+          LIVE PLAYOFF PULSE
+      ========================================== */}
+
+      {playoffPulse && (
+        <section className="section-block dp-live-feature-section">
+          <div className="section-heading">
+            <div><p className="eyebrow">THE PLAYOFF RACE</p><h2>Live Playoff Pulse</h2></div>
+            <Link href="/playoff-scenarios">Playoff scenarios →</Link>
+          </div>
+          <div className="dp-playoff-pulse">
+            <div className="dp-playoff-pulse-header">
+              <strong>Projected playoff chances</strong>
+              <span>Model estimates · Week {displayWeek}</span>
+            </div>
+            <div className="dp-playoff-pulse-rows">
+              {playoffPulse.movers.map(owner => (
+                <div className="dp-playoff-pulse-row" key={owner.ownerId}>
+                  <div className="dp-playoff-pulse-owner">
+                    <strong>{first(owner.name)}</strong><small>Seed #{owner.seed}</small>
+                  </div>
+                  <div className="dp-playoff-pulse-track" aria-hidden="true">
+                    <span style={{width: owner.after + "%"}}/>
+                  </div>
+                  <div className="dp-playoff-pulse-change">
+                    <strong>{owner.after}%</strong>
+                    <small className={owner.change>0 ? "dp-pulse-up" : owner.change<0 ? "dp-pulse-down" : ""}>
+                      {owner.change>0 ? "+" : ""}{owner.change} pts
+                    </small>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p>Change compares a season-strength simulation with a simulation using ESPN's live projected matchup scores. Estimates are not official odds or clinching scenarios.</p>
+          </div>
+        </section>
       )}
 
       {/* ==========================================
@@ -3013,6 +3094,48 @@ export default async function Home() {
         @media(max-width:600px){
           .dp-playoff-implications-label { padding:9px 12px; font-size:10px; }
           .dp-playoff-implications-label small { font-size:9px; }
+        }
+
+
+        /* Compact live features; never compete with the scoreboard. */
+        .dp-live-feature-section { margin-bottom:24px; }
+        .dp-live-record-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr)); gap:13px; }
+        .dp-live-record-card {
+          padding:19px;border:1px solid #765b33;border-radius:14px;
+          background:linear-gradient(140deg,#302c26,#1d252e);min-width:0;
+        }
+        .dp-live-feature-eyebrow {color:#eec779;font-size:10px;letter-spacing:.8px;font-weight:900;margin-bottom:11px;}
+        .dp-live-record-card>strong {display:block;font-size:16px;line-height:1.35;color:#fff;}
+        .dp-live-record-card p {color:#bbc7d3;font-size:12px;line-height:1.5;min-height:30px;margin:8px 0 14px;}
+        .dp-record-numbers {display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+        .dp-record-numbers b {font-size:30px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;}
+        .dp-record-numbers small {color:#d9c6a2;font-size:11px;}
+        .dp-record-progress {height:9px;background:#3e4350;border-radius:20px;margin:10px 0;overflow:hidden;}
+        .dp-record-progress span {display:block;height:100%;background:#e9bd67;border-radius:20px;}
+        .dp-record-distance {color:#ead7b5;font-size:12px;font-weight:750;}
+        .dp-feature-disclaimer {display:block;color:#8d9fb2;font-size:11px;margin-top:9px;line-height:1.5;}
+        .dp-playoff-pulse {padding:20px;background:#15251e;border:1px solid #376249;border-radius:14px;}
+        .dp-playoff-pulse-header {display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap;}
+        .dp-playoff-pulse-header strong {font-size:15px;color:#f6f7fa;}
+        .dp-playoff-pulse-header span {color:#a3c9ad;font-size:11px;}
+        .dp-playoff-pulse-rows {display:grid;gap:13px;}
+        .dp-playoff-pulse-row {display:grid;grid-template-columns:110px minmax(0,1fr) 69px;align-items:center;gap:13px;}
+        .dp-playoff-pulse-owner {display:flex;flex-direction:column;gap:4px;min-width:0;}
+        .dp-playoff-pulse-owner strong {color:#f1f5f2;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .dp-playoff-pulse-owner small {color:#b2ceba;font-size:10px;}
+        .dp-playoff-pulse-track {height:10px;border-radius:8px;background:#34483b;overflow:hidden;}
+        .dp-playoff-pulse-track span {display:block;height:100%;border-radius:8px;background:#5bc68c;}
+        .dp-playoff-pulse-change {display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-variant-numeric:tabular-nums;}
+        .dp-playoff-pulse-change strong {font-size:19px;color:#fff;}
+        .dp-playoff-pulse-change small {color:#b5c6b9;font-size:11px;}
+        .dp-playoff-pulse-change .dp-pulse-up {color:#87e8ab;}
+        .dp-playoff-pulse-change .dp-pulse-down {color:#f09397;}
+        .dp-playoff-pulse>p {font-size:11px;line-height:1.6;color:#a9c0b0;border-top:1px solid #345340;padding-top:13px;margin:19px 0 0;}
+        @media(max-width:550px) {
+          .dp-playoff-pulse {padding:15px 12px;}
+          .dp-playoff-pulse-row {grid-template-columns:67px minmax(0,1fr) 62px;gap:9px;}
+          .dp-playoff-pulse-header {gap:5px;}
+          .dp-live-record-card {padding:15px;}
         }
 
         .dp-live-player {
