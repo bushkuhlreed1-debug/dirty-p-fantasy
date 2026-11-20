@@ -12,7 +12,7 @@ function build(game,games) {
     {name:game.homeName, standing:game.homeStanding, live:game.homeLive, intel:game.homeIntel, fallback:game.game?.home_score}
   ].map(s=>({...s,score:number(s.live?.currentPoints ?? s.fallback),projection:number(s.live?.liveProjectedPoints ?? s.intel?.projectedPoints),counts:counts(s.live,games)}));
   const [a,b] = sides;
-  const final = game.game?.is_final === true || game.game?.isFinal === true || String(game.game?.status||"").toLowerCase()==="final";
+  const final = game.game?.is_final === true || game.game?.isFinal === true || game.game?.completed === true || String(game.game?.status||"").toLowerCase()==="final";
   const margin = a.projection != null && b.projection != null ? Math.abs(a.projection-b.projection) : null;
   const scoreMargin = a.score != null && b.score != null ? Math.abs(a.score-b.score) : null;
   const predictedWinner = margin != null ? (a.projection >= b.projection ? 0 : 1) : null;
@@ -22,7 +22,7 @@ function build(game,games) {
   const playerRows=sides.flatMap(s=>lineup(s.live).map(p=>({name:p.name||p.fullName,owner:s.name,points:number(p.currentPoints ?? p.actualPoints),projected:number(p.projectedPoints),state:gameState(p,games)})));
   const scoring=playerRows.filter(p=>p.points != null).sort((a,b)=>b.points-a.points);
   const finished=playerRows.filter(p=>p.points != null && p.projected != null && p.state==="post").sort((a,b)=>(a.points-a.projected)-(b.points-b.projected));
-  const mvp=scoring[0]||null, bust=finished[0]||null;
+  const mvp=scoring[0]||null, bust=finished.find(p=>p.points < p.projected)||null;
   // An estimated probability, never represented as an ESPN statistic.
   let probability=null;
   if(final && a.score != null && b.score != null) probability=a.score===b.score?50:a.score>b.score?100:0;
@@ -34,7 +34,7 @@ function build(game,games) {
   }
   const monday=sides.map(s=>lineup(s.live).filter(p=>{
     const info=games[String(p.nflTeam||"").toUpperCase()];
-    return info?.state!=="post" && /Mon/i.test(info?.status||"");
+    return info?.state!=="post" && (info?.kickoff && new Intl.DateTimeFormat("en-US", {weekday:"short",timeZone:"America/Chicago"}).format(new Date(info.kickoff))==="Mon");
   }));
   return {game,sides,final,margin,scoreMargin,leader,predictedWinner,upset,mvp,bust,probability,monday};
 }
