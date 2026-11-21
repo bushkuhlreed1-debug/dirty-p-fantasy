@@ -666,7 +666,7 @@ function RecapStat({
   );
 }
 
-function buildWeeklyImpact(standings, completedByWeek, week, playoffCount) {
+function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, schedule) {
   if (!week || week < 2 || standings.length <= playoffCount) return null;
 
   const teams = new Map(standings.map(team => [
@@ -715,6 +715,62 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount) {
   games.forEach(addGame);
   const after = snapshot();
 
+  const margins = games.map(game => Math.abs(n(game.home_score) - n(game.away_score))).sort((a, b) => a - b);
+  const largestMargin = margins.at(-1);
+  const medianMargin = (margins[Math.floor((margins.length - 1) / 2)] + margins[Math.floor(margins.length / 2)]) / 2;
+  const topScore = Math.max(...games.flatMap(game => [n(game.home_score), n(game.away_score)]));
+  const remaining = [...new Map(schedule
+    .filter(game => n(game.matchup_period) > week)
+    .map(game => [`${game.matchup_period}:${pairKey(game)}`, [n(game.home_owner_id), n(game.away_owner_id)]])
+  ).values()];
+  const gamesLeft = new Map([...teams.keys()].map(id => [id, 0]));
+  for (const [home, away] of remaining) {
+    gamesLeft.set(home, (gamesLeft.get(home) ?? 0) + 1);
+    gamesLeft.set(away, (gamesLeft.get(away) ?? 0) + 1);
+  }
+
+  const record = table => new Map([...table].map(([id, row]) => [id, row.wins + row.ties / 2]));
+  const actualRecords = record(after);
+  const scheduleIsComplete = remaining.every(([home, away]) => teams.has(home) && teams.has(away)) &&
+    new Set([...teams.values()].map(team => team.wins + team.losses + team.ties + gamesLeft.get(team.ownerId))).size === 1;
+  const { hasTwoDivisions } = buildDivisionStandings([...teams.values()], playoffCount);
+
+  function eliminatedOnRecord(id, records) {
+    const maximum = records.get(id) + gamesLeft.get(id);
+    const ahead = [...teams.values()].filter(team => records.get(team.ownerId) > maximum);
+    return ahead.length >= playoffCount && (!hasTwoDivisions ||
+      ahead.some(team => String(team.divisionId) === String(teams.get(id).divisionId)));
+  }
+
+  function hasPathOnRecord(id, records) {
+    if (remaining.length > 14 || eliminatedOnRecord(id, records)) return false;
+    const values = new Map(records);
+
+    function search(index) {
+      if (index === remaining.length) {
+        const table = [...teams.values()].map(team => ({
+          ...team,
+          wins: values.get(team.ownerId) * 2,
+          losses: 200 - values.get(team.ownerId) * 2,
+          ties: 0,
+          pointsFor: team.ownerId === id ? -Infinity : 0,
+        }));
+        return buildDivisionStandings(table, playoffCount).statusMap.get(id) !== "Outside";
+      }
+
+      const matchup = remaining[index];
+      const winners = matchup.includes(id) ? [id] : matchup;
+      return winners.some(winner => {
+        values.set(winner, values.get(winner) + 1);
+        const qualifies = search(index + 1);
+        values.set(winner, values.get(winner) - 1);
+        return qualifies;
+      });
+    }
+
+    return search(0);
+  }
+
   const gains = [];
   const slides = [];
 
@@ -733,6 +789,17 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount) {
       (winnerBefore?.wins ?? 0) - (winnerBefore?.ties ?? 0) / 2;
     const upset = loserRank <= playoffCount && winnerRank > playoffCount && recordGap >= 2;
 
+    const reverse = new Map(actualRecords);
+    reverse.set(winnerId, reverse.get(winnerId) - 1);
+    reverse.set(loserId, reverse.get(loserId) + 1);
+    const saved = scheduleIsComplete && remaining.length > 0 &&
+      eliminatedOnRecord(winnerId, reverse) && hasPathOnRecord(winnerId, actualRecords);
+    const ended = scheduleIsComplete && eliminatedOnRecord(loserId, actualRecords) &&
+      hasPathOnRecord(loserId, reverse);
+    const margin = Math.abs(n(game.home_score) - n(game.away_score));
+    const dominant = margin === largestMargin && margin >= 20 &&
+      (Math.max(n(game.home_score), n(game.away_score)) === topScore || margin >= medianMargin * 1.5);
+
     for (const [id, opponentId, direction, candidates] of [
       [winnerId, loserId, 1, gains],
       [loserId, winnerId, -1, slides],
@@ -745,14 +812,17 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount) {
       const spots = direction * (previous.seed - current.seed);
       const crossed = direction * (Number(current.inPlayoffs) - Number(previous.inPlayoffs)) > 0;
       const rivalry = week === 11 && isRival(team.ownerName, opponent.ownerName);
-      if (spots <= 0 && !crossed && !upset && !rivalry) continue;
-      candidates.push({ team, opponent, previous, current, crossed, spots, upset, rivalry, winnerRank, loserRank, recordGap });
+      const seasonSwing = direction > 0 ? saved : ended;
+      if (spots <= 0 && !crossed && !upset && !rivalry && !seasonSwing && !dominant) continue;
+      candidates.push({ team, opponent, previous, current, crossed, spots, upset, rivalry, winnerRank, loserRank, recordGap, seasonSwing, dominant, margin });
     }
   }
 
   const rank = (a, b) =>
+    Number(b.seasonSwing) - Number(a.seasonSwing) ||
     Number(b.crossed) - Number(a.crossed) ||
     Number(b.upset) - Number(a.upset) ||
+    Number(b.dominant) - Number(a.dominant) ||
     Number(b.rivalry) - Number(a.rivalry) ||
     b.spots - a.spots ||
     (a.upset && b.upset ? b.recordGap - a.recordGap : 0) ||
@@ -785,6 +855,10 @@ function WeeklyImpact({ impact }) {
                       ? `Pulled off the upset against ${first(pick.opponent.ownerName)}. They came in ranked #${pick.loserRank}, and ${first(pick.team.ownerName)} was #${pick.winnerRank}.`
                       : `Lost to ${first(pick.opponent.ownerName)} in an upset. ${first(pick.team.ownerName)} came in ranked #${pick.loserRank}, and ${first(pick.opponent.ownerName)} was #${pick.winnerRank}.`
                     : `${gained ? "Beat" : "Lost to"} ${pick.rivalry ? "rival " : ""}${first(pick.opponent.ownerName)}.`}
+                  {pick.seasonSwing && (gained
+                    ? " With the other results that week, a loss would have ended their playoff hopes. The win kept a path open."
+                    : " With the other results that week, this loss ended their playoff path on record. A win would have kept a path open.")}
+                  {pick.dominant && ` The ${points(pick.margin)}-point margin was the widest of the week.`}
                   {pick.crossed
                     ? gained ? " That moved them into a playoff spot." : " That dropped them out of a playoff spot."
                     : pick.previous.seed !== pick.current.seed && ` Their estimated seed went from #${pick.previous.seed} to #${pick.current.seed}.`}
@@ -796,7 +870,7 @@ function WeeklyImpact({ impact }) {
           </article>
         ))}
       </div>
-      <p className="dp-week-impact-note">Weekly picks based on playoff stakes, upsets, and rivalry results.</p>
+      <p className="dp-week-impact-note">Picks weigh playoff stakes, upsets, and how each result compares with the rest of the week.</p>
     </section>
   );
 }
@@ -1646,7 +1720,8 @@ export default async function Home() {
     standings,
     completedByWeek,
     recapWeek,
-    n(playoffTeamCount) || PLAYOFF_TEAMS
+    n(playoffTeamCount) || PLAYOFF_TEAMS,
+    regularGames
   );
 
   // ==================================================
