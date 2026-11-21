@@ -2164,10 +2164,18 @@ export default async function Home() {
           </h1>
 
           <p>
-            Dirty P Fantasy Football dates back to 2014, with roots in Pearland.
-            Seven of us went to Dawson or Pearland High, and one of us called
-            Pearland home for years. Our league also has members from
-            Friendswood and San Antonio.
+            Before Dirty P, we spent a few years playing fantasy football in a
+            church league in Pearland, Texas. After it fizzled out, nine of us
+            from the church youth group and our mentor started Dirty P in 2014.
+            We’d grown up together, most of us at Pearland
+            High and the rest at Dawson. We even had East Pearland and West
+            Pearland divisions.
+          </p>
+
+          <p>
+            A lot of faces have changed over the years. Friends brought in
+            friends, and that’s how Thomas, Tres, Matt, and Val became part of
+            Dirty P.
           </p>
         </div>
 
