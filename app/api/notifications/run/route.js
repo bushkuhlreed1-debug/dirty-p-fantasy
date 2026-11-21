@@ -1692,11 +1692,17 @@ async function runNotifications() {
       stateKey
     );
 
-    if (!oldState) {
-      await setState(stateKey, {
-        leader: currentLeader,
-      });
+    const deficits = { ...oldState?.deficits };
+    if (!isFinal(game)) {
+      const trailingId = currentLeader === awayId ? homeId : awayId;
+      if (currentLeader) {
+        deficits[trailingId] = Math.max(deficits[trailingId] || 0, Math.abs(homeScore - awayScore));
+      }
+    }
+    const nextState = { leader: currentLeader, deficits };
 
+    if (!oldState) {
+      await setState(stateKey, nextState);
       continue;
     }
 
@@ -1749,9 +1755,7 @@ async function runNotifications() {
       );
     }
 
-    await setState(stateKey, {
-      leader: currentLeader,
-    });
+    await setState(stateKey, nextState);
   }
 
   // ===================================================

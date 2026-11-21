@@ -1,6 +1,7 @@
 
 import Link from "next/link";
 import { supabase } from "../lib/supabase";
+import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { getLeagueData } from "../lib/leagueData";
 import { getMatchupIntel } from "../lib/matchupIntel";
 import { getEspnLiveScoreMap, NFL_TEAMS } from "../lib/espnLiveScore";
@@ -666,7 +667,25 @@ function RecapStat({
   );
 }
 
-function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, schedule) {
+async function readMatchupDeficits(season, week, games) {
+  if (!games?.size) return new Map();
+
+  const prefix = `leader:${season}:${week}:`;
+  const { data, error } = await supabaseAdmin.from("notification_state")
+    .select("state_key,state_value")
+    .in("state_key", [...games.keys()].map(key => prefix + key));
+  if (error) {
+    console.error("Weekly matchup deficits unavailable:", error.message);
+    return new Map();
+  }
+
+  return new Map((data || []).map(row => [
+    row.state_key.slice(prefix.length),
+    row.state_value?.deficits ?? {},
+  ]));
+}
+
+function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, schedule, deficits, season) {
   if (!week || week < 2 || standings.length <= playoffCount) return null;
 
   const teams = new Map(standings.map(team => [
@@ -773,6 +792,7 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, sched
 
   const gains = [];
   const slides = [];
+  const weekTenTake = season === 2026 && week === 10;
 
   for (const game of games) {
     const winnerId = getWinner(game);
@@ -796,6 +816,8 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, sched
       eliminatedOnRecord(winnerId, reverse) && hasPathOnRecord(winnerId, actualRecords);
     const ended = scheduleIsComplete && eliminatedOnRecord(loserId, actualRecords) &&
       hasPathOnRecord(loserId, reverse);
+    const deficit = n(deficits.get(pairKey(game))?.[winnerId]);
+    const comeback = deficit >= 15 ? deficit : 0;
     const margin = Math.abs(n(game.home_score) - n(game.away_score));
     const dominant = margin === largestMargin && margin >= 20 &&
       (Math.max(n(game.home_score), n(game.away_score)) === topScore || margin >= medianMargin * 1.5);
@@ -813,15 +835,18 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, sched
       const crossed = direction * (Number(current.inPlayoffs) - Number(previous.inPlayoffs)) > 0;
       const rivalry = week === 11 && isRival(team.ownerName, opponent.ownerName);
       const seasonSwing = direction > 0 ? saved : ended;
-      if (spots <= 0 && !crossed && !upset && !rivalry && !seasonSwing && !dominant) continue;
-      candidates.push({ team, opponent, previous, current, crossed, spots, upset, rivalry, winnerRank, loserRank, recordGap, seasonSwing, dominant, margin });
+      const leaguePick = weekTenTake && team.ownerName === (direction > 0 ? "Brent Fleischer" : "Reed Bushkuhl");
+      if (spots <= 0 && !crossed && !upset && !rivalry && !seasonSwing && !dominant && !comeback && !leaguePick) continue;
+      candidates.push({ team, opponent, previous, current, crossed, spots, upset, rivalry, winnerRank, loserRank, recordGap, seasonSwing, dominant, margin, comeback, leaguePick });
     }
   }
 
   const rank = (a, b) =>
+    Number(b.leaguePick) - Number(a.leaguePick) ||
     Number(b.seasonSwing) - Number(a.seasonSwing) ||
     Number(b.crossed) - Number(a.crossed) ||
     Number(b.upset) - Number(a.upset) ||
+    b.comeback - a.comeback ||
     Number(b.dominant) - Number(a.dominant) ||
     Number(b.rivalry) - Number(a.rivalry) ||
     b.spots - a.spots ||
@@ -855,7 +880,11 @@ function WeeklyImpact({ impact }) {
                       ? `Pulled off the upset against ${first(pick.opponent.ownerName)}. They came in ranked #${pick.loserRank}, and ${first(pick.team.ownerName)} was #${pick.winnerRank}.`
                       : `Lost to ${first(pick.opponent.ownerName)} in an upset. ${first(pick.team.ownerName)} came in ranked #${pick.loserRank}, and ${first(pick.opponent.ownerName)} was #${pick.winnerRank}.`
                     : `${gained ? "Beat" : "Lost to"} ${pick.rivalry ? "rival " : ""}${first(pick.opponent.ownerName)}.`}
-                  {pick.seasonSwing && (gained
+                  {pick.leaguePick && gained && " The win kept Brent in the playoff race for another week."}
+                  {pick.comeback > 0 && (gained
+                    ? ` They came back from a recorded ${points(pick.comeback)}-point deficit.`
+                    : ` They lost after leading by ${points(pick.comeback)} points in a live update.`)}
+                  {pick.seasonSwing && !(pick.leaguePick && gained) && (gained
                     ? " With the other results that week, a loss would have ended their playoff hopes. The win kept a path open."
                     : " With the other results that week, this loss ended their playoff path on record. A win would have kept a path open.")}
                   {pick.dominant && ` The ${points(pick.margin)}-point margin was the widest of the week.`}
@@ -1716,12 +1745,15 @@ export default async function Home() {
       )
     : null;
 
+  const matchupDeficits = await readMatchupDeficits(season, recapWeek, completedByWeek.get(recapWeek));
   const weeklyImpact = buildWeeklyImpact(
     standings,
     completedByWeek,
     recapWeek,
     n(playoffTeamCount) || PLAYOFF_TEAMS,
-    regularGames
+    regularGames,
+    matchupDeficits,
+    season
   );
 
   // ==================================================
