@@ -2174,8 +2174,7 @@ export default async function Home() {
             When the church league fizzled out, nine of us from the church
             youth group and our mentor started Dirty P in 2014. There
             were ten of us in that first season, carrying on something
-            we’d already been doing together for years. In Dirty P, we named
-            our divisions East Pearland and West Pearland.
+            we’d already been doing together for years.
           </p>
 
           <p>
