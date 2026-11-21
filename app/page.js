@@ -2164,9 +2164,10 @@ export default async function Home() {
           </h1>
 
           <p>
-            Seven of us went to Dawson or Pearland High.
-            We also have league members from Friendswood and San Antonio,
-            and one of us called Pearland home for years.
+            Dirty P Fantasy Football dates back to 2014, with roots in Pearland.
+            Seven of us went to Dawson or Pearland High, and one of us called
+            Pearland home for years. Our league also has members from
+            Friendswood and San Antonio.
           </p>
         </div>
 
