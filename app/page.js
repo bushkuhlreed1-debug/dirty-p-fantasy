@@ -2164,18 +2164,32 @@ export default async function Home() {
           </h1>
 
           <p>
-            Before Dirty P, we spent a few years playing fantasy football in a
-            church league in Pearland, Texas. After it fizzled out, nine of us
-            from the church youth group and our mentor started Dirty P in 2014.
-            We’d grown up together, most of us at Pearland
-            High and the rest at Dawson. We even had East Pearland and West
-            Pearland divisions.
+            Dirty P started with a group of friends who grew up together in
+            Pearland, Texas. Before we had a league of our own, we spent a few
+            years playing fantasy football in a church league. Most of the
+            original group went to Pearland High School, and the rest went
+            to Dawson High School. The ties to our hometown ran deep enough
+            that we even had divisions named East Pearland and West Pearland.
           </p>
 
           <p>
-            A lot of faces have changed over the years. Friends brought in
-            friends, and that’s how Thomas, Tres, Matt, and Val became part of
-            Dirty P.
+            When the church league fizzled out, nine of us from the church
+            youth group and our mentor started Dirty P in 2014. There
+            were ten of us in that first season, carrying on something
+            we’d already been doing together for years.
+          </p>
+
+          <p>
+            The league has seen plenty of turnover since that first season.
+            As spots opened up, friends brought in friends. That’s how
+            Thomas, Tres, Matt, and Val became part of Dirty P.
+          </p>
+
+          <p>
+            Seven of today’s members went to Dawson or Pearland High. One member
+            called Pearland home for years, and we have members from
+            Friendswood and San Antonio too. The league has grown beyond
+            the original youth group, one friend at a time.
           </p>
         </div>
 
