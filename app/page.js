@@ -2187,8 +2187,8 @@ export default async function Home() {
 
           <p>
             Seven of today’s members went to Dawson or Pearland High. One member
-            called Pearland home for years, and we have members from
-            Friendswood and San Antonio too. The league has grown beyond
+            called Pearland home for years. Matt is from Friendswood,
+            and Val is from San Antonio. The league has grown beyond
             the original youth group, one friend at a time.
           </p>
         </div>
