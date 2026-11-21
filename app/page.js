@@ -2166,9 +2166,8 @@ export default async function Home() {
           <p>
             Dirty P started with a group of friends who grew up together in
             Pearland, Texas. Before we had a league of our own, we spent a few
-            years playing fantasy football in a church league. Most of the
-            original group went to Pearland High School, and the rest went
-            to Dawson High School. The ties to our hometown ran deep enough
+            years playing fantasy football in a league that brought together
+            people from our church. The ties to our hometown ran deep enough
             that we even had divisions named East Pearland and West Pearland.
           </p>
 
