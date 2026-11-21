@@ -709,6 +709,7 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount) {
   }
 
   const before = snapshot();
+  const preWeekRanks = new Map([...teams.values()].sort(standingsRank).map((team, index) => [team.ownerId, index + 1]));
   const games = [...(completedByWeek.get(week)?.values() ?? [])]
     .filter(game => !game.is_playoff && !game.is_consolation);
   games.forEach(addGame);
@@ -735,12 +736,20 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount) {
       if (!team || !opponent || !previous || !current) continue;
       const spots = direction * (previous.seed - current.seed);
       const crossed = direction * (Number(current.inPlayoffs) - Number(previous.inPlayoffs)) > 0;
-      if (spots <= 0 && !crossed) continue;
-      candidates.push({ team, opponent, previous, current, crossed, spots });
+      const winnerRank = preWeekRanks.get(winnerId);
+      const loserRank = preWeekRanks.get(loserId);
+      const upset = loserRank <= playoffCount && winnerRank > playoffCount;
+      const rivalry = week === 11 && isRival(team.ownerName, opponent.ownerName);
+      if (spots <= 0 && !crossed && !upset && !rivalry) continue;
+      candidates.push({ team, opponent, previous, current, crossed, spots, upset, rivalry, winnerRank, loserRank });
     }
   }
 
-  const rank = (a, b) => Number(b.crossed) - Number(a.crossed) || b.spots - a.spots;
+  const rank = (a, b) =>
+    Number(b.crossed) - Number(a.crossed) ||
+    Number(b.upset) - Number(a.upset) ||
+    Number(b.rivalry) - Number(a.rivalry) ||
+    b.spots - a.spots;
   const leaders = candidates => {
     const sorted = candidates.sort(rank);
     return sorted.filter(candidate => rank(candidate, sorted[0]) === 0);
@@ -764,22 +773,27 @@ function WeeklyImpact({ impact }) {
         {awards.map(({ label, entries, gained }) => (
           <article className={`dp-week-award${gained ? "" : " dp-week-award-low"}`} key={label}>
             <h3>{label}</h3>
-            {entries.length ? entries.map(({ team, opponent, previous, current, crossed }) => (
+            {entries.length ? entries.map(({ team, opponent, previous, current, crossed, upset, rivalry, winnerRank, loserRank }) => (
               <div className="dp-week-impact-owner" key={team.ownerId}>
                 <p>{team.ownerName}</p>
-                <strong>#{previous.seed} → #{current.seed}</strong>
                 <span>
-                  {gained ? "Beat" : "Lost to"} {first(opponent.ownerName)}
-                  {crossed && (gained ? " and moved into a playoff spot." : " and fell out of a playoff spot.")}
+                  {upset
+                    ? gained
+                      ? `Pulled off the upset against ${first(opponent.ownerName)}. They came in ranked #${loserRank}, and ${first(team.ownerName)} was #${winnerRank}.`
+                      : `Lost to ${first(opponent.ownerName)} in an upset. ${first(team.ownerName)} came in ranked #${loserRank}, and ${first(opponent.ownerName)} was #${winnerRank}.`
+                    : `${gained ? "Beat" : "Lost to"} ${rivalry ? "rival " : ""}${first(opponent.ownerName)}.`}
+                  {crossed
+                    ? gained ? " That moved them into a playoff spot." : " That dropped them out of a playoff spot."
+                    : previous.seed !== current.seed && ` Their estimated seed went from #${previous.seed} to #${current.seed}.`}
                 </span>
               </div>
             )) : (
-              <span>{gained ? "No winner moved up in playoff seeding." : "No losing team dropped in playoff seeding."}</span>
+              <span>{gained ? "No result stood out for the winners this week." : "No result stood out for the losing teams this week."}</span>
             )}
           </article>
         ))}
       </div>
-      <p className="dp-week-impact-note">Estimated seeds before and after the week using record, points scored, and division leaders. Moving across the playoff cutoff counts first.</p>
+      <p className="dp-week-impact-note">Weekly picks based on playoff stakes, upsets, and rivalry results.</p>
     </section>
   );
 }
