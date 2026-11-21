@@ -2186,10 +2186,10 @@ export default async function Home() {
           </p>
 
           <p>
-            Seven of today’s members went to Dawson or Pearland High. One member
-            called Pearland home for years. Matt is from Friendswood,
-            and Val is from San Antonio. The league has grown beyond
-            the original youth group, one friend at a time.
+            Six of us went to high school in Pearland. Reed, Brent, Tyler,
+            and Cody went to Dawson, and Jacob and Austin went to Pearland High.
+            Tres is from Pearland too and moved to West Columbia when he was
+            about ten. Matt is from Friendswood, and Val is from San Antonio.
           </p>
         </div>
 
