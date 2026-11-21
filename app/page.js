@@ -594,11 +594,6 @@ function buildRecap(
       }
     ]);
 
-  const highScore = Math.max(...performances.map(item => item.score));
-  const lowScore = Math.min(...performances.map(item => item.score));
-  const highest = performances.filter(item => item.score === highScore);
-  const lowest = performances.filter(item => item.score === lowScore);
-
   const decisive = results.filter(
     game =>
       game.awayScore !==
@@ -642,8 +637,6 @@ function buildRecap(
   return {
     week,
     results,
-    highest,
-    lowest,
     blowout,
     closest,
     shootout,
@@ -673,27 +666,120 @@ function RecapStat({
   );
 }
 
-function WeeklyResults({ recap }) {
-  if (!recap) return null;
+function buildWeeklyImpact(standings, completedByWeek, week, playoffCount) {
+  if (!week || week < 2 || standings.length <= playoffCount) return null;
+
+  const teams = new Map(standings.map(team => [
+    team.ownerId,
+    { ...team, seed: 0, wins: 0, losses: 0, ties: 0, pointsFor: 0 },
+  ]));
+
+  function addGame(game) {
+    const home = teams.get(n(game.home_owner_id));
+    const away = teams.get(n(game.away_owner_id));
+    if (!home || !away) return;
+    const winner = getWinner(game);
+
+    for (const [team, score] of [[home, game.home_score], [away, game.away_score]]) {
+      team.pointsFor += n(score);
+      if (winner === team.ownerId) team.wins += 1;
+      else if (winner) team.losses += 1;
+      else team.ties += 1;
+    }
+  }
+
+  function snapshot() {
+    const table = [...teams.values()];
+    const { statusMap } = buildDivisionStandings(table, playoffCount);
+    const tier = { "Division Leader": 0, "Wild Card": 1, "Playoff Position": 1, Outside: 2 };
+    const sorted = table.sort((a, b) =>
+      tier[statusMap.get(a.ownerId)] - tier[statusMap.get(b.ownerId)] || standingsRank(a, b)
+    );
+    return new Map(sorted.map((team, index) => [
+      team.ownerId,
+      { seed: index + 1, inPlayoffs: statusMap.get(team.ownerId) !== "Outside", wins: team.wins, losses: team.losses, ties: team.ties },
+    ]));
+  }
+
+  for (const [gameWeek, games] of completedByWeek) {
+    if (gameWeek >= week) continue;
+    for (const game of games.values()) {
+      if (!game.is_playoff && !game.is_consolation) addGame(game);
+    }
+  }
+
+  const before = snapshot();
+  const games = [...(completedByWeek.get(week)?.values() ?? [])]
+    .filter(game => !game.is_playoff && !game.is_consolation);
+  games.forEach(addGame);
+  const after = snapshot();
+
+  const gains = [];
+  const slides = [];
+
+  for (const game of games) {
+    const winnerId = getWinner(game);
+    if (!winnerId) continue;
+    const homeId = n(game.home_owner_id);
+    const awayId = n(game.away_owner_id);
+    const loserId = winnerId === homeId ? awayId : homeId;
+
+    for (const [id, opponentId, direction, candidates] of [
+      [winnerId, loserId, 1, gains],
+      [loserId, winnerId, -1, slides],
+    ]) {
+      const team = teams.get(id);
+      const opponent = teams.get(opponentId);
+      const previous = before.get(id);
+      const current = after.get(id);
+      if (!team || !opponent || !previous || !current) continue;
+      const spots = direction * (previous.seed - current.seed);
+      const crossed = direction * (Number(current.inPlayoffs) - Number(previous.inPlayoffs)) > 0;
+      if (spots <= 0 && !crossed) continue;
+      candidates.push({ team, opponent, previous, current, crossed, spots });
+    }
+  }
+
+  const rank = (a, b) => Number(b.crossed) - Number(a.crossed) || b.spots - a.spots;
+  const leaders = candidates => {
+    const sorted = candidates.sort(rank);
+    return sorted.filter(candidate => rank(candidate, sorted[0]) === 0);
+  };
+
+  return { week, gains: leaders(gains), slides: leaders(slides) };
+}
+
+function WeeklyImpact({ impact }) {
+  if (!impact) return null;
 
   const awards = [
-    { label: "Who Won the Week?", detail: "Highest score", entries: recap.highest, style: "high" },
-    { label: "Who Lost the Week?", detail: "Lowest score", entries: recap.lowest, style: "low" },
+    { label: "Who Won the Week?", entries: impact.gains, gained: true },
+    { label: "Who Fumbled the Bag?", entries: impact.slides, gained: false },
   ];
 
   return (
     <section className="dp-week-results" aria-labelledby="dp-week-results-title">
-      <h2 id="dp-week-results-title">Week {recap.week} Results</h2>
+      <h2 id="dp-week-results-title">Week {impact.week} Impact</h2>
       <div className="dp-week-results-grid">
-        {awards.map(({ label, detail, entries, style }) => (
-          <article className={`dp-week-award dp-week-award-${style}`} key={style}>
+        {awards.map(({ label, entries, gained }) => (
+          <article className={`dp-week-award${gained ? "" : " dp-week-award-low"}`} key={label}>
             <h3>{label}</h3>
-            <p>{entries.map(entry => entry.name).join(" & ")}</p>
-            <strong>{points(entries[0].score)} <small>PTS</small></strong>
-            <span>{entries.length > 1 ? `Tied for ${detail.toLowerCase()}` : detail}</span>
+            {entries.length ? entries.map(({ team, opponent, previous, current, crossed }) => (
+              <div className="dp-week-impact-owner" key={team.ownerId}>
+                <p>{team.ownerName}</p>
+                <strong>#{previous.seed} → #{current.seed}</strong>
+                <span>
+                  {gained ? "Beat" : "Lost to"} {first(opponent.ownerName)}
+                  {crossed && (gained ? " and moved into a playoff spot." : " and fell out of a playoff spot.")}
+                </span>
+              </div>
+            )) : (
+              <span>{gained ? "No winner moved up in playoff seeding." : "No losing team dropped in playoff seeding."}</span>
+            )}
           </article>
         ))}
       </div>
+      <p className="dp-week-impact-note">Estimated seeds before and after the week using record, points scored, and division leaders. Moving across the playoff cutoff counts first.</p>
     </section>
   );
 }
@@ -1539,6 +1625,13 @@ export default async function Home() {
       )
     : null;
 
+  const weeklyImpact = buildWeeklyImpact(
+    standings,
+    completedByWeek,
+    recapWeek,
+    n(playoffTeamCount) || PLAYOFF_TEAMS
+  );
+
   // ==================================================
   // MATCHUP INTEL + LIVE SCORING
   // ==================================================
@@ -1928,7 +2021,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <WeeklyResults recap={recap} />
+      <WeeklyImpact impact={weeklyImpact} />
 
       {/* ==========================================
           OWNER MAPPING WARNINGS
