@@ -5,7 +5,7 @@ import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { getLeagueData } from "../lib/leagueData";
 import { getMatchupIntel } from "../lib/matchupIntel";
 import { getEspnLiveScoreMap, NFL_TEAMS } from "../lib/espnLiveScore";
-import { canonicalNflTeam, getNflGameMap } from "../lib/nflGameScores";
+import { canonicalNflTeam, getNflGameMap, getScoreboardRefresh } from "../lib/nflGameScores";
 import { getNflPlayerBoxScores } from "../lib/nflPlayerBoxScores";
 import AutoRefresh from "./components/AutoRefresh";
 import MatchupLineupSwitcher from "./components/MatchupLineupSwitcher";
@@ -1861,6 +1861,7 @@ export default async function Home() {
   );
 
   const pregame = !live;
+  const scoreboardRefresh = getScoreboardRefresh(nflGames);
   const weekMoments = buildWeekHistory({
     games:league.historicalMatchups || [],
     owners:league.owners || [],
@@ -2148,7 +2149,7 @@ export default async function Home() {
     <main className="page-shell">
       <AutoRefresh
         enabled
-        intervalMs={30000}
+        {...scoreboardRefresh}
       />
 
       <NflLogoRibbon />
@@ -2523,7 +2524,7 @@ export default async function Home() {
             </div>
 
             <span>
-              Refreshes Every 30 Seconds
+              {scoreboardRefresh.intervalMs === 30000 ? "Refreshes every 30 seconds" : "Refreshes less often between games"}
             </span>
           </summary>
 

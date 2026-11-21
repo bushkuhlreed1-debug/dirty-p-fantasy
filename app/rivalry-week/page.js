@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import { getLeagueData } from "../../lib/leagueData";
 import { getEspnLiveScoreMap } from "../../lib/espnLiveScore";
+import { getNflGameMap, getScoreboardRefresh } from "../../lib/nflGameScores";
 import AutoRefresh from "../components/AutoRefresh";
 
 export const dynamic = "force-dynamic";
@@ -206,9 +207,11 @@ export default async function RivalryWeekPage() {
   });
   const awards=buildAwards(rivalries);
   const allFinal=Boolean(awards);
+  const refreshEnabled = currentWeek === WEEK && !allFinal;
+  const nflGames = refreshEnabled ? await getNflGameMap(SEASON, WEEK) : {};
   return (
     <main className="page-shell">
-      <AutoRefresh enabled={currentWeek===WEEK && !allFinal} intervalMs={30000} />
+      <AutoRefresh enabled={refreshEnabled} {...getScoreboardRefresh(nflGames)} />
       <header className="site-header">
         <div className="site-title">
           <Link href="/"><strong>DIRTY P FANTASY FOOTBALL</strong></Link>

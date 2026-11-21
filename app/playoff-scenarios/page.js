@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { getLeagueData } from "../../lib/leagueData";
+import { getCachedPlayoffScenarios } from "../../lib/cachedPlayoffScenarios";
 import ScenarioSimulator from "./ScenarioSimulator";
-
-export const dynamic = "force-dynamic";
 
 const n = (value) => {
   if (value === null || value === undefined || value === "") {
@@ -25,6 +25,7 @@ function isFinal(game) {
 }
 
 export default async function PlayoffScenariosPage() {
+  await connection();
   let league;
 
   try {
@@ -101,7 +102,8 @@ export default async function PlayoffScenariosPage() {
         espnPlayoffPct: team.espn_playoff_pct ?? null,
       };
     })
-    .filter((team) => team.ownerId > 0);
+    .filter((team) => team.ownerId > 0)
+    .sort((a, b) => a.ownerId - b.ownerId);
 
   const validOwnerIds = new Set(
     teams.map((team) => team.ownerId)
@@ -146,7 +148,17 @@ export default async function PlayoffScenariosPage() {
   const games = [...remaining.values()].sort(
     (a, b) =>
       a.week - b.week ||
-      a.homeId - b.homeId
+      a.homeId - b.homeId ||
+      a.awayId - b.awayId
+  );
+  const scenarios = await getCachedPlayoffScenarios(
+    teams.map(({ ownerId, ownerName, divisionId, wins, losses, ties, pointsFor, espnPlayoffPct }) => ({
+      ownerId, ownerName, divisionId, wins, losses, ties, pointsFor, espnPlayoffPct,
+    })),
+    games,
+    n(playoffTeamCount) || 4,
+    n(currentSeason),
+    n(currentWeek)
   );
 
   return (
@@ -187,10 +199,10 @@ export default async function PlayoffScenariosPage() {
       </nav>
 
       <ScenarioSimulator
+        scenarios={scenarios}
         teams={teams}
         games={games}
         currentWeek={n(currentWeek)}
-        season={n(currentSeason)}
         playoffCount={n(playoffTeamCount) || 4}
         completedGames={completedCurrentMatchups}
         seedingRule={playoffSeedingRule}
