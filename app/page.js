@@ -869,6 +869,51 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, sched
   return { week, gain: gains.sort(rank)[0], slide: slides.sort(rank)[0] };
 }
 
+function weeklyImpactExplanation(pick, gained) {
+  const team = first(pick.team.ownerName);
+  const opponent = pick.opponent.ownerName === "Edward Wachtel" ? "Tres" : first(pick.opponent.ownerName);
+  const result = `${team} ${gained ? "beat" : "lost to"} ${opponent}`;
+  const playoffChange = pick.crossed
+    ? gained ? "That put them in a playoff spot." : "That knocked them out of a playoff spot."
+    : pick.previous.seed !== pick.current.seed
+      ? `That ${pick.current.seed < pick.previous.seed ? "moved" : "dropped"} ${team} to No. ${pick.current.seed} in the playoff picture.`
+      : "";
+
+  if (pick.leaguePick && gained) {
+    return `${team} stayed in the playoff race for another week by beating ${opponent}.`;
+  }
+
+  if (pick.seasonSwing) {
+    return gained
+      ? `${team} kept their playoff hopes alive by beating ${opponent}. With the rest of the week's results, a loss would have eliminated them.`
+      : `${team} fell out of playoff contention after losing to ${opponent}. With the rest of the week's results, a win would have kept them alive.`;
+  }
+
+  if (pick.upset) {
+    const upset = pick.projectionGap !== null
+      ? `${result} after being projected to ${gained ? "lose" : "win"} by ${one(pick.projectionGap)} points.`
+      : gained
+        ? `No. ${pick.winnerRank} ${team} upset No. ${pick.loserRank} ${opponent}.`
+        : `No. ${pick.loserRank} ${team} lost to No. ${pick.winnerRank} ${opponent} in the week's upset.`;
+    return [upset, playoffChange].filter(Boolean).join(" ");
+  }
+
+  if (pick.comeback > 0) {
+    const deficit = one(pick.comeback);
+    const comeback = gained
+      ? `${team} erased a ${deficit}-point deficit to beat ${opponent}.`
+      : `${team} led ${opponent} by ${deficit} points during the matchup and still lost.`;
+    return [comeback, playoffChange].filter(Boolean).join(" ");
+  }
+
+  if (pick.dominant) {
+    return [`${result} by ${one(pick.margin)} points, the widest margin of the week.`, playoffChange].filter(Boolean).join(" ");
+  }
+
+  const matchup = pick.rivalry ? `${team} ${gained ? "beat" : "lost to"} rival ${opponent}.` : `${result}.`;
+  return [matchup, playoffChange].filter(Boolean).join(" ");
+}
+
 function WeeklyImpact({ impact }) {
   if (!impact) return null;
 
@@ -887,28 +932,7 @@ function WeeklyImpact({ impact }) {
             {pick ? (
               <div className="dp-week-impact-owner">
                 <p>{pick.team.ownerName}</p>
-                <span>
-                  {pick.upset && pick.projectionGap !== null
-                    ? gained
-                      ? `Beat ${first(pick.opponent.ownerName)} after being projected to lose by ${points(pick.projectionGap)} points.`
-                      : `Lost to ${first(pick.opponent.ownerName)} after being projected to win by ${points(pick.projectionGap)} points.`
-                    : pick.upset
-                    ? gained
-                      ? `Pulled off the upset against ${first(pick.opponent.ownerName)}. They came in ranked #${pick.loserRank}, and ${first(pick.team.ownerName)} was #${pick.winnerRank}.`
-                      : `Lost to ${first(pick.opponent.ownerName)} in an upset. ${first(pick.team.ownerName)} came in ranked #${pick.loserRank}, and ${first(pick.opponent.ownerName)} was #${pick.winnerRank}.`
-                    : `${gained ? "Beat" : "Lost to"} ${pick.rivalry ? "rival " : ""}${first(pick.opponent.ownerName)}.`}
-                  {pick.leaguePick && gained && " The win kept Brent in the playoff race for another week."}
-                  {pick.comeback > 0 && (gained
-                    ? ` They came back from a recorded ${points(pick.comeback)}-point deficit.`
-                    : ` They lost after leading by ${points(pick.comeback)} points in a live update.`)}
-                  {pick.seasonSwing && !(pick.leaguePick && gained) && (gained
-                    ? " With the other results that week, a loss would have ended their playoff hopes. The win kept a path open."
-                    : " With the other results that week, this loss ended their playoff path on record. A win would have kept a path open.")}
-                  {pick.dominant && ` The ${points(pick.margin)}-point margin was the widest of the week.`}
-                  {pick.crossed
-                    ? gained ? " That moved them into a playoff spot." : " That dropped them out of a playoff spot."
-                    : pick.previous.seed !== pick.current.seed && ` Their estimated seed went from #${pick.previous.seed} to #${pick.current.seed}.`}
-                </span>
+                <span>{weeklyImpactExplanation(pick, gained)}</span>
               </div>
             ) : (
               <span>{gained ? "No result stood out for the winners this week." : "No result stood out for the losing teams this week."}</span>
@@ -916,7 +940,6 @@ function WeeklyImpact({ impact }) {
           </article>
         ))}
       </div>
-      <p className="dp-week-impact-note">Picks weigh playoff stakes, upsets, and how each result compares with the rest of the week.</p>
     </section>
   );
 }
