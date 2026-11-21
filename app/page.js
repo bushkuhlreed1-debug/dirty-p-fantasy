@@ -725,6 +725,14 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount) {
     const awayId = n(game.away_owner_id);
     const loserId = winnerId === homeId ? awayId : homeId;
 
+    const winnerRank = preWeekRanks.get(winnerId);
+    const loserRank = preWeekRanks.get(loserId);
+    const winnerBefore = before.get(winnerId);
+    const loserBefore = before.get(loserId);
+    const recordGap = (loserBefore?.wins ?? 0) + (loserBefore?.ties ?? 0) / 2 -
+      (winnerBefore?.wins ?? 0) - (winnerBefore?.ties ?? 0) / 2;
+    const upset = loserRank <= playoffCount && winnerRank > playoffCount && recordGap >= 2;
+
     for (const [id, opponentId, direction, candidates] of [
       [winnerId, loserId, 1, gains],
       [loserId, winnerId, -1, slides],
@@ -736,12 +744,9 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount) {
       if (!team || !opponent || !previous || !current) continue;
       const spots = direction * (previous.seed - current.seed);
       const crossed = direction * (Number(current.inPlayoffs) - Number(previous.inPlayoffs)) > 0;
-      const winnerRank = preWeekRanks.get(winnerId);
-      const loserRank = preWeekRanks.get(loserId);
-      const upset = loserRank <= playoffCount && winnerRank > playoffCount;
       const rivalry = week === 11 && isRival(team.ownerName, opponent.ownerName);
       if (spots <= 0 && !crossed && !upset && !rivalry) continue;
-      candidates.push({ team, opponent, previous, current, crossed, spots, upset, rivalry, winnerRank, loserRank });
+      candidates.push({ team, opponent, previous, current, crossed, spots, upset, rivalry, winnerRank, loserRank, recordGap });
     }
   }
 
@@ -749,45 +754,43 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount) {
     Number(b.crossed) - Number(a.crossed) ||
     Number(b.upset) - Number(a.upset) ||
     Number(b.rivalry) - Number(a.rivalry) ||
-    b.spots - a.spots;
-  const leaders = candidates => {
-    const sorted = candidates.sort(rank);
-    return sorted.filter(candidate => rank(candidate, sorted[0]) === 0);
-  };
+    b.spots - a.spots ||
+    (a.upset && b.upset ? b.recordGap - a.recordGap : 0) ||
+    a.team.ownerName.localeCompare(b.team.ownerName);
 
-  return { week, gains: leaders(gains), slides: leaders(slides) };
+  return { week, gain: gains.sort(rank)[0], slide: slides.sort(rank)[0] };
 }
 
 function WeeklyImpact({ impact }) {
   if (!impact) return null;
 
   const awards = [
-    { label: "Who Won the Week?", entries: impact.gains, gained: true },
-    { label: "Who Fumbled the Bag?", entries: impact.slides, gained: false },
+    { label: "Who Won the Week?", pick: impact.gain, gained: true },
+    { label: "Who Lost the Week?", pick: impact.slide, gained: false },
   ];
 
   return (
     <section className="dp-week-results" aria-labelledby="dp-week-results-title">
       <h2 id="dp-week-results-title">Week {impact.week} Impact</h2>
       <div className="dp-week-results-grid">
-        {awards.map(({ label, entries, gained }) => (
+        {awards.map(({ label, pick, gained }) => (
           <article className={`dp-week-award${gained ? "" : " dp-week-award-low"}`} key={label}>
             <h3>{label}</h3>
-            {entries.length ? entries.map(({ team, opponent, previous, current, crossed, upset, rivalry, winnerRank, loserRank }) => (
-              <div className="dp-week-impact-owner" key={team.ownerId}>
-                <p>{team.ownerName}</p>
+            {pick ? (
+              <div className="dp-week-impact-owner">
+                <p>{pick.team.ownerName}</p>
                 <span>
-                  {upset
+                  {pick.upset
                     ? gained
-                      ? `Pulled off the upset against ${first(opponent.ownerName)}. They came in ranked #${loserRank}, and ${first(team.ownerName)} was #${winnerRank}.`
-                      : `Lost to ${first(opponent.ownerName)} in an upset. ${first(team.ownerName)} came in ranked #${loserRank}, and ${first(opponent.ownerName)} was #${winnerRank}.`
-                    : `${gained ? "Beat" : "Lost to"} ${rivalry ? "rival " : ""}${first(opponent.ownerName)}.`}
-                  {crossed
+                      ? `Pulled off the upset against ${first(pick.opponent.ownerName)}. They came in ranked #${pick.loserRank}, and ${first(pick.team.ownerName)} was #${pick.winnerRank}.`
+                      : `Lost to ${first(pick.opponent.ownerName)} in an upset. ${first(pick.team.ownerName)} came in ranked #${pick.loserRank}, and ${first(pick.opponent.ownerName)} was #${pick.winnerRank}.`
+                    : `${gained ? "Beat" : "Lost to"} ${pick.rivalry ? "rival " : ""}${first(pick.opponent.ownerName)}.`}
+                  {pick.crossed
                     ? gained ? " That moved them into a playoff spot." : " That dropped them out of a playoff spot."
-                    : previous.seed !== current.seed && ` Their estimated seed went from #${previous.seed} to #${current.seed}.`}
+                    : pick.previous.seed !== pick.current.seed && ` Their estimated seed went from #${pick.previous.seed} to #${pick.current.seed}.`}
                 </span>
               </div>
-            )) : (
+            ) : (
               <span>{gained ? "No result stood out for the winners this week." : "No result stood out for the losing teams this week."}</span>
             )}
           </article>

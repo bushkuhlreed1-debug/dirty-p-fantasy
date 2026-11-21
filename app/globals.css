@@ -3220,7 +3220,6 @@ body .dp-home-hero {
   font-weight: 750;
   overflow-wrap: anywhere;
 }
-.dp-week-impact-owner + .dp-week-impact-owner { margin-top: 10px; }
 .dp-week-award span,
 .dp-week-impact-note { font-size: .75rem; }
 .dp-week-impact-note {
