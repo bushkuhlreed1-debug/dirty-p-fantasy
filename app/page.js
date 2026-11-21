@@ -1269,6 +1269,46 @@ function NflTeamLogo({ code, size = 22, decorative = false, loading = "lazy" }) 
 
 const nflRibbonTeams = Object.values(NFL_TEAMS).sort();
 
+const pearlandSpots = [
+  {
+    title: "Football at The Rig",
+    detail: "Catch the Pearland Oilers at their home stadium on South Main.",
+    url: "https://phs.pearlandisd.org/athletics-phs/schedules-ticketing-information/football",
+    link: "Oilers schedule",
+  },
+  {
+    title: "PearScape Trail",
+    detail: "Look for four-foot pears painted by local artists at stops across town.",
+    url: "https://visitpearland.com/pearscape/",
+    link: "Find the pears",
+  },
+  {
+    title: "Zychlinski Park",
+    detail: "Pearland’s oldest park is home to two PearScape sculptures and honors the man who named the town.",
+    url: "https://visitpearland.com/experiences/history-of-pearland/",
+    link: "Read the local history",
+  },
+];
+
+function PearlandAroundTown() {
+  return (
+    <details className="section-block dp-home-category" open>
+      <summary className="section-heading dp-home-category-toggle">
+        <h2>Around Pearland</h2>
+      </summary>
+      <div className="dp-pearland-spots">
+        {pearlandSpots.map(spot => (
+          <article key={spot.title}>
+            <h3>{spot.title}</h3>
+            <p>{spot.detail}</p>
+            <a href={spot.url}>{spot.link} <span aria-hidden="true">↗</span></a>
+          </article>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 function NflLogoRibbon() {
   return (
     <div className="dp-nfl-ribbon">
@@ -2156,7 +2196,7 @@ export default async function Home() {
       <section className="owners-hero dp-home-hero">
         <div>
           <p className="eyebrow">
-            {season} FANTASY FOOTBALL
+            PEARLAND, TEXAS · {season} SEASON
           </p>
 
           <h1>
@@ -2646,6 +2686,8 @@ export default async function Home() {
           <Link className="dp-home-category-action" href="/records">Explore records →</Link>
         </details>
       )}
+
+      <PearlandAroundTown />
 
       {/* ==========================================
           FOOTER
