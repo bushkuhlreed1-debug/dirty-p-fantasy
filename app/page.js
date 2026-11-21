@@ -3,8 +3,8 @@ import Link from "next/link";
 import { supabase } from "../lib/supabase";
 import { getLeagueData } from "../lib/leagueData";
 import { getMatchupIntel } from "../lib/matchupIntel";
-import { getEspnLiveScoreMap } from "../lib/espnLiveScore";
-import { getNflGameMap } from "../lib/nflGameScores";
+import { getEspnLiveScoreMap, getNFLTeam, NFL_TEAMS } from "../lib/espnLiveScore";
+import { canonicalNflTeam, getNflGameMap } from "../lib/nflGameScores";
 import { getNflPlayerBoxScores } from "../lib/nflPlayerBoxScores";
 import AutoRefresh from "./components/AutoRefresh";
 import MatchupLineupSwitcher from "./components/MatchupLineupSwitcher";
@@ -1014,7 +1014,7 @@ function PregamePlayers({
   );
 }
 
-function NflTeamLogo({ code, size = 22, decorative = false }) {
+function NflTeamLogo({ code, size = 22, decorative = false, loading = "lazy" }) {
   const normalized = ({ WSH: "was", JAC: "jax", LA: "lar", OAK: "lv", SD: "lac", STL: "lar" })[String(code || "").toUpperCase()] || String(code || "").toLowerCase();
   if (!normalized) return null;
   return <img
@@ -1022,42 +1022,92 @@ function NflTeamLogo({ code, size = 22, decorative = false }) {
     alt={decorative ? "" : `${code} logo`}
     width={size}
     height={size}
-    loading="lazy"
+    loading={loading}
     className="dp-nfl-logo"
   />;
 }
 
-function NflScoreStrip({ games, week }) {
-  const statusOrder = { in: 0, pre: 1, post: 2 };
-  const matchups = Object.entries(games)
-    .filter(([, game]) => game.isHome)
-    .sort(([, a], [, b]) => (statusOrder[a.state] ?? 3) - (statusOrder[b.state] ?? 3));
+const nflRibbonTeams = Object.values(NFL_TEAMS).sort();
 
-  if (!matchups.length) return null;
+function NflLogoRibbon() {
+  return (
+    <div className="dp-nfl-ribbon">
+      <input type="checkbox" id="dp-pause-nfl-ribbon" className="dp-nfl-ribbon-toggle" />
+      <label htmlFor="dp-pause-nfl-ribbon" className="dp-nfl-ribbon-control">
+        <span className="dp-nfl-ribbon-control-label">Pause NFL logo ribbon</span>
+        <span className="dp-nfl-ribbon-pause" aria-hidden="true">Ⅱ</span>
+        <span className="dp-nfl-ribbon-play" aria-hidden="true">▶</span>
+      </label>
+      <div className="dp-nfl-ribbon-window">
+        <div className="dp-nfl-ribbon-track" aria-hidden="true">
+          {[0, 1].map(copy => (
+            <div className="dp-nfl-ribbon-group" key={copy}>
+              {nflRibbonTeams.map(code => (
+                <NflTeamLogo key={code} code={code} size={40} decorative loading="eager" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RelevantNflGames({ sides, games }) {
+  const matchups = new Map();
+
+  for (const side of sides) {
+    const livePlayers = liveStarters(side.liveTeam);
+    const starters = livePlayers.length ? livePlayers : side.intel?.starters ?? [];
+
+    for (const player of starters) {
+      const code = canonicalNflTeam(player.nflTeam || getNFLTeam(player));
+      const game = games[code];
+      if (!game) continue;
+
+      const home = game.isHome ? code : game.opponent;
+      const away = game.isHome ? game.opponent : code;
+      const key = game.eventId || `${away}-${home}`;
+
+      if (!matchups.has(key)) {
+        matchups.set(key, { home, away, status: game.status, state: game.state, kickoff: game.kickoff, players: new Map() });
+      }
+
+      const matchup = matchups.get(key);
+      if (!matchup.players.has(side.ownerId)) {
+        matchup.players.set(side.ownerId, { owner: first(side.name), names: [] });
+      }
+      matchup.players.get(side.ownerId).names.push(player.name || player.fullName || code);
+    }
+  }
+
+  if (!matchups.size) return null;
+
+  const priority = { in: 0, pre: 1, post: 2 };
+  const ordered = [...matchups.entries()].sort(([, a], [, b]) =>
+    (priority[a.state] ?? 3) - (priority[b.state] ?? 3) ||
+    String(a.kickoff || "").localeCompare(String(b.kickoff || ""))
+  );
 
   return (
-    <section className="dp-nfl-strip" aria-labelledby="nfl-scores-title">
-      <header className="dp-nfl-strip-heading">
-        <h2 id="nfl-scores-title">NFL Scores</h2>
-        <span>Week {week}</span>
-      </header>
-      <ul className="dp-nfl-strip-games" tabIndex={0} aria-label="NFL matchups">
-        {matchups.map(([home, game]) => (
-          <li key={game.eventId || home} className="dp-nfl-strip-game">
-            <p className={game.state === "in" ? "dp-nfl-strip-live" : undefined}>
-              {game.status}
-            </p>
-            {[[game.opponent, game.opponentScore], [home, game.ownScore]].map(([team, score]) => (
-              <div className="dp-nfl-strip-team" key={team}>
-                <NflTeamLogo code={team} size={32} decorative />
-                <span>{team}</span>
-                {Number.isFinite(score) && <strong>{score}</strong>}
-              </div>
+    <div className="dp-relevant-nfl">
+      <h4>NFL Games to Watch</h4>
+      <ul className="dp-relevant-nfl-games" tabIndex={0} aria-label="NFL games with fantasy starters">
+        {ordered.map(([key, game]) => (
+          <li key={key}>
+            <div className="dp-relevant-nfl-teams">
+              <NflTeamLogo code={game.away} size={25} decorative />
+              <NflTeamLogo code={game.home} size={25} decorative />
+              <strong>{game.away} @ {game.home}</strong>
+            </div>
+            <small>{game.status}</small>
+            {[...game.players].map(([ownerId, entry]) => (
+              <p key={ownerId}><strong>{entry.owner}</strong> · {entry.names.join(", ")}</p>
             ))}
           </li>
         ))}
       </ul>
-    </section>
+    </div>
   );
 }
 
@@ -1065,7 +1115,7 @@ function EspnLineupRows({ players, nflGames = {}, playerBoxScores = {} }) {
   return players.map((player, index) => {
     const actual = valueOrNull(player.currentPoints ?? player.actualPoints);
     const projected = valueOrNull(player.projectedPoints);
-    const nflGame = nflGames[String(player.nflTeam || "").toUpperCase()] || null;
+    const nflGame = nflGames[canonicalNflTeam(player.nflTeam)] || null;
     const started = nflGame?.state === "in" || nflGame?.state === "post";
     const gameStats = started ? playerBoxScores[String(player.playerId || player.id || "")] : null;
     return (
@@ -1339,6 +1389,7 @@ function MatchupCard({
           </div>
         </>
       )}
+      <RelevantNflGames sides={sides} games={nflGames} />
     </article>
   );
 }
@@ -1914,25 +1965,7 @@ export default async function Home() {
         intervalMs={30000}
       />
 
-      <header className="site-header">
-        <div className="site-title">
-          <Link href="/">
-            <strong>
-              DIRTY P FANTASY FOOTBALL
-            </strong>
-          </Link>
-
-          <span>
-            THE LEAGUE ARCHIVE · EST. 2014
-          </span>
-        </div>
-      </header>
-
-      <Link href="/notifications" className="dp-mobile-notification-cta">
-        <span aria-hidden="true">🔔</span>
-        <strong>Subscribe to Notifications</strong>
-        <span className="dp-notification-cta-arrow" aria-hidden="true">›</span>
-      </Link>
+      <NflLogoRibbon />
 
       <section className="owners-hero dp-home-hero">
         <div>
@@ -1961,8 +1994,6 @@ export default async function Home() {
           </span>
         </div>
       </section>
-
-      <NflScoreStrip games={nflGames} week={displayWeek} />
 
       {/* ==========================================
           OWNER MAPPING WARNINGS
@@ -2330,6 +2361,7 @@ export default async function Home() {
           {gameOfTheWeek ? (
             <MatchupCard
               matchup={gameOfTheWeek}
+              nflGames={nflGames}
               featured
             />
           ) : (
@@ -2373,6 +2405,7 @@ export default async function Home() {
                       pairKey(matchup.game)
                     }
                     matchup={matchup}
+                    nflGames={nflGames}
                   />
                 )
               )}
