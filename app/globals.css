@@ -1,6 +1,9 @@
 :root {
   color-scheme: light;
-  --dp-paper: #f7f5ef;
+  --dp-paper: #ffffff;
+  --dp-pear-ink: #315927;
+  --dp-pear-wash: #eaf4d9;
+  --dp-pear-line: #b4ce91;
   --dp-white: #ffffff;
   --dp-soft: #f4f7fb;
   --dp-raised: #eaf0f7;
@@ -2446,10 +2449,6 @@ summary:focus-visible,
 /* PHONE / HOME-SCREEN APP LAYOUT */
 
 @media (max-width: 760px) {
-  body {
-    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px));
-  }
-
   .quick-links { display: none !important; }
   .app-navigation { display: block; }
 
@@ -3083,21 +3082,29 @@ summary:focus-visible,
    retain the desktop content but preserve touch-friendly spacing. */
 @media (min-width: 1200px) and (max-width: 1400px) and (hover: none) and (pointer: coarse) {
   .page-shell { padding-inline: 28px; }
-  .dp-desktop-link { min-height: 58px; }
   .quick-links a { min-height: 58px; }
   .dp-feature-disclosure > summary { min-height: 60px; }
 }
 
 body .hero-main,
 body .owners-hero {
-  background: linear-gradient(125deg, #fffdf7, #ffffff 68%, #edf3fa);
-  border-color: var(--dp-line);
+  background: linear-gradient(125deg, #fff8e7, var(--dp-white) 48%, var(--dp-pear-wash));
+  border-color: var(--dp-pear-line);
 }
 body .champion-strip {
   background: var(--dp-gold-bg);
   border-left-color: var(--dp-gold-line);
 }
+.site-title strong {
+  color: var(--dp-pear-ink);
+}
+
+.section-heading h2 {
+  border-inline-start: 4px solid var(--dp-pear-line);
+  padding-inline-start: 10px;
+}
+
 :where(a, button, summary, input, select):focus-visible {
-  outline: 2px solid #466a96;
+  outline: 2px solid var(--dp-pear-ink);
   outline-offset: 3px;
 }

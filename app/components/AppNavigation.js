@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const links = [
-  { href: "/", label: "Home", icon: "home" },
+  { href: "/", label: "Home", icon: "pear" },
   { href: "/owners", label: "Owners", icon: "users" },
   { href: "/champions", label: "Champions", icon: "trophy" },
   { href: "/notifications", label: "Notifications", mobileLabel: "Alerts", icon: "bell" },
@@ -32,11 +32,11 @@ function NavIcon({ name, size = 21 }) {
   };
 
   const paths = {
-    home: (
+    pear: (
       <>
-        <path d="m3 10 9-7 9 7" />
-        <path d="M5 9.5V21h14V9.5" />
-        <path d="M9 21v-7h6v7" />
+        <path d="M12 7c-4.5 0-3.5 4-6.5 7.1C2 18 5.6 22 12 22s10-4 6.5-7.9C15.5 11 16.5 7 12 7Z" />
+        <path d="M12 7c0-2 1-4 2.5-5m-2 4c1-3.5 4-4.5 7-3.5-1 3-4 4-7 3.5Z" />
+        <path d="M12 12v7m-2-5.5h4m-4 3.5h4" />
       </>
     ),
 
@@ -174,6 +174,7 @@ export default function AppNavigation() {
                   isActive(link.href) ? "is-active" : ""
                 }`}
               >
+                {link.icon === "pear" && <NavIcon name="pear" size={19} />}
                 {link.label}
               </Link>
             ))}
@@ -186,7 +187,7 @@ export default function AppNavigation() {
         <div className="dp-tablet-nav-inner">
           <div className="dp-tablet-brand-row">
             <Link href="/" className="dp-tablet-brand" onClick={() => setMoreOpen(false)}>
-              <span className="dp-tablet-mark" aria-hidden="true">DP</span>
+              <span className="dp-tablet-mark" aria-hidden="true"><NavIcon name="pear" size={20} /></span>
               <span><strong>DIRTY P</strong><small>FANTASY FOOTBALL</small></span>
             </Link>
             <span className="dp-tablet-nav-caption">THE LEAGUE ARCHIVE</span>
@@ -315,13 +316,34 @@ export default function AppNavigation() {
       </nav>
 
       <style jsx global>{`
+        :root {
+          --dp-nav-height: 55px;
+          --dp-nav-safe-bottom: env(safe-area-inset-bottom, 0px);
+          --dp-nav-clearance: calc(var(--dp-nav-height) + var(--dp-nav-safe-bottom));
+          scroll-padding-bottom: var(--dp-nav-clearance);
+        }
+
+        html body {
+          padding-bottom: var(--dp-nav-clearance);
+        }
+
+        .dp-desktop-nav,
+        .dp-tablet-nav,
+        .app-bottom-nav.dp-mobile-nav {
+          position: fixed;
+          inset: auto 0 0;
+          padding-bottom: var(--dp-nav-safe-bottom);
+          z-index: 10000;
+        }
+
         /* DESKTOP */
 
         .dp-desktop-nav {
           display: block;
           width: 100%;
           background: var(--dp-white);
-          border-bottom: 1px solid var(--dp-line);
+          border-top: 1px solid var(--dp-pear-line);
+          box-shadow: 0 -5px 20px rgba(28, 58, 34, 0.09);
         }
 
         .dp-desktop-inner {
@@ -341,7 +363,8 @@ export default function AppNavigation() {
           position: relative;
           display: inline-flex;
           align-items: center;
-          min-height: 54px;
+          min-height: calc(var(--dp-nav-height) - 1px);
+          gap: 6px;
           padding: 0 14px;
           color: var(--dp-muted);
           font-size: 13px;
@@ -368,11 +391,12 @@ export default function AppNavigation() {
         }
 
         .dp-desktop-link.is-active {
-          color: var(--dp-gold);
+          color: var(--dp-pear-ink);
+          background: var(--dp-pear-wash);
         }
 
         .dp-desktop-link.is-active::after {
-          background: #e4b861;
+          background: var(--dp-pear-ink);
         }
 
         /* HIDE LEGACY NAVIGATION OVERLAYS */
@@ -385,36 +409,24 @@ export default function AppNavigation() {
           display: none !important;
         }
 
-        /* DESKTOP BOTTOM NAV HIDDEN */
-
-        @media (min-width: 769px) {
-          .app-bottom-nav.dp-mobile-nav {
-            display: none !important;
-          }
+        .app-bottom-nav.dp-mobile-nav {
+          display: none;
         }
 
         /* MOBILE */
 
-        @media (max-width: 768px) {
+        @media (width < 700px) {
+          :root { --dp-nav-height: 63px; }
           .dp-desktop-nav {
             display: none !important;
           }
 
-          body { padding-bottom: 0 !important; }
-
-
           .app-bottom-nav.dp-mobile-nav {
-            /* Normal page flow, so the navigation ribbon scrolls away. */
-            position: static !important;
-            left: auto !important;
-            right: auto !important;
-            bottom: auto !important;
             width: 100% !important;
-            height: auto !important;
-            min-height: 63px !important;
-            padding: 5px 9px
-              calc(6px + env(safe-area-inset-bottom, 0px))
-              !important;
+            min-height: var(--dp-nav-clearance);
+            padding: 5px max(9px, env(safe-area-inset-right, 0px))
+              calc(6px + var(--dp-nav-safe-bottom))
+              max(9px, env(safe-area-inset-left, 0px)) !important;
             display: grid !important;
             grid-template-columns: repeat(5, minmax(0, 1fr))
               !important;
@@ -422,10 +434,9 @@ export default function AppNavigation() {
             gap: 2px !important;
             background: var(--dp-white) !important;
             border: none !important;
-            border-top: 1px solid var(--dp-line) !important;
+            border-top: 1px solid var(--dp-pear-line) !important;
             border-radius: 0 !important;
-            box-shadow: none !important;
-            z-index: auto !important;
+            box-shadow: 0 -5px 20px rgba(28, 58, 34, 0.09) !important;
           }
 
           .app-bottom-nav.dp-mobile-nav
@@ -469,8 +480,8 @@ export default function AppNavigation() {
 
           .app-bottom-nav.dp-mobile-nav
             .app-bottom-link.dp-mobile-link.active {
-            color: var(--dp-gold) !important;
-            background: rgba(239, 196, 117, 0.07) !important;
+            color: var(--dp-pear-ink) !important;
+            background: var(--dp-pear-wash) !important;
           }
 
           .dp-menu-backdrop {
@@ -487,9 +498,7 @@ export default function AppNavigation() {
             position: fixed;
             left: 12px;
             right: 12px;
-            bottom: calc(
-              76px + env(safe-area-inset-bottom, 0px)
-            );
+            bottom: calc(var(--dp-nav-clearance) + 12px);
             max-height: min(65dvh, 490px);
             overflow-y: auto;
             background: var(--dp-soft);
@@ -596,14 +605,15 @@ export default function AppNavigation() {
         /* TABLET: the full navigation is always accessible, in two
            touch-sized rows for portrait and one row for landscape. */
         .dp-tablet-nav { display: none; }
-        @media (min-width: 700px) and (max-width: 1199px) {
+        @media (700px <= width < 1200px) {
+          :root { --dp-nav-height: 160px; }
           .dp-desktop-nav { display: none !important; }
           .app-bottom-nav.dp-mobile-nav { display: none !important; }
           .dp-tablet-nav {
             display: block !important;
-            background: linear-gradient(125deg,var(--dp-white),var(--dp-raised));
-            border-bottom: 1px solid var(--dp-deep-line);
-            box-shadow: 0 5px 17px rgba(31, 49, 72, 0.16);
+            background: linear-gradient(125deg, var(--dp-white), var(--dp-pear-wash));
+            border-top: 1px solid var(--dp-pear-line);
+            box-shadow: 0 -5px 17px rgba(28, 58, 34, 0.09);
           }
           .dp-tablet-nav-inner {
             max-width: 1160px;
@@ -691,16 +701,21 @@ export default function AppNavigation() {
             border-color: var(--dp-gold-line);
           }
           .dp-tablet-link.is-active {
-            color: var(--dp-gold);
-            background: var(--dp-raised);
-            border-color: var(--dp-gold-line);
+            color: var(--dp-pear-ink);
+            background: var(--dp-pear-wash);
+            border-color: var(--dp-pear-line);
           }
           .dp-tablet-link:focus-visible { outline: 2px solid var(--dp-gold-line); outline-offset: 2px; }
         }
-        @media (min-width: 940px) and (max-width: 1199px) {
+        @media (940px <= width < 1200px) {
+          :root { --dp-nav-height: 109px; }
           .dp-tablet-links { grid-template-columns: repeat(8,minmax(0,1fr)); }
           .dp-tablet-link { font-size: 10px; gap: 4px; }
           .dp-tablet-link svg { width: 16px; height: 16px; }
+        }
+
+        @media (1200px <= width <= 1400px) and (hover: none) and (pointer: coarse) {
+          :root { --dp-nav-height: 59px; }
         }
 
         @media (prefers-reduced-motion: reduce) {

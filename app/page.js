@@ -2786,11 +2786,17 @@ export default async function Home() {
           justify-content: space-between;
           gap: 8px;
           padding: 14px 17px;
-          border-bottom:
-            1px solid var(--dp-line);
-          color: var(--dp-gold);
+          border-bottom: 1px solid var(--dp-pear-line);
+          background: var(--dp-pear-wash);
+          color: var(--dp-pear-ink);
           font-size: 10px;
           font-weight: 800;
+        }
+
+        .dp-featured-matchup .dp-matchup-top {
+          background: var(--dp-gold-bg);
+          border-color: var(--dp-gold-line);
+          color: var(--dp-gold);
         }
 
         .dp-matchup-top span:last-child {
