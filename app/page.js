@@ -2167,15 +2167,15 @@ export default async function Home() {
             Dirty P started with a group of friends who grew up together in
             Pearland, Texas. Before we had a league of our own, we spent a few
             years playing fantasy football in a league that brought together
-            people from our church. The ties to our hometown ran deep enough
-            that we even had divisions named East Pearland and West Pearland.
+            people from our church.
           </p>
 
           <p>
             When the church league fizzled out, nine of us from the church
             youth group and our mentor started Dirty P in 2014. There
             were ten of us in that first season, carrying on something
-            we’d already been doing together for years.
+            we’d already been doing together for years. In Dirty P, we named
+            our divisions East Pearland and West Pearland.
           </p>
 
           <p>
