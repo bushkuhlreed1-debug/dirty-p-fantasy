@@ -1075,6 +1075,26 @@ async function runNotifications() {
     week
   );
 
+  // Keep the latest observed projection before the first NFL kickoff.
+  if (nflEvents.length && nflEvents.every(event =>
+    eventState(event) === "pre" && Date.parse(event.date) > Date.now()
+  )) {
+    for (const game of matchups) {
+      if (isFinal(game)) continue;
+      const awayId = Number(game.away_owner_id);
+      const homeId = Number(game.home_owner_id);
+      const away = numberOrNull(ownerIntel(awayId)?.projectedPoints);
+      const home = numberOrNull(ownerIntel(homeId)?.projectedPoints);
+      if (!(away > 0 && home > 0)) continue;
+
+      const key = `pregame:${season}:${week}:${matchupKey(game)}`;
+      const saved = await getState(key);
+      if (saved?.[awayId] !== away || saved?.[homeId] !== home) {
+        await setState(key, { [awayId]: away, [homeId]: home });
+      }
+    }
+  }
+
   const summaries = [];
   const summaryByEvent = new Map();
 

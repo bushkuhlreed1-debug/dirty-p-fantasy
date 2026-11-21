@@ -667,25 +667,31 @@ function RecapStat({
   );
 }
 
-async function readMatchupDeficits(season, week, games) {
-  if (!games?.size) return new Map();
+async function readWeeklyMatchupState(season, week, games) {
+  const state = new Map();
+  if (!games?.size) return state;
 
-  const prefix = `leader:${season}:${week}:`;
+  const suffix = `:${season}:${week}:`;
+  const keys = [...games.keys()].flatMap(key => [`leader${suffix}${key}`, `pregame${suffix}${key}`]);
   const { data, error } = await supabaseAdmin.from("notification_state")
     .select("state_key,state_value")
-    .in("state_key", [...games.keys()].map(key => prefix + key));
+    .in("state_key", keys);
   if (error) {
-    console.error("Weekly matchup deficits unavailable:", error.message);
-    return new Map();
+    console.error("Weekly matchup state unavailable:", error.message);
+    return state;
   }
 
-  return new Map((data || []).map(row => [
-    row.state_key.slice(prefix.length),
-    row.state_value?.deficits ?? {},
-  ]));
+  for (const row of data || []) {
+    const [kind, key] = row.state_key.split(suffix);
+    const game = state.get(key) || {};
+    if (kind === "leader") game.deficits = row.state_value?.deficits;
+    if (kind === "pregame") game.projections = row.state_value;
+    state.set(key, game);
+  }
+  return state;
 }
 
-function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, schedule, deficits, season) {
+function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, schedule, matchupState, season) {
   if (!week || week < 2 || standings.length <= playoffCount) return null;
 
   const teams = new Map(standings.map(team => [
@@ -807,7 +813,14 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, sched
     const loserBefore = before.get(loserId);
     const recordGap = (loserBefore?.wins ?? 0) + (loserBefore?.ties ?? 0) / 2 -
       (winnerBefore?.wins ?? 0) - (winnerBefore?.ties ?? 0) / 2;
-    const upset = loserRank <= playoffCount && winnerRank > playoffCount && recordGap >= 2;
+    const state = matchupState.get(pairKey(game));
+    const winnerProjection = valueOrNull(state?.projections?.[winnerId]);
+    const loserProjection = valueOrNull(state?.projections?.[loserId]);
+    const hasOpeningLine = winnerProjection !== null && loserProjection !== null;
+    const projectionGap = hasOpeningLine ? loserProjection - winnerProjection : null;
+    const upset = hasOpeningLine
+      ? projectionGap >= 10
+      : loserRank <= playoffCount && winnerRank > playoffCount && recordGap >= 2;
 
     const reverse = new Map(actualRecords);
     reverse.set(winnerId, reverse.get(winnerId) - 1);
@@ -816,7 +829,7 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, sched
       eliminatedOnRecord(winnerId, reverse) && hasPathOnRecord(winnerId, actualRecords);
     const ended = scheduleIsComplete && eliminatedOnRecord(loserId, actualRecords) &&
       hasPathOnRecord(loserId, reverse);
-    const deficit = n(deficits.get(pairKey(game))?.[winnerId]);
+    const deficit = n(state?.deficits?.[winnerId]);
     const comeback = deficit >= 15 ? deficit : 0;
     const margin = Math.abs(n(game.home_score) - n(game.away_score));
     const dominant = margin === largestMargin && margin >= 20 &&
@@ -837,7 +850,7 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, sched
       const seasonSwing = direction > 0 ? saved : ended;
       const leaguePick = weekTenTake && team.ownerName === (direction > 0 ? "Brent Fleischer" : "Reed Bushkuhl");
       if (spots <= 0 && !crossed && !upset && !rivalry && !seasonSwing && !dominant && !comeback && !leaguePick) continue;
-      candidates.push({ team, opponent, previous, current, crossed, spots, upset, rivalry, winnerRank, loserRank, recordGap, seasonSwing, dominant, margin, comeback, leaguePick });
+      candidates.push({ team, opponent, previous, current, crossed, spots, upset, rivalry, winnerRank, loserRank, recordGap, projectionGap, seasonSwing, dominant, margin, comeback, leaguePick });
     }
   }
 
@@ -850,7 +863,7 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, sched
     Number(b.dominant) - Number(a.dominant) ||
     Number(b.rivalry) - Number(a.rivalry) ||
     b.spots - a.spots ||
-    (a.upset && b.upset ? b.recordGap - a.recordGap : 0) ||
+    (a.upset && b.upset ? (b.projectionGap ?? 0) - (a.projectionGap ?? 0) || b.recordGap - a.recordGap : 0) ||
     a.team.ownerName.localeCompare(b.team.ownerName);
 
   return { week, gain: gains.sort(rank)[0], slide: slides.sort(rank)[0] };
@@ -875,7 +888,11 @@ function WeeklyImpact({ impact }) {
               <div className="dp-week-impact-owner">
                 <p>{pick.team.ownerName}</p>
                 <span>
-                  {pick.upset
+                  {pick.upset && pick.projectionGap !== null
+                    ? gained
+                      ? `Beat ${first(pick.opponent.ownerName)} after being projected to lose by ${points(pick.projectionGap)} points.`
+                      : `Lost to ${first(pick.opponent.ownerName)} after being projected to win by ${points(pick.projectionGap)} points.`
+                    : pick.upset
                     ? gained
                       ? `Pulled off the upset against ${first(pick.opponent.ownerName)}. They came in ranked #${pick.loserRank}, and ${first(pick.team.ownerName)} was #${pick.winnerRank}.`
                       : `Lost to ${first(pick.opponent.ownerName)} in an upset. ${first(pick.team.ownerName)} came in ranked #${pick.loserRank}, and ${first(pick.opponent.ownerName)} was #${pick.winnerRank}.`
@@ -1745,14 +1762,14 @@ export default async function Home() {
       )
     : null;
 
-  const matchupDeficits = await readMatchupDeficits(season, recapWeek, completedByWeek.get(recapWeek));
+  const matchupState = await readWeeklyMatchupState(season, recapWeek, completedByWeek.get(recapWeek));
   const weeklyImpact = buildWeeklyImpact(
     standings,
     completedByWeek,
     recapWeek,
     n(playoffTeamCount) || PLAYOFF_TEAMS,
     regularGames,
-    matchupDeficits,
+    matchupState,
     season
   );
 
