@@ -3185,3 +3185,45 @@ body .dp-home-hero {
   .dp-nfl-ribbon-track { animation: none; }
   .dp-nfl-ribbon-window { overflow-x: auto; }
 }
+
+.dp-week-results {
+  max-width: 1200px;
+  margin: 18px auto 0;
+}
+.dp-week-results h2 {
+  margin: 0 0 8px;
+  color: var(--dp-pear-dark);
+  font-size: 1rem;
+}
+.dp-week-results-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.dp-week-award {
+  padding: clamp(12px, 2vw, 18px);
+  border: 1px solid var(--dp-pear-line);
+  border-radius: 12px;
+  background: var(--dp-pear-wash);
+  color: var(--dp-pear-dark);
+}
+.dp-week-award-low {
+  border-color: var(--dp-gold-line);
+  background: var(--dp-gold-bg);
+  color: var(--dp-gold);
+}
+.dp-week-award h3,
+.dp-week-award p { margin: 0 0 5px; }
+.dp-week-award h3 { font-size: .85rem; }
+.dp-week-award p {
+  color: var(--dp-ink);
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+.dp-week-award > strong {
+  display: block;
+  font-size: clamp(1.15rem, 3vw, 1.7rem);
+  font-variant-numeric: tabular-nums;
+}
+.dp-week-award small,
+.dp-week-award > span { font-size: .72rem; }

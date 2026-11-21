@@ -594,19 +594,10 @@ function buildRecap(
       }
     ]);
 
-  const highest = [
-    ...performances
-  ].sort(
-    (a, b) =>
-      b.score - a.score
-  )[0];
-
-  const lowest = [
-    ...performances
-  ].sort(
-    (a, b) =>
-      a.score - b.score
-  )[0];
+  const highScore = Math.max(...performances.map(item => item.score));
+  const lowScore = Math.min(...performances.map(item => item.score));
+  const highest = performances.filter(item => item.score === highScore);
+  const lowest = performances.filter(item => item.score === lowScore);
 
   const decisive = results.filter(
     game =>
@@ -682,14 +673,37 @@ function RecapStat({
   );
 }
 
+function WeeklyResults({ recap }) {
+  if (!recap) return null;
+
+  const awards = [
+    { label: "Who Won the Week?", detail: "Highest score", entries: recap.highest, style: "high" },
+    { label: "Who Lost the Week?", detail: "Lowest score", entries: recap.lowest, style: "low" },
+  ];
+
+  return (
+    <section className="dp-week-results" aria-labelledby="dp-week-results-title">
+      <h2 id="dp-week-results-title">Week {recap.week} Results</h2>
+      <div className="dp-week-results-grid">
+        {awards.map(({ label, detail, entries, style }) => (
+          <article className={`dp-week-award dp-week-award-${style}`} key={style}>
+            <h3>{label}</h3>
+            <p>{entries.map(entry => entry.name).join(" & ")}</p>
+            <strong>{points(entries[0].score)} <small>PTS</small></strong>
+            <span>{entries.length > 1 ? `Tied for ${detail.toLowerCase()}` : detail}</span>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function AroundTheLeague({ recap }) {
   if (!recap) return null;
 
   const {
     week,
     results,
-    highest,
-    lowest,
     blowout,
     closest,
     shootout,
@@ -738,17 +752,6 @@ function AroundTheLeague({ recap }) {
       </p>
 
       <div className="dp-recap-grid">
-
-        <RecapStat
-          label="🏆 HIGHEST SCORER"
-          name={highest?.name || "—"}
-          value={
-            `${points(
-              highest?.score
-            )} PTS`
-          }
-          detail="Best team performance"
-        />
 
         {blowout && (
           <RecapStat
@@ -818,17 +821,6 @@ function AroundTheLeague({ recap }) {
               totalPoints
             )} total league points`
           }
-        />
-
-        <RecapStat
-          label="🛡️ LOWEST SCORER"
-          name={lowest?.name || "—"}
-          value={
-            `${points(
-              lowest?.score
-            )} PTS`
-          }
-          detail="Lowest fantasy team score"
         />
 
       </div>
@@ -1935,6 +1927,8 @@ export default async function Home() {
           </span>
         </div>
       </section>
+
+      <WeeklyResults recap={recap} />
 
       {/* ==========================================
           OWNER MAPPING WARNINGS
