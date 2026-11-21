@@ -3142,45 +3142,7 @@ body .dp-home-hero {
   to { transform: translateX(-50%); }
 }
 
-.dp-nfl-ribbon-toggle,
-.dp-nfl-ribbon-control-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-.dp-nfl-ribbon-control {
-  position: absolute;
-  z-index: 1;
-  right: 4px;
-  bottom: 5px;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  background: var(--dp-pear-wash);
-  color: var(--dp-pear-dark);
-  font-weight: 900;
-  cursor: pointer;
-}
-.dp-nfl-ribbon-toggle:focus-visible + label {
-  outline: 2px solid var(--dp-pear-ink);
-  outline-offset: -3px;
-}
-.dp-nfl-ribbon-play,
-.dp-nfl-ribbon-toggle:checked + label .dp-nfl-ribbon-pause {
-  display: none;
-}
-.dp-nfl-ribbon-toggle:checked + label .dp-nfl-ribbon-play { display: inline; }
-.dp-nfl-ribbon-toggle:checked ~ .dp-nfl-ribbon-window .dp-nfl-ribbon-track {
-  animation-play-state: paused;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .dp-nfl-ribbon-toggle,
-  .dp-nfl-ribbon-control,
   .dp-nfl-ribbon-group + .dp-nfl-ribbon-group { display: none; }
   .dp-nfl-ribbon-track { animation: none; }
   .dp-nfl-ribbon-window { overflow-x: auto; }
@@ -3191,7 +3153,7 @@ body .dp-home-hero {
   margin: 18px auto 0;
 }
 .dp-week-results h2 {
-  margin: 0 0 8px;
+  margin: 0;
   color: var(--dp-pear-dark);
   font-size: 1rem;
 }
@@ -3221,3 +3183,46 @@ body .dp-home-hero {
   overflow-wrap: anywhere;
 }
 .dp-week-award span { font-size: .75rem; }
+
+.dp-home-category > .dp-home-category-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  list-style: none;
+  min-height: 52px;
+  margin: 0;
+  padding: 10px 44px 10px 12px;
+  border: 1px solid var(--dp-pear-line);
+  border-radius: 12px;
+  background: var(--dp-white);
+  cursor: pointer;
+}
+.dp-home-category > .dp-home-category-toggle::-webkit-details-marker { display: none; }
+.dp-home-category[open] > .dp-home-category-toggle { margin-bottom: 12px; }
+.dp-home-category > .dp-home-category-toggle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--dp-pear-ink);
+  border-bottom: 2px solid var(--dp-pear-ink);
+  transform: translateY(-65%) rotate(45deg);
+}
+.dp-home-category[open] > .dp-home-category-toggle::after {
+  transform: translateY(-25%) rotate(225deg);
+}
+.dp-home-category-action {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--dp-pear-ink);
+  font-weight: 750;
+}
+
+@media (max-width: 768px) {
+  .dp-home-category > .section-heading {
+    align-items: flex-start;
+    gap: 5px;
+  }
+}

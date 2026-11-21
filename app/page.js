@@ -923,8 +923,10 @@ function WeeklyImpact({ impact }) {
   ];
 
   return (
-    <section className="dp-week-results" aria-labelledby="dp-week-results-title">
-      <h2 id="dp-week-results-title">Week {impact.week} Impact</h2>
+    <details className="dp-week-results dp-home-category" open>
+      <summary className="dp-home-category-toggle">
+        <h2>Week {impact.week} Impact</h2>
+      </summary>
       <div className="dp-week-results-grid">
         {awards.map(({ label, pick, gained }) => (
           <article className={`dp-week-award${gained ? "" : " dp-week-award-low"}`} key={label}>
@@ -940,7 +942,7 @@ function WeeklyImpact({ impact }) {
           </article>
         ))}
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -976,8 +978,8 @@ function AroundTheLeague({ recap }) {
   }
 
   return (
-    <section className="section-block">
-      <div className="section-heading">
+    <details className="section-block dp-home-category" open>
+      <summary className="section-heading dp-home-category-toggle">
         <div>
           <p className="eyebrow">
             WEEK {week} RECAP
@@ -989,7 +991,7 @@ function AroundTheLeague({ recap }) {
         <span>
           {results.length} Final Matchups
         </span>
-      </div>
+      </summary>
 
       <p className="dp-recap-description">
         The biggest performances,
@@ -1135,7 +1137,7 @@ function AroundTheLeague({ recap }) {
           ))}
         </div>
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -1270,12 +1272,6 @@ const nflRibbonTeams = Object.values(NFL_TEAMS).sort();
 function NflLogoRibbon() {
   return (
     <div className="dp-nfl-ribbon">
-      <input type="checkbox" id="dp-pause-nfl-ribbon" className="dp-nfl-ribbon-toggle" />
-      <label htmlFor="dp-pause-nfl-ribbon" className="dp-nfl-ribbon-control">
-        <span className="dp-nfl-ribbon-control-label">Pause NFL logo ribbon</span>
-        <span className="dp-nfl-ribbon-pause" aria-hidden="true">Ⅱ</span>
-        <span className="dp-nfl-ribbon-play" aria-hidden="true">▶</span>
-      </label>
       <div className="dp-nfl-ribbon-window">
         <div className="dp-nfl-ribbon-track" aria-hidden="true">
           {[0, 1].map(copy => (
@@ -2216,8 +2212,8 @@ export default async function Home() {
           TWO-DIVISION STANDINGS
       ========================================== */}
 
-      <section className="section-block">
-        <div className="section-heading">
+      <details className="section-block dp-home-category" open>
+        <summary className="section-heading dp-home-category-toggle">
           <div>
             <p className="eyebrow">
               {season} SEASON
@@ -2231,7 +2227,7 @@ export default async function Home() {
           <span>
             {standings.length} Owners
           </span>
-        </div>
+        </summary>
 
         <div className="dp-playoff-legend">
           <span>
@@ -2390,7 +2386,7 @@ export default async function Home() {
             🏆 {season} Playoff Scenarios ↗
           </Link>
         </div>
-      </section>
+      </details>
 
       {/* ==========================================
           AUTOMATIC WEEKLY RECAP
@@ -2407,11 +2403,11 @@ export default async function Home() {
       ========================================== */}
 
       {recordWatches.length > 0 && (
-        <section className="section-block dp-live-feature-section">
-          <div className="section-heading">
+        <details className="section-block dp-live-feature-section dp-home-category" open>
+          <summary className="section-heading dp-home-category-toggle">
             <div><p className="eyebrow">LEAGUE HISTORY · LIVE</p><h2>Live Record Watch</h2></div>
             <Link href="/records">All records →</Link>
-          </div>
+          </summary>
           <div className="dp-live-record-grid">
             {recordWatches.map((watch, index) => (
               <div className="dp-live-record-card" key={watch.kind + "-" + index}>
@@ -2439,7 +2435,7 @@ export default async function Home() {
           <small className="dp-feature-disclaimer">
             Records use the historical regular-season archive. Live scores can change until final.
           </small>
-        </section>
+        </details>
       )}
 
       {/* ==========================================
@@ -2447,11 +2443,11 @@ export default async function Home() {
       ========================================== */}
 
       {playoffPulse && (
-        <section className="section-block dp-live-feature-section">
-          <div className="section-heading">
+        <details className="section-block dp-live-feature-section dp-home-category" open>
+          <summary className="section-heading dp-home-category-toggle">
             <div><p className="eyebrow">THE PLAYOFF RACE</p><h2>Live Playoff Pulse</h2></div>
             <Link href="/playoff-scenarios">Playoff scenarios →</Link>
-          </div>
+          </summary>
           <div className="dp-playoff-pulse">
             <div className="dp-playoff-pulse-header">
               <strong>ESPN odds vs. live matchup estimate</strong>
@@ -2485,7 +2481,7 @@ export default async function Home() {
             </div>
             <p><strong>What does the change mean?</strong> The left percentage is ESPN’s published playoff probability when available. The right percentage is Dirty P’s alternative estimate using live projected matchup scores, calibrated to that ESPN benchmark. “pp” means percentage points: for example, 68% → 70% is +2 pp, not two fantasy points. This is a comparison of two estimates, not a measured increase since kickoff or an official clinching scenario.</p>
           </div>
-        </section>
+        </details>
       )}
 
       {/* ==========================================
@@ -2493,8 +2489,8 @@ export default async function Home() {
       ========================================== */}
 
       {live && (
-        <section className="section-block">
-          <div className="section-heading">
+        <details className="section-block dp-home-category" open>
+          <summary className="section-heading dp-home-category-toggle">
             <div>
               <p className="eyebrow">
                 LIVE · WEEK {displayWeek}
@@ -2508,7 +2504,7 @@ export default async function Home() {
             <span>
               Refreshes Every 30 Seconds
             </span>
-          </div>
+          </summary>
 
           <div className="dp-matchup-grid dp-live-matchup-grid">
             {rankedMatchups.map(
@@ -2525,7 +2521,7 @@ export default async function Home() {
               )
             )}
           </div>
-        </section>
+        </details>
       )}
 
       {/* ==========================================
@@ -2533,8 +2529,8 @@ export default async function Home() {
       ========================================== */}
 
       {pregame && (
-        <section className="section-block">
-          <div className="section-heading">
+        <details className="section-block dp-home-category" open>
+          <summary className="section-heading dp-home-category-toggle">
             <div>
               <p className="eyebrow">
                 WEEK {displayWeek} SPOTLIGHT
@@ -2548,7 +2544,7 @@ export default async function Home() {
             <span>
               Featured Fantasy Matchup
             </span>
-          </div>
+          </summary>
 
           {gameOfTheWeek ? (
             <MatchupCard
@@ -2562,7 +2558,7 @@ export default async function Home() {
               is available.
             </div>
           )}
-        </section>
+        </details>
       )}
 
       {/* ==========================================
@@ -2570,8 +2566,8 @@ export default async function Home() {
       ========================================== */}
 
       {pregame && (
-        <section className="section-block">
-          <div className="section-heading">
+        <details className="section-block dp-home-category" open>
+          <summary className="section-heading dp-home-category-toggle">
             <div>
               <p className="eyebrow">
                 WEEK {displayWeek}
@@ -2585,7 +2581,7 @@ export default async function Home() {
             <span>
               Players to Watch · Head-to-Head
             </span>
-          </div>
+          </summary>
 
           {otherMatchups.length ? (
             <div className="dp-matchup-grid">
@@ -2607,7 +2603,7 @@ export default async function Home() {
               schedule is available.
             </div>
           )}
-        </section>
+        </details>
       )}
 
       {/* ==========================================
@@ -2615,14 +2611,13 @@ export default async function Home() {
       ========================================== */}
 
       {featuredMoment && (
-        <section className="section-block dp-history-week-section">
-          <div className="section-heading">
+        <details className="section-block dp-history-week-section dp-home-category" open>
+          <summary className="section-heading dp-home-category-toggle">
             <div>
               <p className="eyebrow">FROM THE ARCHIVE</p>
               <h2>This Week in Dirty P History</h2>
             </div>
-            <Link href="/records">Explore records →</Link>
-          </div>
+          </summary>
           <details className="dp-history-week-feature">
             <summary>
               <span className="dp-history-week-date">
@@ -2648,7 +2643,8 @@ export default async function Home() {
               <small>Historical scores from completed regular-season matchups in the Dirty P archive.</small>
             </div>
           </details>
-        </section>
+          <Link className="dp-home-category-action" href="/records">Explore records →</Link>
+        </details>
       )}
 
       {/* ==========================================
