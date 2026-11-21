@@ -2,6 +2,8 @@
   color-scheme: light;
   --dp-paper: #ffffff;
   --dp-pear-ink: #315927;
+  --dp-pear-dark: #1c3d28;
+  --dp-pear-gold: #f5d279;
   --dp-pear-wash: #eaf4d9;
   --dp-pear-line: #b4ce91;
   --dp-white: #ffffff;
@@ -28,7 +30,7 @@ html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
-  background: var(--dp-paper);
+  background: linear-gradient(180deg, #edf4df 0, var(--dp-paper) 540px);
   color: var(--dp-ink);
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -3108,3 +3110,87 @@ body .champion-strip {
   outline: 2px solid var(--dp-pear-ink);
   outline-offset: 3px;
 }
+
+body .dp-home-hero {
+  background: linear-gradient(120deg, var(--dp-pear-dark), #386236);
+  border-color: var(--dp-pear-dark);
+  color: var(--dp-white);
+}
+.dp-home-hero .eyebrow {
+  color: var(--dp-pear-gold);
+}
+.dp-home-hero p:not(.eyebrow) {
+  color: #eef5e6;
+}
+.dp-home-hero .owners-count {
+  background: #294d2e;
+  border-color: #92a96f;
+}
+.dp-home-hero .owners-count strong { color: var(--dp-pear-gold); }
+.dp-home-hero .owners-count span { color: #eef5e6; }
+
+.dp-nfl-strip {
+  margin: 18px auto 0;
+  max-width: 1200px;
+  background: var(--dp-pear-wash);
+  border: 1px solid var(--dp-pear-line);
+  border-radius: 15px;
+  overflow: hidden;
+}
+.dp-nfl-strip-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 16px;
+  background: var(--dp-pear-dark);
+  color: var(--dp-white);
+}
+.dp-nfl-strip-heading h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.dp-nfl-strip-heading span {
+  color: var(--dp-pear-gold);
+  font-size: .8rem;
+  font-weight: 750;
+}
+.dp-nfl-strip-games {
+  list-style: none;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 152px;
+  gap: 9px;
+  margin: 0;
+  padding: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 10px;
+}
+.dp-nfl-strip-games:focus-visible { outline-offset: -3px; }
+.dp-nfl-strip-game {
+  background: var(--dp-white);
+  border: 1px solid var(--dp-pear-line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  scroll-snap-align: start;
+}
+.dp-nfl-strip-game p {
+  margin: 0 0 4px;
+  min-height: 2.4em;
+  color: var(--dp-muted);
+  font-size: .75rem;
+  line-height: 1.2;
+  font-weight: 750;
+}
+.dp-nfl-strip-game .dp-nfl-strip-live { color: var(--dp-pear-ink); }
+.dp-nfl-strip-team {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  font-size: .82rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.dp-nfl-strip-team img { object-fit: contain; }

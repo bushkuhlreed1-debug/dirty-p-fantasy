@@ -1014,17 +1014,51 @@ function PregamePlayers({
   );
 }
 
-function NflTeamLogo({ code, size = 22 }) {
+function NflTeamLogo({ code, size = 22, decorative = false }) {
   const normalized = ({ WSH: "was", JAC: "jax", LA: "lar", OAK: "lv", SD: "lac", STL: "lar" })[String(code || "").toUpperCase()] || String(code || "").toLowerCase();
   if (!normalized) return null;
   return <img
     src={`https://a.espncdn.com/i/teamlogos/nfl/500/${normalized}.png`}
-    alt={`${code} logo`}
+    alt={decorative ? "" : `${code} logo`}
     width={size}
     height={size}
     loading="lazy"
     className="dp-nfl-logo"
   />;
+}
+
+function NflScoreStrip({ games, week }) {
+  const statusOrder = { in: 0, pre: 1, post: 2 };
+  const matchups = Object.entries(games)
+    .filter(([, game]) => game.isHome)
+    .sort(([, a], [, b]) => (statusOrder[a.state] ?? 3) - (statusOrder[b.state] ?? 3));
+
+  if (!matchups.length) return null;
+
+  return (
+    <section className="dp-nfl-strip" aria-labelledby="nfl-scores-title">
+      <header className="dp-nfl-strip-heading">
+        <h2 id="nfl-scores-title">NFL Scores</h2>
+        <span>Week {week}</span>
+      </header>
+      <ul className="dp-nfl-strip-games" tabIndex={0} aria-label="NFL matchups">
+        {matchups.map(([home, game]) => (
+          <li key={game.eventId || home} className="dp-nfl-strip-game">
+            <p className={game.state === "in" ? "dp-nfl-strip-live" : undefined}>
+              {game.status}
+            </p>
+            {[[game.opponent, game.opponentScore], [home, game.ownScore]].map(([team, score]) => (
+              <div className="dp-nfl-strip-team" key={team}>
+                <NflTeamLogo code={team} size={32} decorative />
+                <span>{team}</span>
+                {Number.isFinite(score) && <strong>{score}</strong>}
+              </div>
+            ))}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 function EspnLineupRows({ players, nflGames = {}, playerBoxScores = {} }) {
@@ -1900,7 +1934,7 @@ export default async function Home() {
         <span className="dp-notification-cta-arrow" aria-hidden="true">›</span>
       </Link>
 
-      <section className="owners-hero">
+      <section className="owners-hero dp-home-hero">
         <div>
           <p className="eyebrow">
             {season} FANTASY FOOTBALL
@@ -1927,6 +1961,8 @@ export default async function Home() {
           </span>
         </div>
       </section>
+
+      <NflScoreStrip games={nflGames} week={displayWeek} />
 
       {/* ==========================================
           OWNER MAPPING WARNINGS
