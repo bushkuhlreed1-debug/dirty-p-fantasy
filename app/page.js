@@ -2175,7 +2175,9 @@ export default async function Home() {
             When the church league fizzled out, nine of us from the church
             youth group and our mentor started Dirty P in 2014. There
             were ten of us in that first season, carrying on something
-            we’d already been doing together for years.
+            we’d already been doing together for years. Reed, Cody, Tyler,
+            Ryan, Austin, Brent, and Jacob have been part of Dirty P since
+            that first season.
           </p>
 
           <p>
@@ -2185,8 +2187,9 @@ export default async function Home() {
           </p>
 
           <p>
-            Six of us went to high school in Pearland. Reed, Brent, Tyler,
-            and Cody went to Dawson, and Jacob and Austin went to Pearland High.
+            Reed, Brent, Tyler, Cody, and Thomas went to Dawson. Jacob and
+            Austin went to Pearland High, as did Grant, Devin, David, and Spencer,
+            who played in earlier seasons.
             Tres is from Pearland too and moved to West Columbia when he was
             about ten. Matt is from Friendswood, and Val is from San Antonio.
           </p>
