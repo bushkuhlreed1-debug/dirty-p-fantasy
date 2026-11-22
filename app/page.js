@@ -2172,12 +2172,11 @@ export default async function Home() {
           </p>
 
           <p>
-            When the church league fizzled out, nine of us from the church
-            youth group and our mentor started Dirty P in 2014. There
-            were ten of us in that first season, carrying on something
-            we’d already been doing together for years. Reed, Cody, Tyler,
-            Ryan, Austin, Brent, and Jacob have been part of Dirty P since
-            that first season.
+            After the church league fizzled out, nine members of the youth
+            group and their mentor started Dirty P in 2014. The original ten
+            were Reed, Grant, Devin, David, Ryan, Austin, Jacob, Brent, Cody,
+            and Tyler. Reed, Cody, Tyler, Ryan, Austin, Brent,
+            and Jacob still play today.
           </p>
 
           <p>
