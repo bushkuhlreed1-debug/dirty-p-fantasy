@@ -3265,3 +3265,43 @@ body .dp-home-hero {
   .dp-home-hero .owners-count strong { font-size: 1rem; }
   .dp-home-hero .owners-count span { margin-top: 0; }
 }
+
+.dp-all-stars-note {
+  margin: 0 0 14px;
+  color: var(--dp-muted);
+  line-height: 1.5;
+}
+.dp-all-stars-seasons {
+  display: grid;
+  gap: 8px;
+}
+.dp-all-stars-seasons summary {
+  color: var(--dp-pear-dark);
+  font-weight: 800;
+}
+.dp-all-stars-table {
+  width: 100%;
+  border-spacing: 0;
+  background: var(--dp-white);
+  border: 1px solid var(--dp-pear-line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.dp-all-stars-table th,
+.dp-all-stars-table td {
+  padding: 8px clamp(8px, 2vw, 16px);
+  border-bottom: 1px solid var(--dp-line);
+  text-align: left;
+}
+.dp-all-stars-table thead { background: var(--dp-pear-wash); }
+.dp-all-stars-table tbody tr:last-child > * { border-bottom: 0; }
+.dp-all-stars-table td:last-child,
+.dp-all-stars-table thead th:last-child {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.dp-all-stars-table small {
+  display: block;
+  color: var(--dp-muted);
+}

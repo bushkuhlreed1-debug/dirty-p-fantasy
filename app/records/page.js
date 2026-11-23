@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getLeagueData } from "../../lib/leagueData";
 import { buildLuckRankings } from "../../lib/luckRankings";
 import LuckRankings from "../components/LuckRankings";
+import { getSeasonAllStars } from "../../lib/seasonAllStars";
+import SeasonAllStars from "./SeasonAllStars";
 
 export const dynamic = "force-dynamic";
 
@@ -499,9 +501,10 @@ function RecordSection({
 
 export default async function RecordsPage() {
   let leagueData;
+  let allStarTeams;
 
   try {
-    leagueData = await getLeagueData();
+    [leagueData, allStarTeams] = await Promise.all([getLeagueData(), getSeasonAllStars()]);
   } catch (error) {
     return (
       <main className="page-shell">
@@ -1246,6 +1249,8 @@ export default async function RecordsPage() {
           ← Home
         </Link>
 
+        <Link href="#season-all-stars">Seasonal All-Star Teams ↓</Link>
+
         <span>
           {latestCompletedWeek > 0
             ? `Through ${currentSeason} Week ${latestCompletedWeek}`
@@ -1664,6 +1669,8 @@ export default async function RecordsPage() {
         )}
 
       </RecordSection>
+
+      <SeasonAllStars seasons={allStarTeams} />
 
       {/* LUCK RANKINGS — CLOSED BY DEFAULT BELOW THE RECORD BOOK */}
 
