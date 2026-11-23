@@ -2181,17 +2181,17 @@ export default async function Home() {
           </p>
 
           <p>
-            The league has seen plenty of turnover since that first season.
-            As spots opened up, friends brought in friends. That’s how
-            Thomas, Tres, Matt, and Val became part of Dirty P.
+            Spencer played in earlier seasons and went to Pearland High,
+            along with Grant, Devin, David, Jacob, and Austin. Reed, Brent,
+            Tyler, and Cody went to Dawson.
           </p>
 
           <p>
-            Reed, Brent, Tyler, Cody, and Thomas went to Dawson. Jacob and
-            Austin went to Pearland High, as did Grant, Devin, David, and Spencer,
-            who played in earlier seasons.
-            Tres is from Pearland too and moved to West Columbia when he was
-            about ten. Matt is from Friendswood, and Val is from San Antonio.
+            As the league changed over the years, friends brought in friends.
+            That’s how Thomas, Tres, Matt, and Val joined Dirty P. Thomas
+            went to Dawson too, and Tres grew up in Pearland before moving
+            to West Columbia around age ten. Matt came from Friendswood,
+            and Val is from San Antonio.
           </p>
         </div>
 
