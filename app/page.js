@@ -2189,10 +2189,12 @@ export default async function Home() {
           </p>
 
           <p>
-            Spencer played in earlier seasons. As the lineup changed, friends
-            brought in Thomas, Tres, Matt, and Val. Tres grew up in Pearland
-            before moving to West Columbia around age ten. Matt is from
-            Friendswood, and Val is from San Antonio.
+            As some of the original members stepped away, we started filling
+            those spots with friends and friends of friends. Spencer played in
+            earlier seasons, and over the years Thomas, Tres, Matt, and Val
+            joined the league. Tres grew up in Pearland before moving to West
+            Columbia around age ten, while Matt came from Friendswood and Val
+            from San Antonio.
           </p>
         </div>
       </HomeCategory>
