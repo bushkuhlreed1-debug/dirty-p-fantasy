@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
+import { getOwnerPlayerRecord } from "../../../lib/ownerPlayerRecord";
 import { getLeagueData } from "../../../lib/leagueData";
 
 export const dynamic = "force-dynamic";
@@ -604,6 +605,13 @@ export default async function OwnerProfile({ params }) {
         isGameCompleted(game, currentSeason)
       );
     });
+
+  const bestPlayerWeek = await getOwnerPlayerRecord({
+    ownerId,
+    season: currentSeason,
+    espnTeamId: currentTeams.find(team => Number(team.owner_id) === ownerId)?.espn_team_id,
+    games: currentOwnerGames,
+  });
 
   // ====================================================
   // COMBINE AND DEDUPLICATE
@@ -1231,6 +1239,23 @@ export default async function OwnerProfile({ params }) {
               title="HIGHEST WEEKLY SCORE"
               game={highestScore}
             />
+
+            <div className="dp-highlight-card">
+              <span className="owner-status">BEST INDIVIDUAL PLAYER WEEK</span>
+              {bestPlayerWeek ? (
+                <>
+                  <strong>{formatScore(bestPlayerWeek.fantasy_points)} PTS</strong>
+                  <span>{bestPlayerWeek.player_name}</span>
+                  <small>
+                    {bestPlayerWeek.season_year} · Week {bestPlayerWeek.scoring_period}
+                    {bestPlayerWeek.position && bestPlayerWeek.position !== "UNKNOWN" ? ` · ${bestPlayerWeek.position}` : ""}
+                  </small>
+                  {bestPlayerWeek.dirty_p_team_name && <small>{bestPlayerWeek.dirty_p_team_name}</small>}
+                </>
+              ) : (
+                <small>No starter scores available.</small>
+              )}
+            </div>
 
             <GameHighlight
               title="LOWEST WEEKLY SCORE"
