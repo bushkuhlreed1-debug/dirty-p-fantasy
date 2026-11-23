@@ -1,37 +1,28 @@
 import Link from "next/link";
 
-function SelectionRecord({ label, count, owners, ownerNames, note }) {
+function SelectionRecord({ count, owners, ownerNames }) {
   return (
     <article className="owner-card dp-record-card dp-all-stars-record">
-      <h3 className="owner-status">{label}</h3>
+      <h3 className="owner-status">MOST ALL-STAR SELECTIONS</h3>
       <p className="dp-record-value">{count} {count === 1 ? "selection" : "selections"}</p>
       <div className="dp-record-owner">
         {owners.map(([id], index) => (
           <span key={id}>
             {index > 0 ? " · " : ""}
-            <Link href={`/owners/${id}`}>{ownerNames.get(id) ?? "Unknown owner"}</Link>
+            <Link href={`/owners/${id}`}>{ownerNames.get(Number(id)) ?? "Unknown owner"}</Link>
           </span>
         ))}
       </div>
-      <p className="dp-record-secondary">{note}</p>
+      <p className="dp-record-secondary">Counts every All-Star spot earned by players on the owner’s Dirty P teams.</p>
     </article>
   );
 }
 
 export default function SeasonAllStars({ data, ownerNames }) {
-  const { seasons = [], ownerIds = [] } = data ?? {};
-  const counts = new Map(ownerIds.map(id => [id, 0]));
-  for (const { lineup } of seasons ?? []) {
-    for (const { player } of lineup) {
-      const ownerId = Number(player?.owner_id);
-      if (ownerId > 0) counts.set(ownerId, (counts.get(ownerId) ?? 0) + 1);
-    }
-  }
-
-  const mostSelections = Math.max(0, ...counts.values());
-  const leastSelections = Math.min(...counts.values());
-  const leaders = [...counts].filter(([, count]) => count === mostSelections);
-  const fewest = [...counts].filter(([, count]) => count === leastSelections);
+  const { seasons = [], selectionCounts = {} } = data ?? {};
+  const counts = Object.entries(selectionCounts);
+  const mostSelections = Math.max(0, ...Object.values(selectionCounts));
+  const leaders = counts.filter(([, count]) => count === mostSelections);
 
   return (
     <section className="owners-section" id="season-all-stars" aria-labelledby="season-all-stars-title">
@@ -40,23 +31,8 @@ export default function SeasonAllStars({ data, ownerNames }) {
       </div>
       {seasons?.length ? (
         <>
-          {counts.size > 0 && (
-            <div className="dp-all-stars-records">
-              <SelectionRecord
-                label="MOST ALL-STAR SELECTIONS"
-                count={mostSelections}
-                owners={leaders}
-                ownerNames={ownerNames}
-                note="Counts every All-Star spot earned by players on the owner’s Dirty P teams."
-              />
-              <SelectionRecord
-                label="LEAST ALL-STAR SELECTIONS"
-                count={leastSelections}
-                owners={fewest}
-                ownerNames={ownerNames}
-                note="Includes owners with zero selections when their teams have archived player totals."
-              />
-            </div>
+          {leaders.length > 0 && (
+            <SelectionRecord count={mostSelections} owners={leaders} ownerNames={ownerNames} />
           )}
           <p className="dp-all-stars-note">
             Selected by archived season fantasy points. FLEX goes to the highest-scoring remaining RB, WR, or TE.

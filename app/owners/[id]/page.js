@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
+import { getSeasonAllStars } from "../../../lib/seasonAllStars";
 import { getOwnerPlayerRecord } from "../../../lib/ownerPlayerRecord";
 import { getLeagueData } from "../../../lib/leagueData";
 
@@ -606,12 +607,16 @@ export default async function OwnerProfile({ params }) {
       );
     });
 
-  const bestPlayerWeek = await getOwnerPlayerRecord({
-    ownerId,
-    season: currentSeason,
-    espnTeamId: currentTeams.find(team => Number(team.owner_id) === ownerId)?.espn_team_id,
-    games: currentOwnerGames,
-  });
+  const [bestPlayerWeek, allStars] = await Promise.all([
+    getOwnerPlayerRecord({
+      ownerId,
+      season: currentSeason,
+      espnTeamId: currentTeams.find(team => Number(team.owner_id) === ownerId)?.espn_team_id,
+      games: currentOwnerGames,
+    }),
+    getSeasonAllStars(),
+  ]);
+  const allStarSelections = allStars?.seasons.length ? allStars.selectionCounts[ownerId] ?? 0 : "—";
 
   // ====================================================
   // COMBINE AND DEDUPLICATE
@@ -1038,6 +1043,11 @@ export default async function OwnerProfile({ params }) {
               regularLosses,
               regularTies
             )}%`}
+          />
+
+          <ProfileStat
+            label="ALL-STAR SELECTIONS"
+            value={allStarSelections}
           />
 
           <ProfileStat
