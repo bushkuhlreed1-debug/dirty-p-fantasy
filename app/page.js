@@ -1,4 +1,5 @@
 
+import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "../lib/supabase";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
@@ -2155,16 +2156,23 @@ export default async function Home() {
 
       <NflLogoRibbon />
 
-      <section className="owners-hero dp-home-hero">
-        <div>
-          <p className="eyebrow">
-            {season} FANTASY FOOTBALL
-          </p>
+      <header className="owners-hero dp-home-hero">
+        <Image className="dp-league-crest" src="/dirty-p-logo.png" alt="" width={120} height={120} priority />
+        <div className="dp-league-heading">
+          <p className="eyebrow">PEARLAND, TEXAS · EST. 2014</p>
+          <h1>Dirty P Fantasy Football</h1>
+        </div>
+        <div className="owners-count">
+          <strong>{week}</strong>
+          <span>CURRENT WEEK</span>
+        </div>
+      </header>
 
-          <h1>
-            Dirty P Fantasy Football
-          </h1>
-
+      <HomeCategory category="league-origin" className="section-block dp-home-origin">
+        <summary className="section-heading dp-home-category-toggle">
+          <h2>How Dirty P Started</h2>
+        </summary>
+        <div className="dp-home-origin-copy">
           <p>
             Dirty P started with a group of friends who grew up together in
             Pearland, Texas. Before we had a league of our own, we spent a few
@@ -2181,30 +2189,13 @@ export default async function Home() {
           </p>
 
           <p>
-            Spencer played in earlier seasons and went to Pearland High,
-            along with Grant, Devin, David, Jacob, and Austin. Reed, Brent,
-            Tyler, and Cody went to Dawson.
-          </p>
-
-          <p>
-            As the league changed over the years, friends brought in friends.
-            That’s how Thomas, Tres, Matt, and Val joined Dirty P. Thomas
-            went to Dawson too, and Tres grew up in Pearland before moving
-            to West Columbia around age ten. Matt came from Friendswood,
-            and Val is from San Antonio.
+            Spencer played in earlier seasons. As the lineup changed, friends
+            brought in Thomas, Tres, Matt, and Val. Tres grew up in Pearland
+            before moving to West Columbia around age ten. Matt is from
+            Friendswood, and Val is from San Antonio.
           </p>
         </div>
-
-        <div className="owners-count">
-          <strong>
-            {week}
-          </strong>
-
-          <span>
-            CURRENT WEEK
-          </span>
-        </div>
-      </section>
+      </HomeCategory>
 
       <WeeklyImpact impact={weeklyImpact} />
 
