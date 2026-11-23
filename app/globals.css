@@ -3306,10 +3306,13 @@ body .dp-home-hero {
   color: var(--dp-muted);
 }
 
-.dp-record-card.dp-all-stars-record {
-  height: auto;
+.dp-all-stars-records {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
   margin-bottom: 16px;
 }
+.dp-record-card.dp-all-stars-record { height: auto; }
 .dp-all-stars-record .owner-status { margin: 0; }
 .dp-all-stars-record .dp-record-owner a {
   text-decoration: underline;

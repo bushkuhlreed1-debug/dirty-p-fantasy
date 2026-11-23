@@ -1670,7 +1670,7 @@ export default async function RecordsPage() {
 
       </RecordSection>
 
-      <SeasonAllStars seasons={allStarTeams} ownerNames={ownerMap} />
+      <SeasonAllStars data={allStarTeams} ownerNames={ownerMap} />
 
       {/* LUCK RANKINGS — CLOSED BY DEFAULT BELOW THE RECORD BOOK */}
 
