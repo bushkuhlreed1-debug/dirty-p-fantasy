@@ -3305,3 +3305,13 @@ body .dp-home-hero {
   display: block;
   color: var(--dp-muted);
 }
+
+.dp-record-card.dp-all-stars-record {
+  height: auto;
+  margin-bottom: 16px;
+}
+.dp-all-stars-record .owner-status { margin: 0; }
+.dp-all-stars-record .dp-record-owner a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
