@@ -8,6 +8,7 @@ import { getEspnLiveScoreMap, NFL_TEAMS } from "../lib/espnLiveScore";
 import { canonicalNflTeam, getNflGameMap, getScoreboardRefresh } from "../lib/nflGameScores";
 import { getNflPlayerBoxScores } from "../lib/nflPlayerBoxScores";
 import AutoRefresh from "./components/AutoRefresh";
+import HomeCategory from "./components/HomeCategory";
 import MatchupLineupSwitcher from "./components/MatchupLineupSwitcher";
 import { buildRecordWatches, buildPlayoffPulse } from "../lib/liveFeatures";
 import { buildWeekHistory } from "../lib/weekHistory";
@@ -923,7 +924,7 @@ function WeeklyImpact({ impact }) {
   ];
 
   return (
-    <details className="dp-week-results dp-home-category" open>
+    <HomeCategory category="week-impact" className="dp-week-results">
       <summary className="dp-home-category-toggle">
         <h2>Week {impact.week} Impact</h2>
       </summary>
@@ -942,7 +943,7 @@ function WeeklyImpact({ impact }) {
           </article>
         ))}
       </div>
-    </details>
+    </HomeCategory>
   );
 }
 
@@ -978,7 +979,7 @@ function AroundTheLeague({ recap }) {
   }
 
   return (
-    <details className="section-block dp-home-category" open>
+    <HomeCategory category="around-the-league" className="section-block">
       <summary className="section-heading dp-home-category-toggle">
         <div>
           <p className="eyebrow">
@@ -1137,7 +1138,7 @@ function AroundTheLeague({ recap }) {
           ))}
         </div>
       </div>
-    </details>
+    </HomeCategory>
   );
 }
 
@@ -2236,7 +2237,7 @@ export default async function Home() {
           TWO-DIVISION STANDINGS
       ========================================== */}
 
-      <details className="section-block dp-home-category" open>
+      <HomeCategory category="standings" className="section-block">
         <summary className="section-heading dp-home-category-toggle">
           <div>
             <p className="eyebrow">
@@ -2410,7 +2411,7 @@ export default async function Home() {
             🏆 {season} Playoff Scenarios ↗
           </Link>
         </div>
-      </details>
+      </HomeCategory>
 
       {/* ==========================================
           AUTOMATIC WEEKLY RECAP
@@ -2427,7 +2428,7 @@ export default async function Home() {
       ========================================== */}
 
       {recordWatches.length > 0 && (
-        <details className="section-block dp-live-feature-section dp-home-category" open>
+        <HomeCategory category="record-watch" className="section-block dp-live-feature-section">
           <summary className="section-heading dp-home-category-toggle">
             <div><p className="eyebrow">LEAGUE HISTORY · LIVE</p><h2>Live Record Watch</h2></div>
             <Link href="/records">All records →</Link>
@@ -2459,7 +2460,7 @@ export default async function Home() {
           <small className="dp-feature-disclaimer">
             Records use the historical regular-season archive. Live scores can change until final.
           </small>
-        </details>
+        </HomeCategory>
       )}
 
       {/* ==========================================
@@ -2467,7 +2468,7 @@ export default async function Home() {
       ========================================== */}
 
       {playoffPulse && (
-        <details className="section-block dp-live-feature-section dp-home-category" open>
+        <HomeCategory category="playoff-pulse" className="section-block dp-live-feature-section">
           <summary className="section-heading dp-home-category-toggle">
             <div><p className="eyebrow">THE PLAYOFF RACE</p><h2>Live Playoff Pulse</h2></div>
             <Link href="/playoff-scenarios">Playoff scenarios →</Link>
@@ -2505,7 +2506,7 @@ export default async function Home() {
             </div>
             <p><strong>What does the change mean?</strong> The left percentage is ESPN’s published playoff probability when available. The right percentage is Dirty P’s alternative estimate using live projected matchup scores, calibrated to that ESPN benchmark. “pp” means percentage points: for example, 68% → 70% is +2 pp, not two fantasy points. This is a comparison of two estimates, not a measured increase since kickoff or an official clinching scenario.</p>
           </div>
-        </details>
+        </HomeCategory>
       )}
 
       {/* ==========================================
@@ -2513,7 +2514,7 @@ export default async function Home() {
       ========================================== */}
 
       {live && (
-        <details className="section-block dp-home-category" open>
+        <HomeCategory category="scoreboard" className="section-block">
           <summary className="section-heading dp-home-category-toggle">
             <div>
               <p className="eyebrow">
@@ -2545,7 +2546,7 @@ export default async function Home() {
               )
             )}
           </div>
-        </details>
+        </HomeCategory>
       )}
 
       {/* ==========================================
@@ -2553,7 +2554,7 @@ export default async function Home() {
       ========================================== */}
 
       {pregame && (
-        <details className="section-block dp-home-category" open>
+        <HomeCategory category="featured-matchup" className="section-block">
           <summary className="section-heading dp-home-category-toggle">
             <div>
               <p className="eyebrow">
@@ -2582,7 +2583,7 @@ export default async function Home() {
               is available.
             </div>
           )}
-        </details>
+        </HomeCategory>
       )}
 
       {/* ==========================================
@@ -2590,7 +2591,7 @@ export default async function Home() {
       ========================================== */}
 
       {pregame && (
-        <details className="section-block dp-home-category" open>
+        <HomeCategory category="matchup-previews" className="section-block">
           <summary className="section-heading dp-home-category-toggle">
             <div>
               <p className="eyebrow">
@@ -2627,7 +2628,7 @@ export default async function Home() {
               schedule is available.
             </div>
           )}
-        </details>
+        </HomeCategory>
       )}
 
       {/* ==========================================
@@ -2635,7 +2636,7 @@ export default async function Home() {
       ========================================== */}
 
       {featuredMoment && (
-        <details className="section-block dp-history-week-section dp-home-category" open>
+        <HomeCategory category="league-history" className="section-block dp-history-week-section">
           <summary className="section-heading dp-home-category-toggle">
             <div>
               <p className="eyebrow">FROM THE ARCHIVE</p>
@@ -2668,7 +2669,7 @@ export default async function Home() {
             </div>
           </details>
           <Link className="dp-home-category-action" href="/records">Explore records →</Link>
-        </details>
+        </HomeCategory>
       )}
 
       {/* ==========================================
