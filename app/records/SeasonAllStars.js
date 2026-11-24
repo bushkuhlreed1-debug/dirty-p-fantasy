@@ -25,10 +25,10 @@ export default function SeasonAllStars({ data, ownerNames }) {
   const leaders = counts.filter(([, count]) => count === mostSelections);
 
   return (
-    <section className="owners-section" id="season-all-stars" aria-labelledby="season-all-stars-title">
-      <div className="section-heading">
+    <details className="owners-section dp-home-category" id="season-all-stars" aria-labelledby="season-all-stars-title">
+      <summary className="section-heading dp-home-category-toggle">
         <h2 id="season-all-stars-title">Seasonal All-Star Teams</h2>
-      </div>
+      </summary>
       {seasons?.length ? (
         <>
           {leaders.length > 0 && (
@@ -38,8 +38,8 @@ export default function SeasonAllStars({ data, ownerNames }) {
             Selected by archived season fantasy points. FLEX goes to the highest-scoring remaining RB, WR, or TE.
           </p>
           <div className="dp-all-stars-seasons">
-            {seasons.map(({ year, lineup }, index) => (
-              <details className="dp-home-category" key={year} open={index === 0}>
+            {seasons.map(({ year, lineup }) => (
+              <details className="dp-home-category" key={year}>
                 <summary className="dp-home-category-toggle">{year} All-Stars</summary>
                 <table className="dp-all-stars-table" aria-label={`${year} Dirty P All-Star Team`}>
                   <thead>
@@ -69,6 +69,6 @@ export default function SeasonAllStars({ data, ownerNames }) {
       ) : (
         <p className="dp-all-stars-note">Seasonal All-Star lineups are unavailable.</p>
       )}
-    </section>
+    </details>
   );
 }
