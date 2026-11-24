@@ -7,10 +7,10 @@ export default function WeeklyHighScores({ data, ownerNames }) {
   );
 
   return (
-    <section className="owners-section" id="weekly-high-scores" aria-labelledby="weekly-high-scores-title">
-      <div className="section-heading">
+    <details className="owners-section dp-home-category" id="weekly-high-scores" aria-labelledby="weekly-high-scores-title">
+      <summary className="section-heading dp-home-category-toggle">
         <h2 id="weekly-high-scores-title">Weekly High-Score Awards</h2>
-      </div>
+      </summary>
       <p className="dp-all-stars-note">
         {formatHighScoreMoney(HIGH_SCORE_PRIZE)} to the highest-scoring owner each regular-season week since {HIGH_SCORE_FIRST_SEASON}.
       </p>
@@ -31,6 +31,6 @@ export default function WeeklyHighScores({ data, ownerNames }) {
           </tbody>
         </table>
       ) : <p>No weekly prizes have been awarded yet.</p>}
-    </section>
+    </details>
   );
 }

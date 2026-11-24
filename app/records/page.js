@@ -475,8 +475,8 @@ function RecordSection({
   children,
 }) {
   return (
-    <section className="owners-section">
-      <div className="section-heading">
+    <details className="owners-section dp-home-category">
+      <summary className="section-heading dp-home-category-toggle">
         <div>
           <p className="eyebrow">
             {eyebrow}
@@ -488,12 +488,12 @@ function RecordSection({
         {subtitle && (
           <span>{subtitle}</span>
         )}
-      </div>
+      </summary>
 
       <div className="owners-grid">
         {children}
       </div>
-    </section>
+    </details>
   );
 }
 
