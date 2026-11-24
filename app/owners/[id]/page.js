@@ -3,6 +3,7 @@ import { supabase } from "../../../lib/supabase";
 import { getSeasonAllStars } from "../../../lib/seasonAllStars";
 import { getOwnerPlayerRecord } from "../../../lib/ownerPlayerRecord";
 import { getLeagueData } from "../../../lib/leagueData";
+import { buildWeeklyHighScores, formatHighScoreMoney } from "../../../lib/weeklyHighScores";
 
 export const dynamic = "force-dynamic";
 
@@ -617,6 +618,7 @@ export default async function OwnerProfile({ params }) {
     getSeasonAllStars(),
   ]);
   const allStarSelections = allStars?.seasons.length ? allStars.selectionCounts[ownerId] ?? 0 : "—";
+  const highScores = buildWeeklyHighScores(leagueData).totals.get(ownerId);
 
   // ====================================================
   // COMBINE AND DEDUPLICATE
@@ -1049,6 +1051,9 @@ export default async function OwnerProfile({ params }) {
             label="ALL-STAR SELECTIONS"
             value={allStarSelections}
           />
+
+          <ProfileStat label="WEEKLY HIGH-SCORE WINS" value={highScores?.wins ?? 0} />
+          <ProfileStat label="HIGH-SCORE PRIZE MONEY" value={formatHighScoreMoney(highScores?.earnings ?? 0)} />
 
           <ProfileStat
             label="CHAMPIONSHIPS"

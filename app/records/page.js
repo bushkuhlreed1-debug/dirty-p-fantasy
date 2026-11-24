@@ -4,6 +4,8 @@ import { buildLuckRankings } from "../../lib/luckRankings";
 import LuckRankings from "../components/LuckRankings";
 import { getSeasonAllStars } from "../../lib/seasonAllStars";
 import SeasonAllStars from "./SeasonAllStars";
+import WeeklyHighScores from "./WeeklyHighScores";
+import { buildWeeklyHighScores } from "../../lib/weeklyHighScores";
 
 export const dynamic = "force-dynamic";
 
@@ -1250,6 +1252,7 @@ export default async function RecordsPage() {
         </Link>
 
         <Link href="#season-all-stars">Seasonal All-Star Teams ↓</Link>
+        <Link href="#weekly-high-scores">Weekly High Scores ↓</Link>
 
         <span>
           {latestCompletedWeek > 0
@@ -1669,6 +1672,8 @@ export default async function RecordsPage() {
         )}
 
       </RecordSection>
+
+      <WeeklyHighScores data={buildWeeklyHighScores(leagueData)} ownerNames={ownerMap} />
 
       <SeasonAllStars data={allStarTeams} ownerNames={ownerMap} />
 
