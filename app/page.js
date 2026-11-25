@@ -2782,11 +2782,11 @@ export default async function Home() {
         }
 
         .dp-legend-division {
-          background: #58cb98;
+          background: #168044;
         }
 
         .dp-legend-wildcard {
-          background: #e9bd67;
+          background: #e9ac00;
         }
 
         .dp-legend-outside {
@@ -2838,14 +2838,20 @@ export default async function Home() {
           padding: 13px 9px;
         }
 
-        .dp-row-division {
-          background:
-            rgba(88, 203, 152, 0.075);
+        .dp-row-division > td {
+          background: #b5edbb;
         }
 
-        .dp-row-wildcard {
-          background:
-            rgba(233, 189, 103, 0.075);
+        .dp-row-wildcard > td {
+          background: #ffe380;
+        }
+
+        .dp-row-division > td:first-child {
+          box-shadow: inset 5px 0 #168044;
+        }
+
+        .dp-row-wildcard > td:first-child {
+          box-shadow: inset 5px 0 #e9ac00;
         }
 
         .dp-status-division,
