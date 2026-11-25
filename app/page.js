@@ -756,6 +756,14 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, sched
     gamesLeft.set(away, (gamesLeft.get(away) ?? 0) + 1);
   }
 
+  // Compare each owner's record with the last qualifying team's record.
+  function bubbleGap(table, id) {
+    const cutoff = [...table.values()].find(row => row.seed === playoffCount);
+    const row = table.get(id);
+    return row.wins + row.ties / 2 - cutoff.wins - cutoff.ties / 2;
+  }
+  const scores = games.flatMap(game => [n(game.home_score), n(game.away_score)]);
+
   const record = table => new Map([...table].map(([id, row]) => [id, row.wins + row.ties / 2]));
   const actualRecords = record(after);
   const scheduleIsComplete = remaining.every(([home, away]) => teams.has(home) && teams.has(away)) &&
@@ -851,8 +859,10 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, sched
       const rivalry = week === 11 && isRival(team.ownerName, opponent.ownerName);
       const seasonSwing = direction > 0 ? saved : ended;
       const leaguePick = weekTenTake && team.ownerName === (direction > 0 ? "Brent Fleischer" : "Reed Bushkuhl");
-      if (spots <= 0 && !crossed && !upset && !rivalry && !seasonSwing && !dominant && !comeback && !leaguePick) continue;
-      candidates.push({ team, opponent, previous, current, crossed, spots, upset, rivalry, winnerRank, loserRank, recordGap, projectionGap, seasonSwing, dominant, margin, comeback, leaguePick });
+      const ground = direction * (bubbleGap(after, id) - bubbleGap(before, id));
+      const points = n(id === homeId ? game.home_score : game.away_score);
+      const scoringRank = 1 + scores.filter(score => direction * (score - points) > 0).length;
+      candidates.push({ team, opponent, previous, current, crossed, ground, scoringRank, points, spots, upset, rivalry, winnerRank, loserRank, recordGap, projectionGap, seasonSwing, dominant, margin, comeback, leaguePick });
     }
   }
 
@@ -860,11 +870,13 @@ function buildWeeklyImpact(standings, completedByWeek, week, playoffCount, sched
     Number(b.leaguePick) - Number(a.leaguePick) ||
     Number(b.seasonSwing) - Number(a.seasonSwing) ||
     Number(b.crossed) - Number(a.crossed) ||
+    b.ground - a.ground ||
+    b.spots - a.spots ||
     Number(b.upset) - Number(a.upset) ||
     b.comeback - a.comeback ||
     Number(b.dominant) - Number(a.dominant) ||
     Number(b.rivalry) - Number(a.rivalry) ||
-    b.spots - a.spots ||
+    a.scoringRank - b.scoringRank ||
     (a.upset && b.upset ? (b.projectionGap ?? 0) - (a.projectionGap ?? 0) || b.recordGap - a.recordGap : 0) ||
     a.team.ownerName.localeCompare(b.team.ownerName);
 
@@ -891,6 +903,15 @@ function weeklyImpactExplanation(pick, gained) {
       : `${team} fell out of playoff contention after losing to ${opponent}. With the rest of the week's results, a win would have kept them alive.`;
   }
 
+  if (pick.crossed) {
+    return `${result}. ${playoffChange} ${team} finished the week at No. ${pick.current.seed}.`;
+  }
+
+  if (pick.ground > 0) {
+    const distance = pick.ground === 1 ? "a game" : `${pick.ground} games`;
+    return [`${result} and ${gained ? "gained" : "lost"} ${distance} against the playoff cut line.`, playoffChange].filter(Boolean).join(" ");
+  }
+
   if (pick.upset) {
     const upset = pick.projectionGap !== null
       ? `${result} after being projected to ${gained ? "lose" : "win"} by ${one(pick.projectionGap)} points.`
@@ -913,6 +934,9 @@ function weeklyImpactExplanation(pick, gained) {
   }
 
   const matchup = pick.rivalry ? `${team} ${gained ? "beat" : "lost to"} rival ${opponent}.` : `${result}.`;
+  if (!playoffChange && pick.scoringRank === 1) {
+    return `${matchup} ${team} posted the week’s ${gained ? "highest" : "lowest"} score at ${one(pick.points)}.`;
+  }
   return [matchup, playoffChange].filter(Boolean).join(" ");
 }
 
