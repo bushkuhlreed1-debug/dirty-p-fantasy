@@ -77,9 +77,21 @@ export default function NflLogoRibbon({ ownerNames }) {
             {info.game ? <p><strong>{info.game.home ? "vs." : "at"} {info.game.opponent}</strong><br />{kickoff(info.game)}</p>
               : <p>{info.scheduleAvailable ? "No upcoming game listed." : "Schedule currently unavailable."}</p>}
             <h3>On Dirty P rosters</h3>
-            {info.owners?.length ? <ul>{info.owners.map(owner => <li key={owner.teamId}>
-              <strong>{ownerNames[owner.teamId] || `Fantasy team ${owner.teamId}`}</strong>
-              <span>{owner.players.join(", ")}</span></li>)}</ul>
+            {info.owners?.length ? (
+              <ul className={styles.rosters}>
+                {info.owners.map(owner => (
+                  <li className={styles.roster} key={owner.teamId}>
+                    <h4 className={styles.ownerName}>
+                      <span>Owner</span>
+                      {ownerNames[owner.teamId] || `Fantasy team ${owner.teamId}`}
+                    </h4>
+                    <ul className={styles.players} aria-label="Rostered players">
+                      {owner.players.map((name, index) => <li key={`${name}-${index}`}>{name}</li>)}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )
               : <p>{info.owners ? "No Dirty P owner rosters a player from this team." : "Current rosters are unavailable."}</p>}
           </>}
         </div>}
