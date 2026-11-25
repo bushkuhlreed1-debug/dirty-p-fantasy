@@ -5,9 +5,10 @@ import { supabase } from "../lib/supabase";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { getLeagueData } from "../lib/leagueData";
 import { getMatchupIntel } from "../lib/matchupIntel";
-import { getEspnLiveScoreMap, NFL_TEAMS } from "../lib/espnLiveScore";
+import { getEspnLiveScoreMap } from "../lib/espnLiveScore";
 import { canonicalNflTeam, getNflGameMap, getScoreboardRefresh } from "../lib/nflGameScores";
 import { getNflPlayerBoxScores } from "../lib/nflPlayerBoxScores";
+import NflLogoRibbon from "./components/NflLogoRibbon";
 import AutoRefresh from "./components/AutoRefresh";
 import HomeCategory from "./components/HomeCategory";
 import MatchupLineupSwitcher from "./components/MatchupLineupSwitcher";
@@ -1303,26 +1304,6 @@ function NflTeamLogo({ code, size = 22, decorative = false, loading = "lazy" }) 
   />;
 }
 
-const nflRibbonTeams = Object.values(NFL_TEAMS).sort();
-
-function NflLogoRibbon() {
-  return (
-    <div className="dp-nfl-ribbon">
-      <div className="dp-nfl-ribbon-window">
-        <div className="dp-nfl-ribbon-track" aria-hidden="true">
-          {[0, 1].map(copy => (
-            <div className="dp-nfl-ribbon-group" key={copy}>
-              {nflRibbonTeams.map(code => (
-                <NflTeamLogo key={code} code={code} size={40} decorative loading="eager" />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function EspnLineupRows({ players, nflGames = {}, playerBoxScores = {} }) {
   return players.map((player, index) => {
     const actual = valueOrNull(player.currentPoints ?? player.actualPoints);
@@ -2188,7 +2169,7 @@ export default async function Home() {
         {...scoreboardRefresh}
       />
 
-      <NflLogoRibbon />
+      <NflLogoRibbon ownerNames={Object.fromEntries(standings.map(team => [team.espnTeamId, team.ownerName]))} />
 
       <header className="owners-hero dp-home-hero">
         <Image className="dp-league-crest" src="/dirty-p-logo.png" alt="" width={120} height={120} priority />

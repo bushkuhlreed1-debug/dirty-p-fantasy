@@ -1,0 +1,16 @@
+.team, .close { background: transparent; color: inherit; border: 0; cursor: pointer; }
+.team { width: 44px; height: 44px; padding: 2px; border-radius: 8px; }
+.team:focus-visible, .close:focus-visible { outline: 2px solid #216638; outline-offset: -2px; }
+.window:has(:focus-visible) { overflow-x: auto; }
+.window:has(:focus-visible) :global(.dp-nfl-ribbon-track) { animation: none; }
+.card { margin: auto; padding: 0; width: min(400px, calc(100vw - 32px)); max-height: 78dvh; overflow: auto; border: 1px solid #bdd198; border-radius: 18px; color: #172d22; background: white; box-shadow: 0 14px 52px #14332438; }
+.card::backdrop { background: #142a205c; }
+.body { padding: 20px; }
+.body header { display: flex; align-items: center; gap: 10px; }
+.body h2 { flex: 1; margin: 0; font-size: 1.25rem; }
+.close { align-self: flex-start; min-width: 44px; height: 44px; font-size: 1.65rem; }
+.body h3 { margin: 18px 0 6px; font-size: .9rem; color: #316638; }
+.body p, .body ul { margin: 0; line-height: 1.5; }
+.body ul { list-style: none; padding: 0; }
+.body li { padding: 6px 0; border-top: 1px solid #e2eadb; }
+.body li span { display: block; }
