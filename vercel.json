@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/espn-sync",
       "schedule": "0 14 * * 2"
+    },
+    {
+      "path": "/api/cron/season-all-stars",
+      "schedule": "15 14 * 1,11,12 *"
     }
   ]
 }
