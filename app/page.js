@@ -2202,15 +2202,6 @@ export default async function Home() {
             and Tyler. Reed, Cody, Tyler, Ryan, Austin, Brent,
             and Jacob still play today.
           </p>
-
-          <p>
-            As some of the original members stepped away, we started filling
-            those spots with friends and friends of friends. Spencer played in
-            earlier seasons, and over the years Thomas, Tres, Matt, and Val
-            joined the league. Tres grew up in Pearland before moving to West
-            Columbia around age ten, while Matt came from Friendswood and Val
-            from San Antonio.
-          </p>
         </div>
       </HomeCategory>
 
