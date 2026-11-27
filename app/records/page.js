@@ -1278,7 +1278,7 @@ export default async function RecordsPage() {
           owner={individualRecord?.player_name}
           team={individualRecord?.dirty_p_team_name}
           note={individualRecord && formatWeek(individualRecord.season_year, individualRecord.scoring_period)}
-          secondary="Based on verified starting lineups. Historical weekly player data is incomplete."
+          secondary="Weekly team scores go back to 2014. Verified individual player scores currently go back to 2026."
         />
 
         {highestRegularScore && (
