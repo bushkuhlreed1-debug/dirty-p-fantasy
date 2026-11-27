@@ -3240,7 +3240,7 @@ export default async function Home() {
           font-weight: 800;
         }
         .dp-espn-columns span:nth-child(3), .dp-espn-columns span:nth-child(4) { text-align: right; }
-        .dp-espn-stat-focus { text-align:right; overflow-wrap:anywhere; line-height:1.35; font-variant-numeric:tabular-nums; color:var(--dp-muted); font-size:12px; font-weight:700; }
+        .dp-espn-stat-focus { min-width:0; white-space:normal; text-align:right; overflow-wrap:anywhere; line-height:1.35; font-variant-numeric:tabular-nums; color:var(--dp-muted); font-size:12px; font-weight:700; }
         .dp-espn-stat-active { font-size:13px; font-weight:900; color:var(--dp-gold); letter-spacing:.08px; }
         .dp-espn-player:has(.dp-espn-stat-active) { min-height:94px; }
         .dp-espn-player:has(.dp-espn-stat-active) .dp-espn-actual { font-size:17px; color:var(--dp-ink); font-weight:900; }
@@ -3277,7 +3277,7 @@ export default async function Home() {
         .dp-live-columns { grid-template-columns:repeat(2,minmax(0,1fr)); }
         .dp-live-columns .dp-espn-team-title { font-size:14px; padding:17px 15px; }
         .dp-live-columns .dp-espn-columns, .dp-live-columns .dp-espn-player {
-          grid-template-columns:38px minmax(115px,1.2fr) minmax(124px,1.15fr) 73px;
+          grid-template-columns:38px minmax(0,1.2fr) minmax(0,1.15fr) 73px;
           column-gap:12px; padding-left:14px; padding-right:14px;
         }
         .dp-live-columns .dp-espn-columns { font-size:11px; padding-top:12px; padding-bottom:12px; }
@@ -3602,10 +3602,7 @@ export default async function Home() {
             gap:12px;
           }
           .dp-live-record-card {padding:17px;}
-          .dp-live-matchup-grid {
-            grid-template-columns:minmax(0,1fr);
-            gap:18px;
-          }
+          .dp-live-matchup-grid { gap:18px; }
           .dp-live-matchup-grid .dp-matchup-versus {
             padding:17px 13px;
           }
@@ -3623,7 +3620,7 @@ export default async function Home() {
             padding-bottom:11px;
           }
         }
-        @media (min-width:700px) and (max-width:1050px) {
+        @media (min-width:701px) and (max-width:1050px) {
           .dp-live-columns {grid-template-columns:minmax(0,1fr);}
           .dp-live-columns > div + div {
             border-left:0;
@@ -3647,10 +3644,7 @@ export default async function Home() {
           .dp-divisions-grid {grid-template-columns:minmax(0,1fr);}
         }
         @media (min-width:900px) and (max-width:1199px) {
-          .dp-matchup-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
-        }
-        @media (min-width:1051px) and (max-width:1199px) {
-          .dp-live-columns {grid-template-columns:repeat(2,minmax(0,1fr));}
+          .dp-matchup-grid:not(.dp-live-matchup-grid) {grid-template-columns:repeat(2,minmax(0,1fr));}
         }
 
       `}</style>
