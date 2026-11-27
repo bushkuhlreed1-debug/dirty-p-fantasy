@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getLeagueData } from "../../lib/leagueData";
 import { getEspnLiveScoreMap } from "../../lib/espnLiveScore";
+import { buildWeeklyHighScores, formatHighScoreMoney, HIGH_SCORE_PRIZE } from "../../lib/weeklyHighScores";
 import WeekPicker from "./WeekPicker";
 import "./scoreboard.css";
 
@@ -61,6 +62,12 @@ export default async function WeeklyScoreboard({ searchParams }) {
   const teams = new Map(league.currentTeams.map(team => [Number(team.owner_id), Number(team.espn_team_id)]));
   const matchups = seasonGames.filter(game => Number(game.matchup_period) === week);
 
+  const { awards } = buildWeeklyHighScores({ ...league, historicalMatchups: [] });
+  awards.sort((a, b) => a.week - b.week);
+  const weekAward = awards.find(award => award.week === week);
+  const prize = formatHighScoreMoney(HIGH_SCORE_PRIZE);
+  const winnerNames = award => award.winnerIds.map(id => owners.get(id) ?? "Unknown owner").join(" & ");
+
   return (
     <main className="page-shell weekly-board">
       <section className="owners-hero">
@@ -74,12 +81,33 @@ export default async function WeeklyScoreboard({ searchParams }) {
       {matchups.length ? (
         <section className="owners-section" aria-labelledby="weekly-board-title">
           <div className="section-heading"><h2 id="weekly-board-title">{season} · Week {week}</h2></div>
+          {weekAward && <p className="weekly-board-game-label">
+            <strong>{weekAward.winnerIds.length === 1 ? `${prize} high-score winner` : `${prize} high-score prize · Tie pending`}</strong>
+            <span>{winnerNames(weekAward)} · {weekAward.points.toFixed(2)} pts</span>
+          </p>}
           <div className="weekly-board-grid">
             {matchups.map(game => <Matchup key={game.id} game={game} owners={owners} teams={teams}
               liveScores={liveScores} />)}
           </div>
         </section>
       ) : <p>No matchups available.</p>}
+      <details className="owners-section dp-home-category">
+        <summary className="section-heading dp-home-category-toggle"><h2>Weekly Payout Winners</h2></summary>
+        <p className="dp-all-stars-note">{prize} goes to the highest scorer each completed regular-season week. Check these awards against your payment history.</p>
+        {awards.length ? (
+          <table className="dp-all-stars-table" aria-label="Weekly payout winners">
+            <thead><tr><th scope="col">Week</th><th scope="col">Owner</th><th scope="col">Points</th><th scope="col">Prize</th></tr></thead>
+            <tbody>{awards.map(award => (
+              <tr key={award.week}>
+                <th scope="row"><Link href={`/scoreboard?week=${award.week}`}>{award.week}</Link></th>
+                <td>{winnerNames(award)}</td>
+                <td>{award.points.toFixed(2)}</td>
+                <td>{award.winnerIds.length === 1 ? prize : "Tie pending"}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        ) : <p>No completed weekly awards yet.</p>}
+      </details>
     </main>
   );
 }
