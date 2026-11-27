@@ -10,3 +10,7 @@
 .weekly-board-team small { display: block; color: var(--dp-muted); overflow-wrap: anywhere; }
 .weekly-board-team > strong { font-variant-numeric: tabular-nums; }
 .weekly-board-winner { background: var(--dp-pear-wash); }
+
+.weekly-payout-scroll { overflow-x: auto; }
+.weekly-payout-status { min-height: 36px; padding: 4px 10px; border: 1px solid var(--dp-line); border-radius: 8px; background: var(--dp-soft); color: var(--dp-ink); font: inherit; font-weight: 750; cursor: pointer; }
+.weekly-payout-status[aria-pressed="true"] { border-color: var(--dp-pear-line); background: var(--dp-pear-wash); color: var(--dp-green); }

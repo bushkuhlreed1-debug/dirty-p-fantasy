@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getLeagueData } from "../../lib/leagueData";
 import { getEspnLiveScoreMap } from "../../lib/espnLiveScore";
 import { buildWeeklyHighScores, formatHighScoreMoney, HIGH_SCORE_PRIZE } from "../../lib/weeklyHighScores";
+import PayoutStatus from "./PayoutStatus";
 import WeekPicker from "./WeekPicker";
 import "./scoreboard.css";
 
@@ -93,19 +94,24 @@ export default async function WeeklyScoreboard({ searchParams }) {
       ) : <p>No matchups available.</p>}
       <details className="owners-section dp-home-category">
         <summary className="section-heading dp-home-category-toggle"><h2>Weekly Payout Winners</h2></summary>
-        <p className="dp-all-stars-note">{prize} goes to the highest scorer each completed regular-season week. Check these awards against your payment history.</p>
+        <p className="dp-all-stars-note">{prize} goes to the highest scorer each completed regular-season week. Mark each prize paid after checking your payment history. Payment status is saved in this browser.</p>
         {awards.length ? (
+          <div className="weekly-payout-scroll">
           <table className="dp-all-stars-table" aria-label="Weekly payout winners">
-            <thead><tr><th scope="col">Week</th><th scope="col">Owner</th><th scope="col">Points</th><th scope="col">Prize</th></tr></thead>
+            <thead><tr><th scope="col">Week</th><th scope="col">Owner</th><th scope="col">Points</th><th scope="col">Prize</th><th scope="col">Status</th></tr></thead>
             <tbody>{awards.map(award => (
               <tr key={award.week}>
                 <th scope="row"><Link href={`/scoreboard?week=${award.week}`}>{award.week}</Link></th>
                 <td>{winnerNames(award)}</td>
                 <td>{award.points.toFixed(2)}</td>
                 <td>{award.winnerIds.length === 1 ? prize : "Tie pending"}</td>
+                <td>{award.winnerIds.length === 1 ? (
+                  <PayoutStatus season={award.year} week={award.week} ownerId={award.winnerIds[0]} />
+                ) : "Pending"}</td>
               </tr>
             ))}</tbody>
           </table>
+          </div>
         ) : <p>No completed weekly awards yet.</p>}
       </details>
     </main>
