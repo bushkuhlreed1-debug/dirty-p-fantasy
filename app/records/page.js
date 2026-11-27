@@ -1,3 +1,4 @@
+import { getLeaguePlayerRecord } from "../../lib/ownerPlayerRecord";
 import Link from "next/link";
 import { getLeagueData } from "../../lib/leagueData";
 import { buildLuckRankings } from "../../lib/luckRankings";
@@ -519,6 +520,8 @@ export default async function RecordsPage() {
       </main>
     );
   }
+
+  const individualRecord = await getLeaguePlayerRecord(leagueData);
 
   const {
     currentSeason,
@@ -1268,6 +1271,15 @@ export default async function RecordsPage() {
         title="Weekly Records"
         subtitle="Updated after every completed week"
       >
+
+        <RecordCard
+          label="MOST FANTASY POINTS BY A PLAYER IN ONE MATCHUP"
+          value={individualRecord ? formatScore(individualRecord.fantasy_points) : "Unavailable"}
+          owner={individualRecord?.player_name}
+          team={individualRecord?.dirty_p_team_name}
+          note={individualRecord && formatWeek(individualRecord.season_year, individualRecord.scoring_period)}
+          secondary="Based on verified starting lineups. Historical weekly player data is incomplete."
+        />
 
         {highestRegularScore && (
           <RecordCard
