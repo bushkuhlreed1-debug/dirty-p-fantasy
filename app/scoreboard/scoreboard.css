@@ -1,0 +1,12 @@
+.weekly-board-picker { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0; }
+.weekly-board-picker label { display: grid; gap: 5px; min-width: 120px; font-weight: 700; color: var(--dp-ink); }
+.weekly-board-picker select { min-height: 44px; padding: 6px 12px; color: var(--dp-ink); background: var(--dp-white); border: 1px solid var(--dp-pear-line); border-radius: 9px; font: inherit; }
+.weekly-board-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.weekly-board-game { border: 1px solid var(--dp-line); border-radius: 13px; overflow: hidden; background: var(--dp-white); }
+.weekly-board-game-label, .weekly-board-team { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
+.weekly-board-game-label { color: var(--dp-gold); background: var(--dp-soft); font-size: .82rem; }
+.weekly-board-team { min-height: 60px; border-top: 1px solid var(--dp-line); }
+.weekly-board-team a { font-weight: 750; overflow-wrap: anywhere; }
+.weekly-board-team small { display: block; color: var(--dp-muted); overflow-wrap: anywhere; }
+.weekly-board-team > strong { font-variant-numeric: tabular-nums; }
+.weekly-board-winner { background: var(--dp-pear-wash); }

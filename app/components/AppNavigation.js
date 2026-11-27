@@ -9,6 +9,7 @@ const links = [
   { href: "/owners", label: "Owners", icon: "users" },
   { href: "/champions", label: "Champions", icon: "trophy" },
   { href: "/notifications", label: "Notifications", mobileLabel: "Alerts", icon: "bell" },
+  { href: "/scoreboard", label: "Weekly Scoreboards", icon: "chart" },
   { href: "/records", label: "Records", icon: "chart" },
   { href: "/goat", label: "GOAT Rankings", icon: "crown" },
   { href: "/rivalry-week", label: "Rivalry Week", icon: "swords" },

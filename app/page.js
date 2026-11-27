@@ -2530,6 +2530,8 @@ export default async function Home() {
             </span>
           </summary>
 
+          <div className="page-nav" id="live-scoreboard"><Link href="/scoreboard">Browse all weekly scoreboards →</Link></div>
+
           <div className="dp-matchup-grid dp-live-matchup-grid">
             {rankedMatchups.map(
               matchup => (
